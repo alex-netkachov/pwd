@@ -89,7 +89,7 @@ private static void TestOpensslDecryptingEncryptedData()
 private static void TestGetFilesRecursively()
 {
     var files = GetFilesRecursively().ToList();
-    foreach (var file in new [] { "test/test_file.dat", "LICENSE", "README.md" })
+    foreach (var file in new [] { "LICENSE", "README.md" })
         Assert(files.Contains(file));
 }
 

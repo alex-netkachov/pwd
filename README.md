@@ -47,7 +47,7 @@ Might be a bit hardcore, so there are two commands for decrypting the files and 
 
 # Testing
 
-The tests are in the `pwd.test.csx`, and can be run with `dotnet script .\pwd.test.csx -- -t`.
+The tests are in the `pwd.test.csx`, and can be run with `dotnet script ./pwd.test.csx -- -t`.
 
 ## Story of pwd
 

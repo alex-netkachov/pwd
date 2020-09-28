@@ -2,6 +2,7 @@
 
 #r "nuget: ReadLine, 2.0.1"
 #r "nuget: YamlDotNet, 8.1.2"
+#r "nuget: PasswordGenerator, 2.0.5"
 
 // `dotnet tool install -g dotnet-script`
 // `dotnet script pwd.csx` or `./pwd.csx`
@@ -10,6 +11,7 @@ using System;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
+using PasswordGenerator;
 
 private static Exception Try(Action action)
 {
@@ -308,8 +310,7 @@ private Action<CommandContext> Route(string input) =>
                 return;
             ctx.Session.Replace(input);
             ctx.Session.PrintContent();
-        }
-        ,
+        },
         ".check" => ctx =>
         {
             if (string.IsNullOrEmpty(ctx.Session.Path))
@@ -325,6 +326,19 @@ private Action<CommandContext> Route(string input) =>
                 ctx.Session.Open(path);
                 ctx.Session.PrintContent();
             }
+        },
+        _ when input.StartsWith("+") => ctx => {
+            var path = input.Substring(1);
+            var folder = Path.GetDirectoryName(path);
+            if (folder != "" && !Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+            var line = "";
+            var content = new StringBuilder();
+            while ("" != (line = Console.ReadLine()))
+                content.AppendLine(line.Replace("***", new Password().Next()));
+            ctx.Session.Write(path, content.ToString());
+            ctx.Session.Open(path);
+            ctx.Session.PrintContent();
         },
         _ => ctx =>
         {
