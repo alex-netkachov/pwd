@@ -111,7 +111,8 @@ public class Session
                 FileInfo file when IsFileEncrypted($"{path}/{file.Name}") => new[] { $"{path}/{file.Name}" },
                 DirectoryInfo dir when !dir.Name.StartsWith(".") => GetAllFiles($"{path}/{dir.Name}"),
                 _ => new string[0]
-            });
+            })
+            .Select(item => item.Substring(2));
 
     public string Read(string name) =>
         AutoFix(Decrypt(_password, File.ReadAllBytes(name)));
