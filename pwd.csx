@@ -261,18 +261,6 @@ public static (string, string, string) ParseRegexCommand(string text)
     return (parts[0].ToString(), replacement, parts[2].ToString());
 }
 
-var password = ReadLine.ReadPassword("Password: ");
-
-Session session = null;
-var e = Try(() => session = new Session(password));
-if (e != null)
-{
-    Console.Error.WriteLine(e.Message);
-    return;
-}
-
-ReadLine.HistoryEnabled = true;
-
 class AutoCompletionHandler : IAutoCompleteHandler
 {
     private Session _session;
@@ -296,41 +284,40 @@ class AutoCompletionHandler : IAutoCompleteHandler
     }
 }
 
-ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
-
 public class CommandContext
 {
+    public Session Session { get; set; }
     public bool Quit { get; set; }
 }
 
 private Action<CommandContext> Route(string input) =>
     input switch
     {
-        ".save" => _ => session.Save(),
+        ".save" => ctx => ctx.Session.Save(),
         ".quit" => ctx => ctx.Quit = true,
-        ".." => _ => session.Close(),
-        _ when input.StartsWith("/") => _ =>
+        ".." => ctx => ctx.Session.Close(),
+        _ when input.StartsWith("/") => ctx =>
         {
-            session.Replace(input);
-            session.PrintContent();
+            ctx.Session.Replace(input);
+            ctx.Session.PrintContent();
         }
         ,
-        ".check" => _ =>
+        ".check" => ctx =>
         {
-            if (string.IsNullOrEmpty(session.Path))
-                session.Check();
+            if (string.IsNullOrEmpty(ctx.Session.Path))
+                ctx.Session.Check();
             else
-                session.CheckContent();
+                ctx.Session.CheckContent();
         },
-        _ => _ =>
+        _ => ctx =>
         {
-            if (session.Path != "")
+            if (ctx.Session.Path != "")
             {
-                session.PrintContent();
+                ctx.Session.PrintContent();
                 return;
             }
 
-            var names = session.GetAllFiles()
+            var names = ctx.Session.GetAllFiles()
                 .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -340,8 +327,8 @@ private Action<CommandContext> Route(string input) =>
 
             if (name != default)
             {
-                session.Open(name);
-                session.PrintContent();
+                ctx.Session.Open(name);
+                ctx.Session.PrintContent();
                 return;
             }
 
@@ -349,11 +336,27 @@ private Action<CommandContext> Route(string input) =>
         }
     };
 
-while (true)
+if (!Args.Contains("-t"))
 {
-    var input = ReadLine.Read(session.Path + "> ").Trim();
-    var ctx = new CommandContext();
-    var e = Try(() => Route(input)?.Invoke(ctx));
-    if (e != null) Console.Error.WriteLine(e.Message);
-    if (ctx.Quit) break;
+    var password = ReadLine.ReadPassword("Password: ");
+
+    Session session = null;
+    var e1 = Try(() => session = new Session(password));
+    if (e1 != null)
+    {
+        Console.Error.WriteLine(e1.Message);
+        return;
+    }
+
+    ReadLine.HistoryEnabled = true;
+    ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
+
+    while (true)
+    {
+        var input = ReadLine.Read(session.Path + "> ").Trim();
+        var ctx = new CommandContext { Session = session };
+        var e2 = Try(() => Route(input)?.Invoke(ctx));
+        if (e2 != null) Console.Error.WriteLine(e2.Message);
+        if (ctx.Quit) break;
+    }
 }

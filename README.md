@@ -45,6 +45,10 @@ Might be a bit hardcore, so there are two commands for decrypting the files and 
 - Encrypt: `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2 > file`
 - Decrypt: `cat file | openssl aes-256-cbc -d -salt -pbkdf2 > file.txt`
 
+# Testing
+
+The tests are in the `pwd.test.csx`, and can be run with `dotnet script .\pwd.test.csx -- -t`.
+
 ## Story of pwd
 
 For years I was in a search for the right password management tool. I've started
