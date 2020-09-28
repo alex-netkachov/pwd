@@ -13,14 +13,37 @@ Features:
 
 ## Requirements
 
-- (.NET core)[https://dotnet.microsoft.com/download]
-- (dotnet-script)[https://github.com/filipw/dotnet-script]
+- [.NET core](https://dotnet.microsoft.com/download)
+- [dotnet-script](https://github.com/filipw/dotnet-script)
 
 ## Quickstart
 
-1. Install .NET core and dotnet-script
-2. Clone/copy this repository
-3. Run pwd.csx
+1. Install [.NET core](https://dotnet.microsoft.com/download) and
+   [dotnet-script](https://github.com/filipw/dotnet-script)
+2. Clone/copy this repository.
+3. Run `dotnet script pwd.csx`.
+4. When the tool runs, type a password for your new storage.
+5. In the terminal, copy the created file `template` to `website.com`.
+6. Back in the tool, press Enter to see the list of files.
+7. Type `websi` and press TAB to autocomplete, then press Enter. Ot just press Enter.
+7. Replace username by typing `/user: xxx/user: tom/` and password `/password: xxx/password: secret/`.
+8. Save the modified file, type `.save`.
+9. Go back to the file list, type `..`.
+
+## Highlights
+
+The tool's prompt is a readline's input, so there are some shortcuts: https://github.com/tonerdo/readline
+
+Passwords are stored in files. When the tool starts, it checks the integrity of all encrypted files
+in the folder: it checks that they can be decrypted are valid YAML files. See more on YAML here:
+https://yaml.org/.
+
+File content can be modified by using regular expressions. See Quickstart above for an example.
+Might be a bit hardcore, so there are two commands for decrypting the files and encrypting them back:
+
+- Encrypt: `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2 > file`
+- Decrypt: `cat file | openssl aes-256-cbc -d -salt -pbkdf2 > file.txt`
+
 
 ## Story of pwd
 
