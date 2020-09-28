@@ -86,11 +86,19 @@ private static void TestOpensslDecryptingEncryptedData()
     Assert(text == decrypted);
 }
 
+private static void TestGetFilesRecursively()
+{
+    var files = GetFilesRecursively().ToList();
+    foreach (var file in new [] { "test/test_file.dat", "LICENSE", "README.md" })
+        Assert(files.Contains(file));
+}
+
 private static void Tests()
 {
     Test(TestEncryptDecryptRoundup, nameof(TestEncryptDecryptRoundup));
     Test(TestOpensslDecryptingEncryptedData, nameof(TestOpensslDecryptingEncryptedData));
     Test(TestDecryptingOpensslEncryptedData, nameof(TestDecryptingOpensslEncryptedData));
+    Test(TestGetFilesRecursively, nameof(TestGetFilesRecursively));
 }
 
 Tests();

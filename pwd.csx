@@ -76,6 +76,20 @@ public static bool IsFileEncrypted(string path)
     return "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8));
 }
 
+private static string JoinPath(string path1, string path2) =>
+    ((string.IsNullOrEmpty(path1) || path1 == ".") ? "" : $"{path1}/") + path2;
+
+public static IEnumerable<string> GetFilesRecursively(string path = null) =>
+    new DirectoryInfo(string.IsNullOrEmpty(path) ? "." : path)
+        .EnumerateFileSystemInfos()
+        .OrderBy(info => info.Name)
+        .SelectMany(info => info switch
+        {
+            FileInfo file when !file.Name.StartsWith(".") => new[] { JoinPath(path, file.Name) },
+            DirectoryInfo dir when !dir.Name.StartsWith(".") => GetFilesRecursively(JoinPath(path, dir.Name)),
+            _ => new string[0]
+        });
+
 public class Session
 {
     private string _password;
@@ -86,7 +100,7 @@ public class Session
     {
         _password = password;
         Check();
-        if (!GetAllFiles().Any())
+        if (!GetEncryptedFilesRecursively().Any())
             Write("template", "site: xxx\nuser: xxx\npassword: xxx\n");
     }
 
@@ -97,22 +111,14 @@ public class Session
             .OrderBy(info => info.Name)
             .Where(info => info switch
             {
-                FileInfo file => IsFileEncrypted($"{path}/{file.Name}"),
+                FileInfo file => !file.Name.StartsWith(".") && IsFileEncrypted($"{path}/{file.Name}"),
                 DirectoryInfo dir => !dir.Name.StartsWith("."),
                 _ => false
             })
             .Select(info => info.Name);
 
-    public IEnumerable<string> GetAllFiles(string path = ".") =>
-        new DirectoryInfo(path).EnumerateFileSystemInfos()
-            .OrderBy(info => info.Name)
-            .SelectMany(info => info switch
-            {
-                FileInfo file when IsFileEncrypted($"{path}/{file.Name}") => new[] { $"{path}/{file.Name}" },
-                DirectoryInfo dir when !dir.Name.StartsWith(".") => GetAllFiles($"{path}/{dir.Name}"),
-                _ => new string[0]
-            })
-            .Select(item => item.Substring(2));
+    public IEnumerable<string> GetEncryptedFilesRecursively(string path = null) =>
+        GetFilesRecursively(path).Where(IsFileEncrypted);
 
     public string Read(string name) =>
         AutoFix(Decrypt(_password, File.ReadAllBytes(name)));
@@ -152,7 +158,7 @@ public class Session
 
     public void Check()
     {
-        var names = GetAllFiles().ToList();
+        var names = GetEncryptedFilesRecursively().ToList();
         if (names.Count == 0)
             return;
         var wrongPassword = new List<string>();
@@ -298,6 +304,8 @@ private Action<CommandContext> Route(string input) =>
         ".." => ctx => ctx.Session.Close(),
         _ when input.StartsWith("/") => ctx =>
         {
+            if (ctx.Session.Path == "")
+                return;
             ctx.Session.Replace(input);
             ctx.Session.PrintContent();
         }
@@ -309,6 +317,15 @@ private Action<CommandContext> Route(string input) =>
             else
                 ctx.Session.CheckContent();
         },
+        _ when input.StartsWith(".open ") => ctx => {
+            var path = input.Substring(5).Trim();
+            Console.WriteLine(path);
+            if (File.Exists(path) && IsFileEncrypted(path))
+            {
+                ctx.Session.Open(path);
+                ctx.Session.PrintContent();
+            }
+        },
         _ => ctx =>
         {
             if (ctx.Session.Path != "")
@@ -317,7 +334,7 @@ private Action<CommandContext> Route(string input) =>
                 return;
             }
 
-            var names = ctx.Session.GetAllFiles()
+            var names = ctx.Session.GetEncryptedFilesRecursively()
                 .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
