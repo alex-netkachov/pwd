@@ -131,6 +131,16 @@ public class Session
     public void PrintContent() =>
         Console.WriteLine(_content);
 
+    public string ExportContentToTempFile()
+    {
+        var path = System.IO.Path.GetTempFileName() + ".yaml";
+        System.IO.File.WriteAllText(path, _content);
+        return path;
+    }
+
+    public void ReadContentFromFile(string path) =>
+        _content = File.ReadAllText(path);
+
     public void Open(string path)
     {
         _content = Read(path);
@@ -304,15 +314,13 @@ private Action<CommandContext> Route(string input) =>
         ".save" => ctx => ctx.Session.Save(),
         ".quit" => ctx => ctx.Quit = true,
         ".." => ctx => ctx.Session.Close(),
-        _ when input.StartsWith("/") => ctx =>
-        {
+        _ when input.StartsWith("/") => ctx => {
             if (ctx.Session.Path == "")
                 return;
             ctx.Session.Replace(input);
             ctx.Session.PrintContent();
         },
-        ".check" => ctx =>
-        {
+        ".check" => ctx => {
             if (string.IsNullOrEmpty(ctx.Session.Path))
                 ctx.Session.Check();
             else
@@ -327,6 +335,37 @@ private Action<CommandContext> Route(string input) =>
                 ctx.Session.PrintContent();
             }
         },
+        ".edit" => ctx => {
+            var editor = Environment.GetEnvironmentVariable("EDITOR");
+            if (string.IsNullOrEmpty(editor))
+            {
+                Console.Error.WriteLine("The environment variable EDITOR is not set.");
+                return;
+            }
+            var path = ctx.Session.ExportContentToTempFile();
+            try
+            {
+                var info = new ProcessStartInfo(editor, path);
+                var process = Process.Start(info);
+                process.WaitForExit();
+                Console.Write("Update the content (y/n)? ");
+                var choice = Console.ReadLine();
+                if (choice.ToLowerInvariant() == "y")
+                {
+                    ctx.Session.ReadContentFromFile(path);
+                    ctx.Session.PrintContent();
+                }
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        },
+        "***" => ctx => {
+            var pwd = new Password();
+            for (var i = 0; i < 5; i++)
+                Console.WriteLine(pwd.Next());
+        },
         _ when input.StartsWith("+") => ctx => {
             var path = input.Substring(1);
             var folder = Path.GetDirectoryName(path);
@@ -340,8 +379,7 @@ private Action<CommandContext> Route(string input) =>
             ctx.Session.Open(path);
             ctx.Session.PrintContent();
         },
-        _ => ctx =>
-        {
+        _ => ctx => {
             if (ctx.Session.Path != "")
             {
                 ctx.Session.PrintContent();

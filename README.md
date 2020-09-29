@@ -3,7 +3,7 @@ pwd is a simple console password manager.
 
 Features:
 
-- It is small, less than 400 lines of C# code.
+- It is small, less than 450 lines of C# code.
 - It is DRY, it is only focused on helping you managing passwords.
 - It does not vendor-lock you, use pwd together with openssl and your text editor. 
 - It is opensource, so you can see what it does (and it small).
@@ -39,11 +39,12 @@ Passwords are stored in files. When the tool starts, it checks the integrity of 
 in the folder: it checks that they can be decrypted are valid YAML files. See more on YAML here:
 https://yaml.org/.
 
-File content can be modified by using regular expressions. See Quickstart above for an example.
-Might be a bit hardcore, so there are two commands for decrypting the files and encrypting them back:
+There are several ways to modify content of the encrypted file:
 
-- Encrypt: `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2 > file`
-- Decrypt: `cat file | openssl aes-256-cbc -d -salt -pbkdf2 > file.txt`
+- using regular expressions, see Quickstart above for the example
+- when the environment variable EDITOR is set, type `.edit`
+- decrypt `cat file | openssl aes-256-cbc -d -salt -pbkdf2 > file.txt`, edit, and then
+  encrypt `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2 > file` with openssl
 
 # Testing
 
@@ -111,7 +112,7 @@ with openssl to encrypt and decrypt files, it checks the integrity of the passwo
 database, and it allows to view several files without needing to type the password
 each time.
 
-It is quite small, less than 400 lines. I want to keep it simple and understandable
+It is quite small, less than 450 lines. I want to keep it simple and understandable
 so everyone can make sure that there are no hidden threats. The code is clean and
 simple so new commands can be added easily.
 
