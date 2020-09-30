@@ -3,13 +3,16 @@ pwd is a simple console password manager.
 
 Features:
 
-- It is small, less than 450 lines of C# code.
+- It is small, less code means less bugs and less hidden places.
 - It is DRY, it is only focused on helping you managing passwords.
 - It does not vendor-lock you, use pwd together with openssl and your text editor. 
 - It is opensource, so you can see what it does (and it small).
 - It is cross-platform, it works where dotnet works.
 - It is a script, so add your functionality as you please.
 - It is quite powerful (considering its size).
+
+I'm accepting feature requests, add an [issue](https://github.com/AlexAtNet/pwd/issues) or
+send me a message: <alex.netkachov@gmail.com>. 
 
 ## Requirements
 
@@ -112,9 +115,8 @@ with openssl to encrypt and decrypt files, it checks the integrity of the passwo
 database, and it allows to view several files without needing to type the password
 each time.
 
-It is quite small, less than 450 lines. I want to keep it simple and understandable
-so everyone can make sure that there are no hidden threats. The code is clean and
-simple so new commands can be added easily.
+I want to keep it simple and understandable so everyone can make sure that there
+are no hidden threats. The code is clean and simple so new commands can be added easily.
 
 This solution has been serving me well for several years already. As it is now
 a time-proven one, I'm happy to share it with you. Enjoy and be safe.
