@@ -15,7 +15,7 @@ string LocateOpenssl() =>
     new[] {
         Environment.GetEnvironmentVariable("ProgramFiles") + @"\Git\usr\bin\openssl.exe",
         Environment.GetEnvironmentVariable("LOCALAPPDATA") + @"\Programs\Git\usr\bin\openssl.exe"
-    }.FirstOrDefault(File.Exists) ?? "openssl.exe";
+    }.FirstOrDefault(File.Exists) ?? "openssl";
 
 
 void TestEncryptDecryptRoundup() {

@@ -4,9 +4,6 @@
 #r "nuget: YamlDotNet, 8.1.2"
 #r "nuget: PasswordGenerator, 2.0.5"
 
-// `dotnet tool install -g dotnet-script`
-// `dotnet script pwd.csx` or `./pwd.csx`
-
 using System;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
@@ -15,10 +12,6 @@ using PasswordGenerator;
 
 static Exception Try(Action action) {
    try { action(); return null; } catch (Exception e) { return e; }
-}
-
-static (T, Exception) Try<T>(Func<T> func) {
-   try { return (func(), null); } catch (Exception e) { return (default, e); }
 }
 
 static Aes CreateAes(byte[] salt, string password) {
@@ -37,7 +30,6 @@ static byte[] ReadBytes(Stream stream, int length) {
    return chunk;
 }
 
-// It is idential to `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2`
 static byte[] Encrypt(string password, string text) {
    var salt = new byte[8];
    using var rng = new RNGCryptoServiceProvider();
@@ -56,7 +48,6 @@ static byte[] Encrypt(string password, string text) {
    return stream.ToArray();
 }
 
-// It is idential to `cat file | openssl aes-256-cbc -d -salt -pbkdf2`
 static string Decrypt(string password, byte[] data) {
    using var stream = new MemoryStream(data);
    if ("Salted__" != Encoding.ASCII.GetString(ReadBytes(stream, 8)))
@@ -85,7 +76,7 @@ class GetFilesOptions {
 }
 
 static IEnumerable<string> GetFiles(string path, GetFilesOptions options) =>
-    new DirectoryInfo(path)
+    Directory.Exists(path) ? new DirectoryInfo(path)
         .EnumerateFileSystemInfos()
         .OrderBy(info => info.Name)
         .SelectMany(info => info switch {
@@ -95,7 +86,7 @@ static IEnumerable<string> GetFiles(string path, GetFilesOptions options) =>
                ((options?.Recursively ?? false) ? GetFiles(JoinPath(path, dir.Name), options) : new string[0])
                   .Concat(options.IncludeFolders ? new[] { JoinPath(path, dir.Name) } : new string[0]),
            _ => new string[0]
-        });
+        }) : Enumerable.Empty<string>();
 
 static (string, string, string) ParseRegexCommand(string text) {
    (string, int) Read(int idx) {
@@ -126,10 +117,8 @@ static (string, string, string) ParseRegexCommand(string text) {
 public class Session {
    private string _password;
 
-   public Session(string password) {
+   public Session(string password) =>
       _password = password;
-      Check();
-   }
 
    public string Path { get; private set; }
    public string Content { get; private set; }
@@ -266,8 +255,7 @@ public class CommandContext {
 }
 
 private Action<CommandContext> Route(string input) =>
-    input switch
-    {
+    input switch {
        ".save" => ctx => ctx.Session.Save(),
        ".quit" => ctx => ctx.Quit = true,
        ".." => ctx => ctx.Session.Close(),
@@ -387,6 +375,7 @@ if (!Args.Contains("-t")) {
       Console.Error.WriteLine(e1.Message);
       return;
    }
+   session.Check();
    if (!session.GetEncryptedFilesRecursively(".", true).Any()) {
       Console.WriteLine("It seems that you are initialising the passwords repository.");
       var confirmPassword = ReadLine.ReadPassword("Confirm password: ");
