@@ -53,6 +53,31 @@ There are several ways to modify content of the encrypted file:
 
 The tests are in the `pwd.test.csx`, and can be run with `dotnet script ./pwd.test.csx -- -t`.
 
+# List of Commands
+
+Commands could be sent to pwd by typing them and pressing enter. Most of the commands are either
+for a single passwords file or for a list of them. When pwd starts, it enters the list mode. From
+the list mode you can go to the file mode by typing a part of the file name or by using `.open`. 
+
+Commands:
+
+- The app opens a file when there is a file with name that is equal to the command text or there is
+only with name that starts with the command text. The command text should not start with ".".
+- `..` leaves the file mode and enters the list mode.
+- `.new file` copies the lines typed until the first new line into the file. Substitutes
+`***` with a password.
+- `.open file` opens the encrypted file.
+- `.pwd` prints a strong password.
+- `.edit editor?` opens the editor with the password file in it. The editor can be set through
+the environment variable `EDITOR`.
+- `.rm` removes the currently open file.
+- `.arvhive` modes a passwords file to the folder `.archive`. As this folder begins with `.`,
+the directory reader will not display this folder in the list of encrypted files. Archived
+files are checked when the tool starts and can be opened with `.open`.
+- `.cc name` copies a `name: value` pair to clipboard. `clip.exe` is used for Windows and WSL,
+`pbcopy` is for mac, and `xclip` is for Linux. There are two shortcuts: `.ccu` for `.cc user`
+and `.ccp` for `.cc password`.
+
 ## Story of pwd
 
 For years I was in a search for the right password management tool. I've started
