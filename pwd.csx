@@ -254,35 +254,39 @@ public class CommandContext {
    public bool Quit { get; set; }
 }
 
+private (string, string, string) ParseCommand(string input) {
+   var match = Regex.Match(input, @"^\.(\w+)(?: +(.+))?$");
+   return match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", "");
+}
+
 private Action<CommandContext> Route(string input) =>
-    input switch {
-       ".save" => ctx => ctx.Session.Save(),
-       ".quit" => ctx => ctx.Quit = true,
-       ".." => ctx => ctx.Session.Close(),
+    ParseCommand(input) switch {
+       (_, "save", _) => ctx => ctx.Session.Save(),
+       (_, "quit", _) => ctx => ctx.Quit = true,
+       ("..", _, _) => ctx => ctx.Session.Close(),
        _ when input.StartsWith("/") => ctx => {
           if (ctx.Session.Path == "") return;
           ctx.Session.Replace(input);
           Console.WriteLine(ctx.Session.Content);
        },
-       ".check" => ctx => {
+       (_, "check", _) => ctx => {
           if (string.IsNullOrEmpty(ctx.Session.Path))
              ctx.Session.Check();
           else
              ctx.Session.CheckContent();
        },
-       _ when input.StartsWith(".open ") => ctx => {
-          var path = input.Substring(".open ".Length).Trim();
+       (_, "open", var path) => ctx => {
           if (File.Exists(path) && IsFileEncrypted(path)) {
              ctx.Session.Open(path);
              Console.WriteLine(ctx.Session.Content);
           }
        },
-       _ when input.StartsWith(".archive") => ctx => {
+       (_, "archive", _) => ctx => {
           if (ctx.Session.Path == "") return;
           File.Move(ctx.Session.Path, ".archive/" + ctx.Session.Path);
           ctx.Session.Close();
        },
-       ".rm" => ctx => {
+       (_, "rm", _) => ctx => {
           if (ctx.Session.Path == "") return;
           Console.Write("Delete '" + ctx.Session.Path + "'? (y/n)");
           if (Console.ReadLine().Trim().ToUpperInvariant() == "Y") {
@@ -290,15 +294,13 @@ private Action<CommandContext> Route(string input) =>
              ctx.Session.Close();
           }
        },
-       _ when input.StartsWith(".rename ") => ctx => {
+       (_, "rename", var name) => ctx => {
           if (ctx.Session.Path == "") return;
-          var name = input.Substring(".rename ".Length).Trim();
           File.Move(ctx.Session.Path, name);
           ctx.Session.Close();
           ctx.Session.Open(name);
        },
-       _ when input.StartsWith(".edit") => ctx => {
-          var editor = input.Substring(".edit".Length).Trim();
+       (_, "edit", var editor) => ctx => {
           if (string.IsNullOrEmpty(editor))
              editor = Environment.GetEnvironmentVariable("EDITOR");
           if (string.IsNullOrEmpty(editor)) {
@@ -324,13 +326,8 @@ private Action<CommandContext> Route(string input) =>
              File.Delete(path);
           }
        },
-       ".pwd" => ctx => {
-          var pwd = new Password();
-          for (var i = 0; i < 5; i++)
-             Console.WriteLine(pwd.Next());
-       },
-       _ when input.StartsWith("+") => ctx => {
-          var path = input.Substring(1);
+       (_, "pwd", _) => ctx => Console.WriteLine(new Password().Next()),
+       (_, "new", var path) => ctx => {
           var folder = Path.GetDirectoryName(path);
           if (folder != "" && !Directory.Exists(folder))
              Directory.CreateDirectory(folder);
@@ -342,6 +339,20 @@ private Action<CommandContext> Route(string input) =>
           ctx.Session.Open(path);
           Console.WriteLine(ctx.Session.Content);
        },
+       (_, "cc", var name) => ctx => {
+          var match = Regex.Match(ctx.Session.Content, @$"{name}: *([^\n]+)");
+          if (match.Success) {
+             var process = default(Process);
+             if (Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })) == null ||
+                  Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })) == null ||
+                  Try(() => process = Process.Start(new ProcessStartInfo("xclip -sel clip") { RedirectStandardInput = true })) == null) {
+               process.StandardInput.Write(match.Groups[1].Value);
+               process.StandardInput.Close();
+             }
+          }
+       },
+       (_, "ccu", _) => Route(".cc user"),
+       (_, "ccp", _) => Route(".cc password"),
        _ => ctx => {
           if (!string.IsNullOrEmpty(ctx.Session.Path)) {
              Console.WriteLine(ctx.Session.Content);
