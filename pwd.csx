@@ -308,7 +308,7 @@ private Action<CommandContext> Route(string input) =>
           }
        },
        (_, "pwd", _) => ctx => Console.WriteLine(new Password().Next()),
-       (_, "new", var path) => ctx => {
+       (_, "add", var path) => ctx => {
           var folder = Path.GetDirectoryName(path);
           if (folder != "" && !Directory.Exists(folder))
              Directory.CreateDirectory(folder);
