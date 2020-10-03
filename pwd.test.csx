@@ -98,6 +98,7 @@ void TestParseRegexCommand() {
 }
 
 void Tests() {
+   TestParseRegexCommand();
    Test(TestEncryptDecryptRoundup, nameof(TestEncryptDecryptRoundup));
    Test(TestOpensslDecryptingEncryptedData, nameof(TestOpensslDecryptingEncryptedData));
    Test(TestDecryptingOpensslEncryptedData, nameof(TestDecryptingOpensslEncryptedData));

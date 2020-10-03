@@ -16,8 +16,7 @@ static Exception Try(Action action) {
 
 static Aes CreateAes(byte[] salt, string password) {
    var aes = Aes.Create();
-   aes.Mode = CipherMode.CBC;
-   aes.Padding = PaddingMode.PKCS7;
+   (aes.Mode, aes.Padding) = (CipherMode.CBC, PaddingMode.PKCS7);
    // 10000 and SHA256 are defaults for pbkdf2 in openssl
    using var rfc2898 = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
    (aes.Key, aes.IV) = (rfc2898.GetBytes(32), rfc2898.GetBytes(16));
@@ -88,29 +87,23 @@ static IEnumerable<string> GetFiles(string path, GetFilesOptions options) =>
            _ => new string[0]
         }) : Enumerable.Empty<string>();
 
-static (string, string, string) ParseRegexCommand(string text) {
-   (string, int) Read(int idx) {
-      var begin = idx;
+static (string, string, string) ParseRegexCommand(string text, int idx = 0) {
+   string Read() {
+      var begin = ++idx;
       bool escape = false;
       for (; idx < text.Length; idx++) {
          var ch = text[idx];
          if (!escape && ch == '\\') { escape = true; continue; }
          else if (!escape && ch == '/')
-            return (text.Substring(begin, idx - begin), idx);
+            return text.Substring(begin, idx - begin);
          escape = false;
       }
-      return (text.Substring(begin), idx);
+      return text.Substring(begin);
    }
 
-   var idx = 0;
-   string pattern, replacement, options;
-   (pattern, idx) = Read(idx + 1);
-   (replacement, idx) = Read(idx + 1);
-   (options, _) = Read(idx + 1);
-
+   var (pattern, replacement, options) = (Read(), Read(), Read());
    replacement = Regex.Replace(replacement, @"\\.", m =>
         m.Groups[0].Value[1] switch { 'n' => "\n", 't' => "\t", 'r' => "\r", var n => $"{n}" });
-
    return (pattern, replacement, options);
 }
 
@@ -135,7 +128,7 @@ public class Session {
        }).Where(IsFileEncrypted);
 
    public string Read(string path) =>
-      AutoFix(Decrypt(_password, File.ReadAllBytes(path)));
+      Decrypt(_password, File.ReadAllBytes(path));
 
    public void Write(string path, string content) {
       File.WriteAllBytes(path, Encrypt(_password, content));
@@ -220,13 +213,10 @@ public class Session {
    public void CheckContent() {
       using var reader = new StringReader(Content);
       var yaml = new YamlStream();
-      var e = Try((Action)(() => yaml.Load(reader)));
+      var e = Try(() => yaml.Load(reader));
       if (e != null)
          Console.Error.WriteLine(e.Message);
    }
-
-   private string AutoFix(string content) =>
-       Regex.Replace(content, @"\r?\n", "\n");
 }
 
 class AutoCompletionHandler : IAutoCompleteHandler {
@@ -270,16 +260,13 @@ private Action<CommandContext> Route(string input) =>
           Console.WriteLine(ctx.Session.Content);
        },
        (_, "check", _) => ctx => {
-          if (string.IsNullOrEmpty(ctx.Session.Path))
-             ctx.Session.Check();
-          else
-             ctx.Session.CheckContent();
+          if (string.IsNullOrEmpty(ctx.Session.Path)) ctx.Session.Check();
+          else ctx.Session.CheckContent();
        },
        (_, "open", var path) => ctx => {
-          if (File.Exists(path) && IsFileEncrypted(path)) {
-             ctx.Session.Open(path);
-             Console.WriteLine(ctx.Session.Content);
-          }
+          if (!File.Exists(path) || !IsFileEncrypted(path)) return;
+          ctx.Session.Open(path);
+          Console.WriteLine(ctx.Session.Content);
        },
        (_, "archive", _) => ctx => {
           if (ctx.Session.Path == "") return;
@@ -289,10 +276,9 @@ private Action<CommandContext> Route(string input) =>
        (_, "rm", _) => ctx => {
           if (ctx.Session.Path == "") return;
           Console.Write("Delete '" + ctx.Session.Path + "'? (y/n)");
-          if (Console.ReadLine().Trim().ToUpperInvariant() == "Y") {
-             File.Delete(ctx.Session.Path);
-             ctx.Session.Close();
-          }
+          if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
+          File.Delete(ctx.Session.Path);
+          ctx.Session.Close();
        },
        (_, "rename", var name) => ctx => {
           if (ctx.Session.Path == "") return;
@@ -301,27 +287,22 @@ private Action<CommandContext> Route(string input) =>
           ctx.Session.Open(name);
        },
        (_, "edit", var editor) => ctx => {
-          if (string.IsNullOrEmpty(editor))
-             editor = Environment.GetEnvironmentVariable("EDITOR");
+          editor = string.IsNullOrEmpty(editor) ? Environment.GetEnvironmentVariable("EDITOR") : editor;
           if (string.IsNullOrEmpty(editor)) {
-             Console.Error.WriteLine(
-                "The editor is not specified and the environment variable EDITOR is not set.");
+             Console.Error.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
              return;
           }
-          var content = ctx.Session.Content;
+          var originalContent = ctx.Session.Content;
           var path = ctx.Session.ExportContentToTempFile();
           try {
-             var info = new ProcessStartInfo(editor, path);
-             var process = Process.Start(info);
+             var process = Process.Start(new ProcessStartInfo(editor, path));
              process.WaitForExit();
              ctx.Session.ReadContentFromFile(path);
              Console.WriteLine(ctx.Session.Content);
              Console.Write("Save the content (y/n)? ");
              var choice = Console.ReadLine();
-             if (choice.ToLowerInvariant() == "y")
-                ctx.Session.Save();
-             else
-                ctx.Session.Write(ctx.Session.Path, content);
+             if (choice.ToLowerInvariant() == "y") ctx.Session.Save();
+             else ctx.Session.Write(ctx.Session.Path, originalContent);
           } finally {
              File.Delete(path);
           }
@@ -381,7 +362,7 @@ if (!Args.Contains("-t")) {
    var password = ReadLine.ReadPassword("Password: ");
 
    Session session = null;
-   var e1 = Try((Action)(() => session = new Session(password)));
+   var e1 = Try(() => session = new Session(password));
    if (e1 != null) {
       Console.Error.WriteLine(e1.Message);
       return;
@@ -403,7 +384,7 @@ if (!Args.Contains("-t")) {
    while (true) {
       var input = ReadLine.Read((session.Modified ? "*" : "") + session.Path + "> ").Trim();
       var ctx = new CommandContext { Session = session };
-      var e2 = Try((Action)(() => Route(input)?.Invoke(ctx)));
+      var e2 = Try(() => Route(input)?.Invoke(ctx));
       if (e2 != null) Console.Error.WriteLine(e2.Message);
       if (ctx.Quit) break;
    }
