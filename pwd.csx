@@ -34,14 +34,12 @@ static byte[] Encrypt(string password, string text) {
    rng.GetBytes(salt);
    var aes = CreateAes(salt, password);
    using var stream = new MemoryStream();
-   var salted = Encoding.ASCII.GetBytes("Salted__");
-   stream.Write(salted, 0, salted.Length);
-   stream.Write(salt, 0, salt.Length);
+   var preambule = Encoding.ASCII.GetBytes("Salted__").Concat(salt).ToArray();
+   stream.Write(preambule, 0, preambule.Length);
    using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
    using var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write);
    var data = Encoding.UTF8.GetBytes(text);
    cryptoStream.Write(data, 0, data.Length);
-   // `cryptoStream` is need to be closed before reading from `stream`
    cryptoStream.Close();
    return stream.ToArray();
 }
