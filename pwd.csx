@@ -32,7 +32,7 @@ static byte[] Encrypt(string password, string text) {
    var salt = new byte[8];
    using var rng = new RNGCryptoServiceProvider();
    rng.GetBytes(salt);
-   var aes = CreateAes(salt, password);
+   using var aes = CreateAes(salt, password);
    using var stream = new MemoryStream();
    var preambule = Encoding.ASCII.GetBytes("Salted__").Concat(salt).ToArray();
    stream.Write(preambule, 0, preambule.Length);
@@ -49,7 +49,7 @@ static string Decrypt(string password, byte[] data) {
    if ("Salted__" != Encoding.ASCII.GetString(ReadBytes(stream, 8)))
       throw new FormatException("Expecting the data stream to begin with Salted__.");
    var salt = ReadBytes(stream, 8);
-   var aes = CreateAes(salt, password);
+   using var aes = CreateAes(salt, password);
    using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
    using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read);
    using var reader = new StreamReader(cryptoStream);
