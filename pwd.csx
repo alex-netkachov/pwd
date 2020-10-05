@@ -8,7 +8,6 @@ using System;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
-using PasswordGenerator;
 
 static Exception Try(Action action) {
    try { action(); return null; } catch (Exception e) { return e; }
@@ -68,22 +67,21 @@ static bool IsFileEncrypted(string path) {
 static string JoinPath(string path1, string path2) =>
     (path1 == "." ? "" : $"{path1}/") + path2;
 
-class GetFilesOptions {
-   public bool IncludeDottedFilesAndFolders { get; set; }
-   public bool Recursively { get; set; }
-   public bool IncludeFolders { get; set; }
-}
-
-static IEnumerable<string> GetFiles(string path, GetFilesOptions options) =>
+static IEnumerable<string> GetFiles(
+      string path,
+      bool recursively = false,
+      bool includeFolders = false,
+      bool includeDottedFilesAndFolders = false) =>
     Directory.Exists(path) ? new DirectoryInfo(path)
         .EnumerateFileSystemInfos()
         .OrderBy(info => info.Name)
         .SelectMany(info => info switch {
-           FileInfo file when !file.Name.StartsWith(".") || options.IncludeDottedFilesAndFolders =>
+           FileInfo file when !file.Name.StartsWith(".") || includeDottedFilesAndFolders =>
                new[] { JoinPath(path, file.Name) },
-           DirectoryInfo dir when !dir.Name.StartsWith(".") || options.IncludeDottedFilesAndFolders =>
-               ((options?.Recursively ?? false) ? GetFiles(JoinPath(path, dir.Name), options) : new string[0])
-                  .Concat(options.IncludeFolders ? new[] { JoinPath(path, dir.Name) } : new string[0]),
+           DirectoryInfo dir when !dir.Name.StartsWith(".") || includeDottedFilesAndFolders =>
+               (recursively
+                  ? GetFiles(JoinPath(path, dir.Name), recursively, includeFolders, includeDottedFilesAndFolders)
+                  : new string[0]).Concat(includeFolders ? new[] { JoinPath(path, dir.Name) } : new string[0]),
            _ => new string[0]
         }) : Enumerable.Empty<string>();
 
@@ -107,6 +105,11 @@ static (string, string, string) ParseRegexCommand(string text, int idx = 0) {
    return (pattern, replacement, options);
 }
 
+static Exception CheckYaml(string text) {
+   using var input = new StringReader(text);
+   return Try(() => new YamlStream().Load(input));
+}
+
 public class Session {
    private string _password;
 
@@ -118,22 +121,19 @@ public class Session {
    public bool Modified { get; private set; }
 
    public IEnumerable<string> GetItems(string path = null) =>
-      GetFiles(path ?? ".", new GetFilesOptions { IncludeFolders = true })
+      GetFiles(path ?? ".", includeFolders: true)
          .Where(item => !File.Exists(item) || IsFileEncrypted(item));
 
    public IEnumerable<string> GetEncryptedFilesRecursively(string path = null, bool includeHidden = false) =>
-       GetFiles(path ?? ".", new GetFilesOptions {
-          IncludeDottedFilesAndFolders = includeHidden,
-          Recursively = true
-       }).Where(IsFileEncrypted);
+       GetFiles(path ?? ".", recursively: true, includeDottedFilesAndFolders: includeHidden)
+         .Where(IsFileEncrypted);
 
    public string Read(string path) =>
       Decrypt(_password, File.ReadAllBytes(path));
 
    public void Write(string path, string content) {
       File.WriteAllBytes(path, Encrypt(_password, content));
-      if (Path == path)
-         (Content, Modified) = (content, false);
+      if (Path == path) (Content, Modified) = (content, false);
    }
 
    public string ExportContentToTempFile() {
@@ -152,8 +152,7 @@ public class Session {
       (Path, Content, Modified) = ("", "", false);
 
    public void Save() {
-      if (Path == "")
-         return;
+      if (Path == "") return;
       Write(Path, Content);
       Modified = false;
    }
@@ -184,18 +183,11 @@ public class Session {
          if (content == default) {
             wrongPassword.Add(name);
             Console.Write('*');
-            continue;
-         }
-
-         using var input = new StringReader(content);
-         var yaml = new YamlStream();
-         if (Try(() => yaml.Load(input)) != null) {
+         } else if (CheckYaml(content) != null) {
             notYaml.Add(name);
             Console.Write('+');
-            continue;
-         }
-
-         Console.Write('.');
+         } else
+            Console.Write('.');
       }
 
       Console.WriteLine();
@@ -211,11 +203,8 @@ public class Session {
    }
 
    public void CheckContent() {
-      using var reader = new StringReader(Content);
-      var yaml = new YamlStream();
-      var e = Try(() => yaml.Load(reader));
-      if (e != null)
-         Console.Error.WriteLine(e.Message);
+      if (CheckYaml(Content) is { Message: var msg })
+         Console.Error.WriteLine(msg);
    }
 }
 
@@ -225,6 +214,7 @@ class AutoCompletionHandler : IAutoCompleteHandler {
    public AutoCompletionHandler(Session session) {
       _session = session;
    }
+
    public char[] Separators { get; set; } = new char[] { '/' };
 
    public string[] GetSuggestions(string text, int index) {
@@ -239,89 +229,82 @@ class AutoCompletionHandler : IAutoCompleteHandler {
    }
 }
 
-public class CommandContext {
-   public Session Session { get; set; }
-   public bool Quit { get; set; }
-}
-
-private (string, string, string) ParseCommand(string input) {
+(string, string, string) ParseCommand(string input) {
    var match = Regex.Match(input, @"^\.(\w+)(?: +(.+))?$");
    return match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", "");
 }
 
-private Action<CommandContext> Route(string input) =>
+Action<Session> Route(string input) =>
     ParseCommand(input) switch {
-       (_, "save", _) => ctx => ctx.Session.Save(),
-       (_, "quit", _) => ctx => ctx.Quit = true,
-       ("..", _, _) => ctx => ctx.Session.Close(),
-       _ when input.StartsWith("/") => ctx => {
-          if (ctx.Session.Path == "") return;
-          ctx.Session.Replace(input);
-          Console.WriteLine(ctx.Session.Content);
+       (_, "save", _) => session => session.Save(),
+       ("..", _, _) => session => session.Close(),
+       _ when input.StartsWith("/") => session => {
+          if (session.Path == "") return;
+          session.Replace(input);
+          Console.WriteLine(session.Content);
        },
-       (_, "check", _) => ctx => {
-          if (string.IsNullOrEmpty(ctx.Session.Path)) ctx.Session.Check();
-          else ctx.Session.CheckContent();
+       (_, "check", _) => session => {
+          if (string.IsNullOrEmpty(session.Path)) session.Check();
+          else session.CheckContent();
        },
-       (_, "open", var path) => ctx => {
+       (_, "open", var path) => session => {
           if (!File.Exists(path) || !IsFileEncrypted(path)) return;
-          ctx.Session.Open(path);
-          Console.WriteLine(ctx.Session.Content);
+          session.Open(path);
+          Console.WriteLine(session.Content);
        },
-       (_, "archive", _) => ctx => {
-          if (ctx.Session.Path == "") return;
-          File.Move(ctx.Session.Path, ".archive/" + ctx.Session.Path);
-          ctx.Session.Close();
+       (_, "archive", _) => session => {
+          if (session.Path == "") return;
+          if (!Directory.Exists(".archive")) Directory.CreateDirectory(".archive");
+          File.Move(session.Path, ".archive/" + session.Path);
+          session.Close();
        },
-       (_, "rm", _) => ctx => {
-          if (ctx.Session.Path == "") return;
-          Console.Write("Delete '" + ctx.Session.Path + "'? (y/n)");
+       (_, "rm", _) => session => {
+          if (session.Path == "") return;
+          Console.Write("Delete '" + session.Path + "'? (y/n)");
           if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
-          File.Delete(ctx.Session.Path);
-          ctx.Session.Close();
+          File.Delete(session.Path);
+          session.Close();
        },
-       (_, "rename", var name) => ctx => {
-          if (ctx.Session.Path == "") return;
-          File.Move(ctx.Session.Path, name);
-          ctx.Session.Close();
-          ctx.Session.Open(name);
+       (_, "rename", var name) => session => {
+          if (session.Path == "") return;
+          File.Move(session.Path, name);
+          session.Close();
+          session.Open(name);
        },
-       (_, "edit", var editor) => ctx => {
+       (_, "edit", var editor) => session => {
           editor = string.IsNullOrEmpty(editor) ? Environment.GetEnvironmentVariable("EDITOR") : editor;
-          if (string.IsNullOrEmpty(editor)) {
-             Console.Error.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
-             return;
-          }
-          var originalContent = ctx.Session.Content;
-          var path = ctx.Session.ExportContentToTempFile();
+          if (string.IsNullOrEmpty(editor))
+             throw new Exception("The editor is not specified and the environment variable EDITOR is not set.");
+          var originalContent = session.Content;
+          var path = session.ExportContentToTempFile();
           try {
              var process = Process.Start(new ProcessStartInfo(editor, path));
              process.WaitForExit();
-             ctx.Session.ReadContentFromFile(path);
-             Console.WriteLine(ctx.Session.Content);
+             session.ReadContentFromFile(path);
+             Console.WriteLine(session.Content);
              Console.Write("Save the content (y/n)? ");
              var choice = Console.ReadLine();
-             if (choice.ToLowerInvariant() == "y") ctx.Session.Save();
-             else ctx.Session.Write(ctx.Session.Path, originalContent);
+             if (choice.ToLowerInvariant() == "y") session.Save();
+             else session.Write(session.Path, originalContent);
           } finally {
              File.Delete(path);
           }
        },
-       (_, "pwd", _) => ctx => Console.WriteLine(new Password().Next()),
-       (_, "add", var path) => ctx => {
+       (_, "pwd", _) => session => Console.WriteLine(new PasswordGenerator.Password().Next()),
+       (_, "add", var path) => session => {
           var folder = Path.GetDirectoryName(path);
           if (folder != "" && !Directory.Exists(folder))
              Directory.CreateDirectory(folder);
           var line = "";
           var content = new StringBuilder();
           while ("" != (line = Console.ReadLine()))
-             content.AppendLine(line.Replace("***", new Password().Next()));
-          ctx.Session.Write(path, content.ToString());
-          ctx.Session.Open(path);
-          Console.WriteLine(ctx.Session.Content);
+             content.AppendLine(line.Replace("***", new PasswordGenerator.Password().Next()));
+          session.Write(path, content.ToString());
+          session.Open(path);
+          Console.WriteLine(session.Content);
        },
-       (_, "cc", var name) => ctx => {
-          var match = Regex.Match(ctx.Session.Content, @$"{name}: *([^\n]+)");
+       (_, "cc", var name) => session => {
+          var match = Regex.Match(session.Content, @$"{name}: *([^\n]+)");
           if (match.Success) {
              var process = default(Process);
              if (Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })) == null ||
@@ -334,13 +317,13 @@ private Action<CommandContext> Route(string input) =>
        },
        (_, "ccu", _) => Route(".cc user"),
        (_, "ccp", _) => Route(".cc password"),
-       _ => ctx => {
-          if (!string.IsNullOrEmpty(ctx.Session.Path)) {
-             Console.WriteLine(ctx.Session.Content);
+       _ => session => {
+          if (!string.IsNullOrEmpty(session.Path)) {
+             Console.WriteLine(session.Content);
              return;
           }
 
-          var names = ctx.Session.GetEncryptedFilesRecursively()
+          var names = session.GetEncryptedFilesRecursively()
               .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
               .ToList();
 
@@ -349,8 +332,8 @@ private Action<CommandContext> Route(string input) =>
               : names.FirstOrDefault(name => string.Equals(name, input, StringComparison.OrdinalIgnoreCase));
 
           if (name != default) {
-             ctx.Session.Open(name);
-             Console.WriteLine(ctx.Session.Content);
+             session.Open(name);
+             Console.WriteLine(session.Content);
              return;
           }
 
@@ -361,16 +344,14 @@ private Action<CommandContext> Route(string input) =>
 if (!Args.Contains("-t")) {
    var password = ReadLine.ReadPassword("Password: ");
 
-   Session session = null;
-   var e1 = Try(() => session = new Session(password));
+   var session = new Session(password);
+   var e1 = Try(() => session.Check());
    if (e1 != null) {
       Console.Error.WriteLine(e1.Message);
       return;
    }
-   session.Check();
    if (!session.GetEncryptedFilesRecursively(".", true).Any()) {
-      Console.WriteLine("It seems that you are initialising the passwords repository.");
-      var confirmPassword = ReadLine.ReadPassword("Confirm password: ");
+      var confirmPassword = ReadLine.ReadPassword("It seems that you are creating a new repository. Please confirm password:");
       if (confirmPassword != password) {
          Console.WriteLine("passwords do not match");
          return;
@@ -383,10 +364,9 @@ if (!Args.Contains("-t")) {
 
    while (true) {
       var input = ReadLine.Read((session.Modified ? "*" : "") + session.Path + "> ").Trim();
-      var ctx = new CommandContext { Session = session };
-      var e2 = Try(() => Route(input)?.Invoke(ctx));
+      if (input == ".quit") break;
+      var e2 = Try(() => Route(input)?.Invoke(session));
       if (e2 != null) Console.Error.WriteLine(e2.Message);
-      if (ctx.Quit) break;
    }
    Console.Clear();
 }
