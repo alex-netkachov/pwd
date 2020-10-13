@@ -115,11 +115,9 @@ public class Session {
    private IFileSystem _fs;
 
    public Session(string password, IFileSystem fs) =>
-      (_password, _fs) = (password, fs);
+      (_password, _fs, File) = (password, fs, ("", "", false));
 
-   public string Path { get; private set; }
-   public string Content { get; private set; }
-   public bool Modified { get; private set; }
+   public (string Path, string Content, bool Modified) File { get; private set; }
 
    public IEnumerable<string> GetItems(string path = null) =>
       GetFiles(_fs, path ?? ".", includeFolders: true)
@@ -134,28 +132,28 @@ public class Session {
 
    public void Write(string path, string content) {
       _fs.File.WriteAllBytes(path, Encrypt(_password, content));
-      if (Path == path) (Content, Modified) = (content, false);
+      if (File.Path == path) File = (path, content, false);
    }
 
    public string ExportContentToTempFile() {
       var path = System.IO.Path.GetTempFileName() + ".yaml";
-      _fs.File.WriteAllText(path, Content);
+      _fs.File.WriteAllText(path, File.Content);
       return path;
    }
 
    public void ReadContentFromFile(string path) =>
-       (Content, Modified) = (_fs.File.ReadAllText(path), path != Path);
+      File = (File.Path, _fs.File.ReadAllText(path), path != File.Path);
 
    public void Open(string path) =>
-      (Path, Content, Modified) = (path, Read(path), false);
+      File = (path, Read(path), false);
 
    public void Close() =>
-      (Path, Content, Modified) = ("", "", false);
+      File = ("", "", false);
 
    public void Save() {
-      if (Path == "") return;
-      Write(Path, Content);
-      Modified = false;
+      if (File.Path == "") return;
+      Write(File.Path, File.Content);
+      File = (File.Path, File.Content, false);
    }
 
    public void Replace(string command) {
@@ -163,8 +161,7 @@ public class Session {
       var re = new Regex(
           pattern,
           options.Contains('i') ? RegexOptions.IgnoreCase : RegexOptions.None);
-      Content = re.Replace(Content, replacement, options.Contains('g') ? -1 : 1);
-      Modified = true;
+      File = (File.Path, re.Replace(File.Content, replacement, options.Contains('g') ? -1 : 1), true);
    }
 
    public void Check() {
@@ -204,7 +201,7 @@ public class Session {
    }
 
    public void CheckContent() {
-      if (CheckYaml(Content) is { Message: var msg })
+      if (CheckYaml(File.Content) is { Message: var msg })
          Console.Error.WriteLine(msg);
    }
 }
@@ -240,35 +237,35 @@ Action<Session> Route(string input, IFileSystem fs) =>
        (_, "save", _) => session => session.Save(),
        ("..", _, _) => session => session.Close(),
        _ when input.StartsWith("/") => session => {
-          if (session.Path == "") return;
+          if (session.File.Path == "") return;
           session.Replace(input);
-          Console.WriteLine(session.Content);
+          Console.WriteLine(session.File.Content);
        },
        (_, "check", _) => session => {
-          if (string.IsNullOrEmpty(session.Path)) session.Check();
+          if (string.IsNullOrEmpty(session.File.Path)) session.Check();
           else session.CheckContent();
        },
        (_, "open", var path) => session => {
           if (!fs.File.Exists(path) || !IsFileEncrypted(fs, path)) return;
           session.Open(path);
-          Console.WriteLine(session.Content);
+          Console.WriteLine(session.File.Content);
        },
        (_, "archive", _) => session => {
-          if (session.Path == "") return;
+          if (session.File.Path == "") return;
           if (!fs.Directory.Exists(".archive")) fs.Directory.CreateDirectory(".archive");
-          fs.File.Move(session.Path, ".archive/" + session.Path);
+          fs.File.Move(session.File.Path, ".archive/" + session.File.Path);
           session.Close();
        },
        (_, "rm", _) => session => {
-          if (session.Path == "") return;
-          Console.Write("Delete '" + session.Path + "'? (y/n)");
+          if (session.File.Path == "") return;
+          Console.Write("Delete '" + session.File.Path + "'? (y/n)");
           if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
-          fs.File.Delete(session.Path);
+          fs.File.Delete(session.File.Path);
           session.Close();
        },
        (_, "rename", var name) => session => {
-          if (session.Path == "") return;
-          fs.File.Move(session.Path, name);
+          if (session.File.Path == "") return;
+          fs.File.Move(session.File.Path, name);
           session.Close();
           session.Open(name);
        },
@@ -276,17 +273,17 @@ Action<Session> Route(string input, IFileSystem fs) =>
           editor = string.IsNullOrEmpty(editor) ? Environment.GetEnvironmentVariable("EDITOR") : editor;
           if (string.IsNullOrEmpty(editor))
              throw new Exception("The editor is not specified and the environment variable EDITOR is not set.");
-          var originalContent = session.Content;
+          var originalContent = session.File.Content;
           var path = session.ExportContentToTempFile();
           try {
              var process = Process.Start(new ProcessStartInfo(editor, path));
              process.WaitForExit();
              session.ReadContentFromFile(path);
-             Console.WriteLine(session.Content);
+             Console.WriteLine(session.File.Content);
              Console.Write("Save the content (y/n)? ");
              var choice = Console.ReadLine();
              if (choice.ToLowerInvariant() == "y") session.Save();
-             else session.Write(session.Path, originalContent);
+             else session.Write(session.File.Path, originalContent);
           } finally {
              fs.File.Delete(path);
           }
@@ -302,10 +299,10 @@ Action<Session> Route(string input, IFileSystem fs) =>
              content.AppendLine(line.Replace("***", new PasswordGenerator.Password().Next()));
           session.Write(path, content.ToString());
           session.Open(path);
-          Console.WriteLine(session.Content);
+          Console.WriteLine(session.File.Content);
        },
        (_, "cc", var name) => session => {
-          var match = Regex.Match(session.Content, @$"{name}: *([^\n]+)");
+          var match = Regex.Match(session.File.Content, @$"{name}: *([^\n]+)");
           if (match.Success) {
              var process = default(Process);
              if (Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })) == null ||
@@ -319,8 +316,8 @@ Action<Session> Route(string input, IFileSystem fs) =>
        (_, "ccu", _) => Route(".cc user", fs),
        (_, "ccp", _) => Route(".cc password", fs),
        _ => session => {
-          if (!string.IsNullOrEmpty(session.Path)) {
-             Console.WriteLine(session.Content);
+          if (!string.IsNullOrEmpty(session.File.Path)) {
+             Console.WriteLine(session.File.Content);
              return;
           }
 
@@ -334,7 +331,7 @@ Action<Session> Route(string input, IFileSystem fs) =>
 
           if (name != default) {
              session.Open(name);
-             Console.WriteLine(session.Content);
+             Console.WriteLine(session.File.Content);
              return;
           }
 
@@ -366,7 +363,7 @@ if (!Args.Contains("-t")) {
    ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
 
    while (true) {
-      var input = ReadLine.Read((session.Modified ? "*" : "") + session.Path + "> ").Trim();
+      var input = ReadLine.Read((session.File.Modified ? "*" : "") + session.File.Path + "> ").Trim();
       if (input == ".quit") break;
       var e2 = Try(() => Route(input, fs)?.Invoke(session));
       if (e2 != null) Console.Error.WriteLine(e2.Message);

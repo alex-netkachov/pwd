@@ -16,6 +16,33 @@ void Test(Action test, string name) {
 (string pwd, string text) EncryptionTestData() =>
     ("secret", "lorem ipsum ...");
 
+IFileSystem GetMockFs() {
+   var fs = new MockFileSystem();
+   fs.Directory.CreateDirectory("test");
+   var dir = fs.DirectoryInfo.FromDirectoryName("test").FullName;
+   fs.Directory.SetCurrentDirectory(dir);
+   return fs;
+}
+
+IFileSystem FileLayout1(IFileSystem fs) {
+   var (pwd, text) = EncryptionTestData();
+   fs.File.WriteAllText("file", text);
+   fs.File.WriteAllText(".hidden", text);
+   fs.Directory.CreateDirectory("regular_dir");
+   fs.File.WriteAllText("regular_dir/file", text);
+   fs.File.WriteAllText("regular_dir/.hidden", text);
+   fs.Directory.CreateDirectory(".hidden_dir");
+   fs.File.WriteAllText(".hidden_dir/file", text);
+   fs.File.WriteAllText(".hidden_dir/.hidden", text);
+   fs.File.WriteAllBytes("encrypted", Encrypt(pwd, text));
+   fs.File.WriteAllBytes(".hidden_encrypted", Encrypt(pwd, text));
+   fs.File.WriteAllBytes("regular_dir/encrypted", Encrypt(pwd, text));
+   fs.File.WriteAllBytes("regular_dir/.hidden_encrypted", Encrypt(pwd, text));
+   fs.File.WriteAllBytes(".hidden_dir/encrypted", Encrypt(pwd, text));
+   fs.File.WriteAllBytes(".hidden_dir/.hidden_encrypted", Encrypt(pwd, text));
+   return fs;
+}
+
 string LocateOpenssl() =>
     new[] {
         Environment.GetEnvironmentVariable("ProgramFiles") + @"\Git\usr\bin\openssl.exe",
@@ -104,7 +131,7 @@ void TestParseRegexCommand() {
 void TestSessionInit() {
    var fs = new MockFileSystem();
    var session = new Session("pwd", fs);
-   Assert(session is { Path : null, Content : null, Modified : false });
+   Assert(session.File is { Path : "", Content : "", Modified : false });
 }
 
 void TestSessionWriteFile() {
@@ -118,8 +145,45 @@ void TestSessionWriteFile() {
 
 void TestSessionGetItems1() {
    var (pwd, _) = EncryptionTestData();
-   var session = new Session(pwd, new MockFileSystem());
+   var session = new Session(pwd, GetMockFs());
    Assert(session.GetItems().Count() == 0);
+   Assert(session.GetItems(null).Count() == 0);
+   Assert(session.GetItems(".").Count() == 0);
+}
+
+void TestSessionGetItems2() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = FileLayout1(GetMockFs());
+   var session = new Session(pwd, fs);
+   Assert(string.Join(";", session.GetItems()) == "encrypted;regular_dir");
+   Assert(string.Join(";", session.GetItems(".")) == "encrypted;regular_dir");
+   Assert(string.Join(";", session.GetItems(null)) == "encrypted;regular_dir");
+   Assert(string.Join(";", session.GetItems("regular_dir")) == "regular_dir/encrypted");
+   Assert(string.Join(";", session.GetItems(".hidden_dir")) == ".hidden_dir/encrypted");
+}
+
+void TestSessionGetEncryptedFilesRecursively1() {
+   var (pwd, _) = EncryptionTestData();
+   var session = new Session(pwd, GetMockFs());
+   Assert(session.GetEncryptedFilesRecursively().Count() == 0);
+   Assert(session.GetEncryptedFilesRecursively(null).Count() == 0);
+   Assert(session.GetEncryptedFilesRecursively(".").Count() == 0);
+}
+
+void TestSessionGetEncryptedFilesRecursively2() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = FileLayout1(GetMockFs());
+   var session = new Session(pwd, fs);
+
+   Assert(string.Join(";", session.GetEncryptedFilesRecursively()) == "encrypted;regular_dir/encrypted");
+   Assert(string.Join(";", session.GetEncryptedFilesRecursively(".")) == "encrypted;regular_dir/encrypted");
+   Assert(string.Join(";", session.GetEncryptedFilesRecursively(null)) == "encrypted;regular_dir/encrypted");
+
+   Assert(string.Join(";", session.GetEncryptedFilesRecursively(includeHidden: true)) ==
+      ".hidden_dir/.hidden_encrypted;.hidden_dir/encrypted;.hidden_encrypted;encrypted;regular_dir/.hidden_encrypted;regular_dir/encrypted");
+
+   Assert(string.Join(";", session.GetEncryptedFilesRecursively("regular_dir")) == "regular_dir/encrypted");
+   Assert(string.Join(";", session.GetEncryptedFilesRecursively(".hidden_dir")) == ".hidden_dir/encrypted");
 }
 
 
@@ -133,6 +197,9 @@ void Tests() {
    Test(TestSessionInit, nameof(TestSessionInit));
    Test(TestSessionWriteFile, nameof(TestSessionWriteFile));
    Test(TestSessionGetItems1, nameof(TestSessionGetItems1));
+   Test(TestSessionGetItems2, nameof(TestSessionGetItems2));
+   Test(TestSessionGetEncryptedFilesRecursively1, nameof(TestSessionGetEncryptedFilesRecursively1));
+   Test(TestSessionGetEncryptedFilesRecursively2, nameof(TestSessionGetEncryptedFilesRecursively2));
 }
 
 Tests();
