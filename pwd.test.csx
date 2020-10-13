@@ -1,5 +1,10 @@
 #load "pwd.csx"
 
+#r "nuget: System.IO.Abstractions.TestingHelpers, 12.2.5"
+
+using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
+
 bool Assert(bool value, string message = "") =>
     value ? true : throw new Exception(message);
 
@@ -16,7 +21,6 @@ string LocateOpenssl() =>
         Environment.GetEnvironmentVariable("ProgramFiles") + @"\Git\usr\bin\openssl.exe",
         Environment.GetEnvironmentVariable("LOCALAPPDATA") + @"\Programs\Git\usr\bin\openssl.exe"
     }.FirstOrDefault(File.Exists) ?? "openssl";
-
 
 void TestEncryptDecryptRoundup() {
    var (password, text) = EncryptionTestData();
@@ -79,7 +83,7 @@ void TestOpensslDecryptingEncryptedData() {
 }
 
 void TestGetFilesRecursively() {
-   var files = GetFiles(".", recursively: true).ToList();
+   var files = GetFiles(new FileSystem(), ".", recursively: true).ToList();
    foreach (var file in new[] { "LICENSE", "README.md" })
       Assert(files.Contains(file));
 }
@@ -97,13 +101,38 @@ void TestParseRegexCommand() {
    Test("/\\n/\\n/", "\\n", "\n", "");
 }
 
+void TestSessionInit() {
+   var fs = new MockFileSystem();
+   var session = new Session("pwd", fs);
+   Assert(session is { Path : null, Content : null, Modified : false });
+}
+
+void TestSessionWriteFile() {
+   var fs = new MockFileSystem();
+   var (pwd, content) = EncryptionTestData();
+   var session = new Session(pwd, fs);
+   session.Write("resource", content);
+   var encrypted = fs.File.ReadAllBytes("resource");
+   Assert(content == Decrypt(pwd, encrypted));
+}
+
+void TestSessionGetItems1() {
+   var (pwd, _) = EncryptionTestData();
+   var session = new Session(pwd, new MockFileSystem());
+   Assert(session.GetItems().Count() == 0);
+}
+
+
 void Tests() {
-   TestParseRegexCommand();
+   Test(TestParseRegexCommand, nameof(TestParseRegexCommand));
    Test(TestEncryptDecryptRoundup, nameof(TestEncryptDecryptRoundup));
    Test(TestOpensslDecryptingEncryptedData, nameof(TestOpensslDecryptingEncryptedData));
    Test(TestDecryptingOpensslEncryptedData, nameof(TestDecryptingOpensslEncryptedData));
    Test(TestGetFilesRecursively, nameof(TestGetFilesRecursively));
    Test(TestParseRegexCommand, nameof(TestParseRegexCommand));
+   Test(TestSessionInit, nameof(TestSessionInit));
+   Test(TestSessionWriteFile, nameof(TestSessionWriteFile));
+   Test(TestSessionGetItems1, nameof(TestSessionGetItems1));
 }
 
 Tests();

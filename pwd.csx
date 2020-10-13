@@ -3,8 +3,10 @@
 #r "nuget: ReadLine, 2.0.1"
 #r "nuget: YamlDotNet, 8.1.2"
 #r "nuget: PasswordGenerator, 2.0.5"
+#r "nuget: System.IO.Abstractions, 12.2.5"
 
 using System;
+using System.IO.Abstractions;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
@@ -56,8 +58,8 @@ static string Decrypt(string password, byte[] data) {
    return reader.ReadToEnd();
 }
 
-static bool IsFileEncrypted(string path) {
-   using var stream = File.OpenRead(path);
+static bool IsFileEncrypted(IFileSystem fs, string path) {
+   using var stream = fs.File.OpenRead(path);
    // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is enrypted or not
    return "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8));
 }
@@ -66,27 +68,27 @@ static string JoinPath(string path1, string path2) =>
     (path1 == "." ? "" : $"{path1}/") + path2;
 
 static IEnumerable<string> GetFiles(
+      IFileSystem fs,
       string path,
       bool recursively = false,
       bool includeFolders = false,
       bool includeDottedFilesAndFolders = false) =>
-    Directory.Exists(path) ? new DirectoryInfo(path)
+    fs.Directory.Exists(path) ? fs.DirectoryInfo.FromDirectoryName(path)
         .EnumerateFileSystemInfos()
         .OrderBy(info => info.Name)
         .SelectMany(info => info switch {
-           FileInfo file when !file.Name.StartsWith(".") || includeDottedFilesAndFolders =>
+           IFileInfo file when !file.Name.StartsWith(".") || includeDottedFilesAndFolders =>
                new[] { JoinPath(path, file.Name) },
-           DirectoryInfo dir when !dir.Name.StartsWith(".") || includeDottedFilesAndFolders =>
+           IDirectoryInfo dir when !dir.Name.StartsWith(".") || includeDottedFilesAndFolders =>
                (recursively
-                  ? GetFiles(JoinPath(path, dir.Name), recursively, includeFolders, includeDottedFilesAndFolders)
+                  ? GetFiles(fs, JoinPath(path, dir.Name), recursively, includeFolders, includeDottedFilesAndFolders)
                   : new string[0]).Concat(includeFolders ? new[] { JoinPath(path, dir.Name) } : new string[0]),
            _ => new string[0]
         }) : Enumerable.Empty<string>();
 
 static (string, string, string) ParseRegexCommand(string text, int idx = 0) {
    string Read() {
-      var begin = ++idx;
-      bool escape = false;
+      var (begin, escape) = (++idx, false);
       for (; idx < text.Length; idx++) {
          var ch = text[idx];
          if (!escape && ch == '\\') { escape = true; continue; }
@@ -110,38 +112,39 @@ static Exception CheckYaml(string text) {
 
 public class Session {
    private string _password;
+   private IFileSystem _fs;
 
-   public Session(string password) =>
-      _password = password;
+   public Session(string password, IFileSystem fs) =>
+      (_password, _fs) = (password, fs);
 
    public string Path { get; private set; }
    public string Content { get; private set; }
    public bool Modified { get; private set; }
 
    public IEnumerable<string> GetItems(string path = null) =>
-      GetFiles(path ?? ".", includeFolders: true)
-         .Where(item => !File.Exists(item) || IsFileEncrypted(item));
+      GetFiles(_fs, path ?? ".", includeFolders: true)
+         .Where(item => !_fs.File.Exists(item) || IsFileEncrypted(_fs, item));
 
    public IEnumerable<string> GetEncryptedFilesRecursively(string path = null, bool includeHidden = false) =>
-       GetFiles(path ?? ".", recursively: true, includeDottedFilesAndFolders: includeHidden)
-         .Where(IsFileEncrypted);
+       GetFiles(_fs, path ?? ".", recursively: true, includeDottedFilesAndFolders: includeHidden)
+         .Where(file => IsFileEncrypted(_fs, file));
 
    public string Read(string path) =>
-      Decrypt(_password, File.ReadAllBytes(path));
+      Decrypt(_password, _fs.File.ReadAllBytes(path));
 
    public void Write(string path, string content) {
-      File.WriteAllBytes(path, Encrypt(_password, content));
+      _fs.File.WriteAllBytes(path, Encrypt(_password, content));
       if (Path == path) (Content, Modified) = (content, false);
    }
 
    public string ExportContentToTempFile() {
       var path = System.IO.Path.GetTempFileName() + ".yaml";
-      System.IO.File.WriteAllText(path, Content);
+      _fs.File.WriteAllText(path, Content);
       return path;
    }
 
    public void ReadContentFromFile(string path) =>
-       (Content, Modified) = (File.ReadAllText(path), path != Path);
+       (Content, Modified) = (_fs.File.ReadAllText(path), path != Path);
 
    public void Open(string path) =>
       (Path, Content, Modified) = (path, Read(path), false);
@@ -173,7 +176,7 @@ public class Session {
       foreach (var name in names) {
          var content = default(string);
          try {
-            content = Decrypt(_password, File.ReadAllBytes(name));
+            content = Decrypt(_password, _fs.File.ReadAllBytes(name));
             if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
                content = default;
          } catch { }
@@ -232,7 +235,7 @@ class AutoCompletionHandler : IAutoCompleteHandler {
    return match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", "");
 }
 
-Action<Session> Route(string input) =>
+Action<Session> Route(string input, IFileSystem fs) =>
     ParseCommand(input) switch {
        (_, "save", _) => session => session.Save(),
        ("..", _, _) => session => session.Close(),
@@ -246,26 +249,26 @@ Action<Session> Route(string input) =>
           else session.CheckContent();
        },
        (_, "open", var path) => session => {
-          if (!File.Exists(path) || !IsFileEncrypted(path)) return;
+          if (!fs.File.Exists(path) || !IsFileEncrypted(fs, path)) return;
           session.Open(path);
           Console.WriteLine(session.Content);
        },
        (_, "archive", _) => session => {
           if (session.Path == "") return;
-          if (!Directory.Exists(".archive")) Directory.CreateDirectory(".archive");
-          File.Move(session.Path, ".archive/" + session.Path);
+          if (!fs.Directory.Exists(".archive")) fs.Directory.CreateDirectory(".archive");
+          fs.File.Move(session.Path, ".archive/" + session.Path);
           session.Close();
        },
        (_, "rm", _) => session => {
           if (session.Path == "") return;
           Console.Write("Delete '" + session.Path + "'? (y/n)");
           if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
-          File.Delete(session.Path);
+          fs.File.Delete(session.Path);
           session.Close();
        },
        (_, "rename", var name) => session => {
           if (session.Path == "") return;
-          File.Move(session.Path, name);
+          fs.File.Move(session.Path, name);
           session.Close();
           session.Open(name);
        },
@@ -285,14 +288,14 @@ Action<Session> Route(string input) =>
              if (choice.ToLowerInvariant() == "y") session.Save();
              else session.Write(session.Path, originalContent);
           } finally {
-             File.Delete(path);
+             fs.File.Delete(path);
           }
        },
        (_, "pwd", _) => session => Console.WriteLine(new PasswordGenerator.Password().Next()),
        (_, "add", var path) => session => {
           var folder = Path.GetDirectoryName(path);
-          if (folder != "" && !Directory.Exists(folder))
-             Directory.CreateDirectory(folder);
+          if (folder != "" && !fs.Directory.Exists(folder))
+             fs.Directory.CreateDirectory(folder);
           var line = "";
           var content = new StringBuilder();
           while ("" != (line = Console.ReadLine()))
@@ -313,8 +316,8 @@ Action<Session> Route(string input) =>
              }
           }
        },
-       (_, "ccu", _) => Route(".cc user"),
-       (_, "ccp", _) => Route(".cc password"),
+       (_, "ccu", _) => Route(".cc user", fs),
+       (_, "ccp", _) => Route(".cc password", fs),
        _ => session => {
           if (!string.IsNullOrEmpty(session.Path)) {
              Console.WriteLine(session.Content);
@@ -340,9 +343,11 @@ Action<Session> Route(string input) =>
     };
 
 if (!Args.Contains("-t")) {
+   var fs = new FileSystem();
+
    var password = ReadLine.ReadPassword("Password: ");
 
-   var session = new Session(password);
+   var session = new Session(password, fs);
    var e1 = Try(() => session.Check());
    if (e1 != null) {
       Console.Error.WriteLine(e1.Message);
@@ -363,7 +368,7 @@ if (!Args.Contains("-t")) {
    while (true) {
       var input = ReadLine.Read((session.Modified ? "*" : "") + session.Path + "> ").Trim();
       if (input == ".quit") break;
-      var e2 = Try(() => Route(input)?.Invoke(session));
+      var e2 = Try(() => Route(input, fs)?.Invoke(session));
       if (e2 != null) Console.Error.WriteLine(e2.Message);
    }
    Console.Clear();
