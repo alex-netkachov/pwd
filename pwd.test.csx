@@ -319,7 +319,22 @@ void Test_File_Field() {
    Assert(file.Field("ab") == "2");
 }
 
+void Test_AutoCompletionHandler() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = FileLayout1(GetMockFs());
+   var session = new Session(pwd, fs);
+   var handler = new AutoCompletionHandler(session);
+   Assert(string.Join(";", handler.GetSuggestions("", 0)) == "encrypted;regular_dir");
+   Assert(string.Join(";", handler.GetSuggestions("enc", 0)) == "encrypted");
+   Assert(string.Join(";", handler.GetSuggestions("encrypted", 0)) == "encrypted");
+   Assert(string.Join(";", handler.GetSuggestions("regular_dir", 0)) == "regular_dir");
+   Assert(string.Join(";", handler.GetSuggestions("regular_dir/", 0)) == "regular_dir/encrypted");
+   Assert(string.Join(";", handler.GetSuggestions("regular_dir/enc", 0)) == "regular_dir/encrypted");
+   Assert(string.Join(";", handler.GetSuggestions("regular_dir/encrypted", 0)) == "regular_dir/encrypted");
+}
+
 void Tests() {
+   Test_AutoCompletionHandler();
    Test(Test_ParseRegexCommand, nameof(Test_ParseRegexCommand));
    Test(Test_EncryptDecryptRoundup, nameof(Test_EncryptDecryptRoundup));
    Test(Test_OpensslDecryptingEncryptedData, nameof(Test_OpensslDecryptingEncryptedData));
@@ -342,6 +357,7 @@ void Tests() {
    Test(Test_File_Replace, nameof(Test_File_Replace));
    Test(Test_File_Update, nameof(Test_File_Update));
    Test(Test_File_Field, nameof(Test_File_Field));
+   Test(Test_AutoCompletionHandler, nameof(Test_AutoCompletionHandler));
 }
 
 Tests();

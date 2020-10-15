@@ -16,12 +16,12 @@ static Exception Try(Action action) {
 }
 
 static T Apply<T>(T value, Action<T> action) {
-   if (EqualityComparer<T>.Default.Equals(value, default(T))) action(value);
+   if (!EqualityComparer<T>.Default.Equals(value, default)) action(value);
    return value;
 }
 
 static V Map<T, V>(T value, Func<T, V> func) =>
-   EqualityComparer<T>.Default.Equals(value, default(T)) ? func(value) : default;
+   EqualityComparer<T>.Default.Equals(value, default) ? default : func(value);
 
 static void Void(object value) {}
 
@@ -241,17 +241,16 @@ class AutoCompletionHandler : IAutoCompleteHandler {
    public AutoCompletionHandler(Session session) =>
       _session = session;
 
-   public char[] Separators { get; set; } = new char[] { '/' };
+   public char[] Separators { get; set; } = new char[0];
 
    public string[] GetSuggestions(string text, int index) {
       if (text.StartsWith("."))
-         return null;
-      var path = text.Split('/');
-      var folder = string.Join("/", path.Take(path.Length - 1));
-      var query = path.Last();
-      return _session.GetItems(folder.Length == 0 ? "." : folder)
-          .Where(item => item.StartsWith(query))
-          .ToArray();
+         return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.rename,.rm,.save".Split(',')
+            .Where(item => item.StartsWith(text)).ToArray();
+      var p = text.LastIndexOf('/');
+      var (folder, query) = p == -1 ? ("", text) : (text.Substring(0, p), text.Substring(p + 1));
+      return _session.GetItems(folder == "" ? "." : folder)
+          .Where(item => item.StartsWith(text)).ToArray();
    }
 }
 
@@ -334,7 +333,7 @@ Action<Session> Route(string input, IFileSystem fs) =>
               : names.FirstOrDefault(name => string.Equals(name, input, StringComparison.OrdinalIgnoreCase));
 
           if (name != default) {
-             session.Open(name).Print();
+             session.Open(name)?.Print();
              return;
           }
 
