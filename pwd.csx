@@ -16,8 +16,12 @@ static Exception Try(Action action) {
 }
 
 static T Apply<T>(T value, Action<T> action) {
-   action(value); return value;
+   if (EqualityComparer<T>.Default.Equals(value, default(T))) action(value);
+   return value;
 }
+
+static V Map<T, V>(T value, Func<T, V> func) =>
+   EqualityComparer<T>.Default.Equals(value, default(T)) ? func(value) : default;
 
 static void Void(object value) {}
 
@@ -34,17 +38,15 @@ static byte[] ReadBytes(Stream stream, int length) =>
    Apply(new byte[length], chunk => stream.Read(chunk, 0, length));
 
 static byte[] Encrypt(string password, string text) {
-   var salt = new byte[8];
    using var rng = new RNGCryptoServiceProvider();
-   rng.GetBytes(salt);
+   var salt = Apply(new byte[8], value => rng.GetBytes(value));
    using var aes = CreateAes(salt, password);
    using var stream = new MemoryStream();
-   var preambule = Encoding.ASCII.GetBytes("Salted__").Concat(salt).ToArray();
-   stream.Write(preambule, 0, preambule.Length);
+   var preamble = Encoding.ASCII.GetBytes("Salted__").Concat(salt).ToArray();
+   stream.Write(preamble, 0, preamble.Length);
    using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
    using var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write);
-   var data = Encoding.UTF8.GetBytes(text);
-   cryptoStream.Write(data, 0, data.Length);
+   Apply(Encoding.UTF8.GetBytes(text), data => cryptoStream.Write(data, 0, data.Length));
    cryptoStream.Close();
    return stream.ToArray();
 }
@@ -121,7 +123,7 @@ public class File {
       Apply(_fs.Path.GetTempFileName() + ".yaml", path => _fs.File.WriteAllText(path, Content));
 
    public File ReadFromFile(string path) => Apply(this, _ =>
-      Apply(_fs.File.ReadAllText(path), content => (Content, Modified) = (content, Content != content)));
+      Apply(_fs.File.ReadAllText(path), content => Update(content)));
 
    public File Save() => Apply(this, _ => {
       _session.Write(Path, Content);
@@ -140,8 +142,11 @@ public class File {
       var re = new Regex(
          pattern,
          options.Contains('i') ? RegexOptions.IgnoreCase : RegexOptions.None);
-      (Content, Modified) = (re.Replace(Content, replacement, options.Contains('g') ? -1 : 1), true);
+      Update(re.Replace(Content, replacement, options.Contains('g') ? -1 : 1));
    });
+
+   public File Update(string content) => Apply(this, _ =>
+      (Content, Modified) = (content, Content != content));
 
    public File Check() => Apply(this, _ => {
       if (CheckYaml(Content) is { Message: var msg })
@@ -151,10 +156,9 @@ public class File {
    public File Print() =>
       Apply(this, _ => Console.WriteLine(Content));
 
-   public string Field(string name) {
-      var match = Regex.Match(Content, @$"{name}: *([^\n]+)");
-      return match.Success ? match.Groups[1].Value : null;
-   }
+   public string Field(string name) =>
+      Map(Regex.Match(Content, @$"{name}: *([^\n]+)"),
+         match => match.Success ? match.Groups[1].Value : null);
 }
 
 public class Session {
@@ -173,6 +177,12 @@ public class Session {
    public IEnumerable<string> GetEncryptedFilesRecursively(string path = null, bool includeHidden = false) =>
        GetFiles(_fs, path ?? ".", recursively: true, includeDottedFilesAndFolders: includeHidden)
          .Where(file => IsFileEncrypted(file));
+
+   public bool IsFileEncrypted(string path) {
+      using var stream = _fs.File.OpenRead(path);
+      // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is enrypted or not
+      return "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8));
+   }
 
    public string Read(string path) =>
       Decrypt(_password, _fs.File.ReadAllBytes(path));
@@ -223,12 +233,6 @@ public class Session {
       if (notYaml.Count > 0)
          Console.Error.WriteLine($"YAML check failed for: {(string.Join(", ", notYaml))}");
    });
-
-   private bool IsFileEncrypted(string path) {
-      using var stream = _fs.File.OpenRead(path);
-      // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is enrypted or not
-      return "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8));
-   }
 }
 
 class AutoCompletionHandler : IAutoCompleteHandler {
@@ -355,7 +359,6 @@ if (!Args.Contains("-t")) {
          Console.WriteLine("passwords do not match");
          return;
       }
-      session.Write("template", "site: xxx\nuser: xxx\npassword: xxx\n");
    }
 
    ReadLine.HistoryEnabled = true;

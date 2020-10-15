@@ -1,11 +1,12 @@
 # pwd
-pwd is a simple console password manager.
+
+pwd is a simple cross-platform console password manager.
 
 Features:
 
 - It is small, less code means less bugs and less hidden places.
 - It is DRY, it is only focused on helping you managing passwords.
-- It does not vendor-lock you, use pwd together with openssl and your text editor. 
+- It does not vendor-lock you, use pwd together with openssl and your text editor.
 - It is opensource, so you can see what it does (and it small).
 - It is cross-platform, it works where dotnet works.
 - It is a script, so add your functionality as you please.
@@ -21,18 +22,18 @@ send me a message: <alex.netkachov@gmail.com>.
 
 ## Quickstart
 
-1. Install [.NET core](https://dotnet.microsoft.com/download) and
-   [dotnet-script](https://github.com/filipw/dotnet-script)
-2. Clone/copy this repository.
-3. Run `dotnet script pwd.csx`.
-4. When the tool runs, type a password for your new storage.
-5. In the terminal, copy the created file `template` to `website.com`.
-6. Back in the tool, press Enter to see the list of files.
-7. Type `websi` and press TAB to autocomplete, then press Enter. Ot just press Enter.
-7. Replace username by typing `/user: xxx/user: tom/` and password `/password: xxx/password: secret/`.
-8. Save the modified file, type `.save`.
-9. Go back to the file list, type `..`.
-10. Go back to the terminal, type `.quit`.
+1. Install [.NET core](https://dotnet.microsoft.com/download)
+2. Install [dotnet-script](https://github.com/filipw/dotnet-script): `dotnet tool install -g dotnet-script`.
+3. Clone/copy this repository: `git clone git@github.com:AlexAtNet/pwd.git && cd pwd`.
+4. Run `dotnet script pwd.csx`.
+5. When the tool runs, type a password for your new storage and confirm it.
+6. Type `.add website.com` to add a new encrypted file.
+7. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and then press `Enter` on the empty line.
+8. Command prompt is changed to `website.com>`. Type `..` to go back to the list of files.
+9. Type `websi` and press TAB to autocomplete, then press Enter.
+10. Now either copy the username by typing `.ccu`, copy the password by typing `.ccp`, go back to the file list
+by typing `..`.
+11. Quit anytime by typing `.quit`.
 
 ## Highlights
 
@@ -64,19 +65,21 @@ Commands:
 - The app opens a file when there is a file with name that is equal to the command text or there is
 only with name that starts with the command text. The command text should not start with ".".
 - `..` leaves the file mode and enters the list mode.
-- `.new file` copies the lines typed until the first new line into the file. Substitutes
-`***` with a password.
-- `.open file` opens the encrypted file.
+- `.add path` creates a new encrypted password file by reading the lines until empty line. Substitutes
+`***` in the input with a newly generated password.
+- `.open path` opens the encrypted file.
 - `.pwd` prints a strong password.
 - `.edit editor?` opens the editor with the password file in it. The editor can be set through
 the environment variable `EDITOR`.
-- `.rm` removes the currently open file.
-- `.arvhive` modes a passwords file to the folder `.archive`. As this folder begins with `.`,
+- `.rm` removes the currently opened file.
+- `.arvhive` moves the currently opened file to the folder `.archive`. As this folder begins with `.`,
 the directory reader will not display this folder in the list of encrypted files. Archived
 files are checked when the tool starts and can be opened with `.open`.
 - `.cc name` copies a `name: value` pair to clipboard. `clip.exe` is used for Windows and WSL,
 `pbcopy` is for mac, and `xclip` is for Linux. There are two shortcuts: `.ccu` for `.cc user`
 and `.ccp` for `.cc password`.
+
+Also see a list of readline commands: https://github.com/tonerdo/readline
 
 ## Story of pwd
 

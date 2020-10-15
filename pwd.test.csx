@@ -224,7 +224,7 @@ void Test_Session_Write_Clears_midification_flag_for_open_file() {
    var (pwd, text) = EncryptionTestData();
    var fs = FileLayout1(GetMockFs());
    var session = new Session(pwd, fs);
-   session.Open("encrypted").Replace("/.*/test/");
+   session.Open("encrypted").Update("test");
    Assert(session.File.Modified);
    session.Write("encrypted", text);
    Assert(!session.File.Modified);
@@ -265,12 +265,58 @@ void Test_File_Save() {
    var fs = FileLayout1(GetMockFs());
    var session = new Session(pwd, fs);
    var file = new File(fs, session, "test", "test");
-   file.Replace(@$"/test/{text}/");
+   file.Update(text);
    Assert(file.Modified);
    file.Save();
    Assert(!file.Modified);
    Assert(fs.File.Exists("test"));
    Assert(Decrypt(pwd, fs.File.ReadAllBytes(file.Path)) == text);
+}
+
+void Test_File_Rename() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = FileLayout1(GetMockFs());
+   var session = new Session(pwd, fs);
+   var file = session.Open("encrypted");
+   file.Rename("encrypted.test");
+   Assert(fs.File.Exists("encrypted.test"));
+   file.Rename("regular_dir/encrypted.test");
+   Assert(fs.File.Exists("regular_dir/encrypted.test"));
+}
+
+void Test_File_Replace() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = GetMockFs();
+   var session = new Session(pwd, fs);
+   var file = new File(fs, session, "test", "text");
+   Assert(!file.Modified);
+   file.Replace($"/1111/{text}/i");
+   Assert(!file.Modified);
+   file.Replace($"/TEXT/{text}/i");
+   Assert(file.Modified);
+   Assert(file.Content == text);
+}
+
+void Test_File_Update() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = GetMockFs();
+   var session = new Session(pwd, fs);
+   var file = new File(fs, session, "test", "text");
+   Assert(!file.Modified);
+   file.Update("text");
+   Assert(!file.Modified);
+   file.Update(text);
+   Assert(file.Modified);
+   Assert(file.Content == text);
+}
+
+void Test_File_Field() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = GetMockFs();
+   var session = new Session(pwd, fs);
+   var file = new File(fs, session, "test", "a: 1\nab: 2");
+   Assert(file.Field("a") == "1");
+   Assert(file.Field("ab") == "2");
 }
 
 void Tests() {
@@ -292,6 +338,10 @@ void Tests() {
    Test(Test_File_ReadFromFile1, nameof(Test_File_ReadFromFile1));
    Test(Test_File_ReadFromFile2, nameof(Test_File_ReadFromFile2));
    Test(Test_File_Save, nameof(Test_File_Save));
+   Test(Test_File_Rename, nameof(Test_File_Rename));
+   Test(Test_File_Replace, nameof(Test_File_Replace));
+   Test(Test_File_Update, nameof(Test_File_Update));
+   Test(Test_File_Field, nameof(Test_File_Field));
 }
 
 Tests();
