@@ -234,13 +234,46 @@ void Test_File_ExportContentToTempFile() {
    var (pwd, text) = EncryptionTestData();
    var fs = FileLayout1(GetMockFs());
    var session = new Session(pwd, fs);
-   var path = session.Open("encrypted").ExportContentToTempFile();
+   var file = new File(fs, session, "test", text);
+   var path = file.ExportContentToTempFile();
    Assert(fs.File.Exists(path));
    Assert(fs.File.ReadAllText(path) == text);
 }
 
+void Test_File_ReadFromFile1() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = FileLayout1(GetMockFs());
+   var session = new Session(pwd, fs);
+   var file = new File(fs, session, "test", "");
+   file.ReadFromFile("file");
+   Assert(file.Content == text);
+   Assert(file.Modified);
+}
+
+void Test_File_ReadFromFile2() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = FileLayout1(GetMockFs());
+   var session = new Session(pwd, fs);
+   var file = new File(fs, session, "test", text);
+   file.ReadFromFile("file");
+   Assert(file.Content == text);
+   Assert(!file.Modified);
+}
+
+void Test_File_Save() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = FileLayout1(GetMockFs());
+   var session = new Session(pwd, fs);
+   var file = new File(fs, session, "test", "test");
+   file.Replace(@$"/test/{text}/");
+   Assert(file.Modified);
+   file.Save();
+   Assert(!file.Modified);
+   Assert(fs.File.Exists("test"));
+   Assert(Decrypt(pwd, fs.File.ReadAllBytes(file.Path)) == text);
+}
+
 void Tests() {
-   Test_Session_Write_Clears_midification_flag_for_open_file();
    Test(Test_ParseRegexCommand, nameof(Test_ParseRegexCommand));
    Test(Test_EncryptDecryptRoundup, nameof(Test_EncryptDecryptRoundup));
    Test(Test_OpensslDecryptingEncryptedData, nameof(Test_OpensslDecryptingEncryptedData));
@@ -256,6 +289,9 @@ void Tests() {
    Test(Test_Session_Write, nameof(Test_Session_Write));
    Test(Test_Session_Write_Clears_midification_flag_for_open_file, nameof(Test_Session_Write_Clears_midification_flag_for_open_file));
    Test(Test_File_ExportContentToTempFile, nameof(Test_File_ExportContentToTempFile));
+   Test(Test_File_ReadFromFile1, nameof(Test_File_ReadFromFile1));
+   Test(Test_File_ReadFromFile2, nameof(Test_File_ReadFromFile2));
+   Test(Test_File_Save, nameof(Test_File_Save));
 }
 
 Tests();

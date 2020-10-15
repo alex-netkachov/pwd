@@ -108,9 +108,10 @@ static Exception CheckYaml(string text) {
 
 public class File {
    private IFileSystem _fs;
+   private Session _session;
 
-   public File(IFileSystem fs, string path, string content) =>
-      (_fs, Path, Content, Modified) = (fs, path, content, false);
+   public File(IFileSystem fs, Session session, string path, string content) =>
+      (_fs, _session, Path, Content, Modified) = (fs, session, path, content, false);
 
    public string Path { get; private set; }
    public string Content { get; private set; }
@@ -119,11 +120,11 @@ public class File {
    public string ExportContentToTempFile() =>
       Apply(_fs.Path.GetTempFileName() + ".yaml", path => _fs.File.WriteAllText(path, Content));
 
-   public File ReadContentFromFile(string path) =>
-      Apply(this, _ => (Content, Modified) = (_fs.File.ReadAllText(path), true));
+   public File ReadFromFile(string path) => Apply(this, _ =>
+      Apply(_fs.File.ReadAllText(path), content => (Content, Modified) = (content, Content != content)));
 
    public File Save() => Apply(this, _ => {
-      Write(Path, Content);
+      _session.Write(Path, Content);
       Modified = false;
    });
 
@@ -184,7 +185,7 @@ public class Session {
    });
 
    public File Open(string path) =>
-      File = (_fs.File.Exists(path) && IsFileEncrypted(path)) ? new File(_fs, path, Read(path)) : null;
+      File = (_fs.File.Exists(path) && IsFileEncrypted(path)) ? new File(_fs, this, path, Read(path)) : null;
 
    public void Close() =>
       File = null;
@@ -284,7 +285,7 @@ Action<Session> Route(string input, IFileSystem fs) =>
           try {
              var process = Process.Start(new ProcessStartInfo(editor, path));
              process.WaitForExit();
-             session.File.ReadContentFromFile(path).Print();
+             session.File.ReadFromFile(path).Print();
              Console.Write("Save the content (y/n)? ");
              if (Console.ReadLine().ToLowerInvariant() == "y") session.File.Save();
              else session.Write(session.File.Path, originalContent);
@@ -361,7 +362,7 @@ if (!Args.Contains("-t")) {
    ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
 
    while (true) {
-      var input = ReadLine.Read((session.File.Modified ? "*" : "") + session.File.Path + "> ").Trim();
+      var input = ReadLine.Read((session.File?.Modified ?? false ? "*" : "") + (session.File?.Path ?? "") + "> ").Trim();
       if (input == ".quit") break;
       var e2 = Try(() => Route(input, fs)?.Invoke(session));
       if (e2 != null) Console.Error.WriteLine(e2.Message);
