@@ -23,8 +23,6 @@ static T Apply<T>(T value, Action<T> action) {
 static V Map<T, V>(T value, Func<T, V> func) =>
    EqualityComparer<T>.Default.Equals(value, default) ? default : func(value);
 
-static void Void(object value) {}
-
 static Aes CreateAes(byte[] salt, string password) {
    var aes = Aes.Create();
    (aes.Mode, aes.Padding) = (CipherMode.CBC, PaddingMode.PKCS7);
@@ -178,11 +176,11 @@ public class Session {
        GetFiles(_fs, path ?? ".", recursively: true, includeDottedFilesAndFolders: includeHidden)
          .Where(file => IsFileEncrypted(file));
 
-   public bool IsFileEncrypted(string path) {
+   public bool IsFileEncrypted(string path) => null == Try(() => {
       using var stream = _fs.File.OpenRead(path);
       // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is enrypted or not
-      return "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8));
-   }
+      _ = "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8)) ? default(object) : throw new Exception();
+   });
 
    public string Read(string path) =>
       Decrypt(_password, _fs.File.ReadAllBytes(path));
@@ -233,6 +231,16 @@ public class Session {
       if (notYaml.Count > 0)
          Console.Error.WriteLine($"YAML check failed for: {(string.Join(", ", notYaml))}");
    });
+
+   public Session CopyText(string text = null) => Apply(this, _ => {
+      var process = default(Process);
+      if (Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })) == null ||
+         Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })) == null ||
+         Try(() => process = Process.Start(new ProcessStartInfo("xclip -sel clip") { RedirectStandardInput = true })) == null) {
+         process.StandardInput.Write(text ?? "");
+         process.StandardInput.Close();
+      }
+   });
 }
 
 class AutoCompletionHandler : IAutoCompleteHandler {
@@ -244,7 +252,7 @@ class AutoCompletionHandler : IAutoCompleteHandler {
    public char[] Separators { get; set; } = new char[0];
 
    public string[] GetSuggestions(string text, int index) {
-      if (text.StartsWith("."))
+      if (text.StartsWith(".") && !text.StartsWith(".."))
          return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.rename,.rm,.save".Split(',')
             .Where(item => item.StartsWith(text)).ToArray();
       var p = text.LastIndexOf('/');
@@ -264,19 +272,19 @@ Action<Session> Route(string input, IFileSystem fs) =>
        (_, "save", _) => session => session.File?.Save(),
        ("..", _, _) => session => session.Close(),
        _ when input.StartsWith("/") => session => session.File?.Replace(input).Print(),
-       (_, "check", _) => session => Void(session.File?.Check() as object ?? session.Check()),
+       (_, "check", _) => session => _ = session.File?.Check() as object ?? session.Check(),
        (_, "open", var path) => session => session.Open(path)?.Print(),
        (_, "archive", _) => session => {
           session.File?.Rename(".archive/" + session.File.Path);
           session.Close();
        },
-       (_, "rm", _) => session => {
-          if (session.File == null) return;
-          Console.Write("Delete '" + session.File.Path + "'? (y/n)");
-          if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
-          fs.File.Delete(session.File.Path);
-          session.Close();
-       },
+       (_, "rm", _) => session =>
+          Apply(session.File, file => {
+            Console.Write("Delete '" + session.File.Path + "'? (y/n)");
+            if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
+            fs.File.Delete(session.File.Path);
+            session.Close();
+          }),
        (_, "rename", var path) => session => session.File?.Rename(path),
        (_, "edit", var editor) => session => {
           var path = session.File?.ExportContentToTempFile();
@@ -304,18 +312,11 @@ Action<Session> Route(string input, IFileSystem fs) =>
              content.AppendLine(line.Replace("***", new PasswordGenerator.Password().Next()));
           session.Write(path, content.ToString()).Open(path).Print();
        },
-       (_, "cc", var name) => session => {
-          var value = session.File?.Field(name);
-          if (value != null) {
-             var process = default(Process);
-             if (Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })) == null ||
-                  Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })) == null ||
-                  Try(() => process = Process.Start(new ProcessStartInfo("xclip -sel clip") { RedirectStandardInput = true })) == null) {
-                process.StandardInput.Write(value);
-                process.StandardInput.Close();
-             }
-          }
-       },
+       (_, "cc", var name) => session =>
+          Apply(session.File?.Field(name), text => {
+             session.CopyText(text);
+             Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => session.CopyText());
+          }),
        (_, "ccu", _) => Route(".cc user", fs),
        (_, "ccp", _) => Route(".cc password", fs),
        _ => session => {

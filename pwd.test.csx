@@ -18,8 +18,8 @@ void Test(Action test, string name) {
 
 IFileSystem GetMockFs() {
    var fs = new MockFileSystem();
-   fs.Directory.CreateDirectory("test");
-   var dir = fs.DirectoryInfo.FromDirectoryName("test").FullName;
+   fs.Directory.CreateDirectory("container/test");
+   var dir = fs.DirectoryInfo.FromDirectoryName("container/test").FullName;
    fs.Directory.SetCurrentDirectory(dir);
    return fs;
 }
@@ -324,6 +324,7 @@ void Test_AutoCompletionHandler() {
    var fs = FileLayout1(GetMockFs());
    var session = new Session(pwd, fs);
    var handler = new AutoCompletionHandler(session);
+   Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
    Assert(string.Join(";", handler.GetSuggestions("", 0)) == "encrypted;regular_dir");
    Assert(string.Join(";", handler.GetSuggestions("enc", 0)) == "encrypted");
    Assert(string.Join(";", handler.GetSuggestions("encrypted", 0)) == "encrypted");
@@ -334,7 +335,6 @@ void Test_AutoCompletionHandler() {
 }
 
 void Tests() {
-   Test_AutoCompletionHandler();
    Test(Test_ParseRegexCommand, nameof(Test_ParseRegexCommand));
    Test(Test_EncryptDecryptRoundup, nameof(Test_EncryptDecryptRoundup));
    Test(Test_OpensslDecryptingEncryptedData, nameof(Test_OpensslDecryptingEncryptedData));

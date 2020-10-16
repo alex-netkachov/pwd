@@ -75,9 +75,9 @@ the environment variable `EDITOR`.
 - `.arvhive` moves the currently opened file to the folder `.archive`. As this folder begins with `.`,
 the directory reader will not display this folder in the list of encrypted files. Archived
 files are checked when the tool starts and can be opened with `.open`.
-- `.cc name` copies a `name: value` pair to clipboard. `clip.exe` is used for Windows and WSL,
+- `.cc name` copies value of a `name: value` pair to clipboard. `clip.exe` is used for Windows and WSL,
 `pbcopy` is for mac, and `xclip` is for Linux. There are two shortcuts: `.ccu` for `.cc user`
-and `.ccp` for `.cc password`.
+and `.ccp` for `.cc password`. The clipboard is cleared in 5 seconds after copying.
 
 Also see a list of readline commands: https://github.com/tonerdo/readline
 
