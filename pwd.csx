@@ -15,12 +15,12 @@ static Exception Try(Action action) {
    try { action(); return null; } catch (Exception e) { return e; }
 }
 
-static T Apply<T>(T value, Action<T> action) {
+static T Apply<T>(this T value, Action<T> action) {
    if (!EqualityComparer<T>.Default.Equals(value, default)) action(value);
    return value;
 }
 
-static V Map<T, V>(T value, Func<T, V> func) =>
+static V Map<T, V>(this T value, Func<T, V> func) =>
    EqualityComparer<T>.Default.Equals(value, default) ? default : func(value);
 
 static Aes CreateAes(byte[] salt, string password) {
@@ -33,19 +33,19 @@ static Aes CreateAes(byte[] salt, string password) {
 }
 
 static byte[] ReadBytes(Stream stream, int length) =>
-   Apply(new byte[length], chunk => stream.Read(chunk, 0, length));
+   new byte[length].Apply(_ => stream.Read(_, 0, length));
 
 static byte[] Encrypt(string password, string text) {
    using var rng = new RNGCryptoServiceProvider();
-   var salt = Apply(new byte[8], value => rng.GetBytes(value));
-   using var aes = CreateAes(salt, password);
+   var salt = new byte[8].Apply(rng.GetBytes);
    using var stream = new MemoryStream();
-   var preamble = Encoding.ASCII.GetBytes("Salted__").Concat(salt).ToArray();
-   stream.Write(preamble, 0, preamble.Length);
-   using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-   using var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write);
-   Apply(Encoding.UTF8.GetBytes(text), data => cryptoStream.Write(data, 0, data.Length));
-   cryptoStream.Close();
+   Encoding.ASCII.GetBytes("Salted__").Concat(salt).Apply(data => stream.Write(data.ToArray(), 0, 16));
+   Encoding.UTF8.GetBytes(text).Apply(data => {
+      using var aes = CreateAes(salt, password);
+      using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+      using var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write);
+      cryptoStream.Write(data, 0, data.Length);
+   });
    return stream.ToArray();
 }
 
@@ -53,8 +53,7 @@ static string Decrypt(string password, byte[] data) {
    using var stream = new MemoryStream(data);
    if ("Salted__" != Encoding.ASCII.GetString(ReadBytes(stream, 8)))
       throw new FormatException("Expecting the data stream to begin with Salted__.");
-   var salt = ReadBytes(stream, 8);
-   using var aes = CreateAes(salt, password);
+   using var aes = CreateAes(ReadBytes(stream, 8), password);
    using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
    using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read);
    using var reader = new StreamReader(cryptoStream);
@@ -64,22 +63,24 @@ static string Decrypt(string password, byte[] data) {
 static string JoinPath(string path1, string path2) =>
     (path1 == "." ? "" : $"{path1}/") + path2;
 
+static void Test111((bool recursively, bool includeFolders) options = default) {
+}
+Test111((true, false));
+
 static IEnumerable<string> GetFiles(
       IFileSystem fs,
       string path,
-      bool recursively = false,
-      bool includeFolders = false,
-      bool includeDottedFilesAndFolders = false) =>
+      (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default) =>
     fs.Directory.Exists(path) ? fs.DirectoryInfo.FromDirectoryName(path)
         .EnumerateFileSystemInfos()
         .OrderBy(info => info.Name)
         .SelectMany(info => info switch {
-           IFileInfo file when !file.Name.StartsWith(".") || includeDottedFilesAndFolders =>
+           IFileInfo file when !file.Name.StartsWith(".") || options.IncludeDottedFilesAndFolders =>
                new[] { JoinPath(path, file.Name) },
-           IDirectoryInfo dir when !dir.Name.StartsWith(".") || includeDottedFilesAndFolders =>
-               (recursively
-                  ? GetFiles(fs, JoinPath(path, dir.Name), recursively, includeFolders, includeDottedFilesAndFolders)
-                  : new string[0]).Concat(includeFolders ? new[] { JoinPath(path, dir.Name) } : new string[0]),
+           IDirectoryInfo dir when !dir.Name.StartsWith(".") || options.IncludeDottedFilesAndFolders =>
+               (options.Recursively
+                  ? GetFiles(fs, JoinPath(path, dir.Name), options)
+                  : new string[0]).Concat(options.IncludeFolders ? new[] { JoinPath(path, dir.Name) } : new string[0]),
            _ => new string[0]
         }) : Enumerable.Empty<string>();
 
@@ -118,24 +119,24 @@ public class File {
    public bool Modified { get; private set; }
 
    public string ExportContentToTempFile() =>
-      Apply(_fs.Path.GetTempFileName() + ".yaml", path => _fs.File.WriteAllText(path, Content));
+      (_fs.Path.GetTempFileName() + ".yaml").Apply(path => _fs.File.WriteAllText(path, Content));
 
-   public File ReadFromFile(string path) => Apply(this, _ =>
-      Apply(_fs.File.ReadAllText(path), content => Update(content)));
+   public File ReadFromFile(string path) => this.Apply(_ =>
+      _fs.File.ReadAllText(path).Apply(content => Update(content)));
 
-   public File Save() => Apply(this, _ => {
+   public File Save() => this.Apply(_ => {
       _session.Write(Path, Content);
       Modified = false;
    });
 
-   public File Rename(string path) => Apply(this, _ => {
+   public File Rename(string path) => this.Apply(_ => {
       var folder = _fs.Path.GetDirectoryName(path);
       if (folder != "") _fs.Directory.CreateDirectory(folder);
       _fs.File.Move(Path, path);
       Path = path;
    });
 
-   public File Replace(string command) => Apply(this, _ => {
+   public File Replace(string command) => this.Apply(_ => {
       var (pattern, replacement, options) = ParseRegexCommand(command);
       var re = new Regex(
          pattern,
@@ -143,20 +144,20 @@ public class File {
       Update(re.Replace(Content, replacement, options.Contains('g') ? -1 : 1));
    });
 
-   public File Update(string content) => Apply(this, _ =>
+   public File Update(string content) => this.Apply(_ =>
       (Content, Modified) = (content, Content != content));
 
-   public File Check() => Apply(this, _ => {
+   public File Check() => this.Apply(_ => {
       if (CheckYaml(Content) is { Message: var msg })
          Console.Error.WriteLine(msg);
    });
 
-   public File Print() =>
-      Apply(this, _ => Console.WriteLine(Content));
+   public File Print() => this.Apply(_ =>
+      Console.WriteLine(Content));
 
    public string Field(string name) =>
-      Map(Regex.Match(Content, @$"{name}: *([^\n]+)"),
-         match => match.Success ? match.Groups[1].Value : null);
+      Regex.Match(Content, @$"{name}: *([^\n]+)")
+         .Map(match => match.Success ? match.Groups[1].Value : null);
 }
 
 public class Session {
@@ -169,11 +170,11 @@ public class Session {
    public File File { get; private set; } = null;
 
    public IEnumerable<string> GetItems(string path = null) =>
-      GetFiles(_fs, path ?? ".", includeFolders: true)
+      GetFiles(_fs, path ?? ".", (false, true, false))
          .Where(item => !_fs.File.Exists(item) || IsFileEncrypted(item));
 
    public IEnumerable<string> GetEncryptedFilesRecursively(string path = null, bool includeHidden = false) =>
-       GetFiles(_fs, path ?? ".", recursively: true, includeDottedFilesAndFolders: includeHidden)
+       GetFiles(_fs, path ?? ".", (true, false, includeHidden))
          .Where(file => IsFileEncrypted(file));
 
    public bool IsFileEncrypted(string path) => null == Try(() => {
@@ -185,7 +186,7 @@ public class Session {
    public string Read(string path) =>
       Decrypt(_password, _fs.File.ReadAllBytes(path));
 
-   public Session Write(string path, string content) => Apply(this, _ => {
+   public Session Write(string path, string content) => this.Apply(_ => {
       var folder = _fs.Path.GetDirectoryName(path);
       if (folder != "") _fs.Directory.CreateDirectory(folder);
       _fs.File.WriteAllBytes(path, Encrypt(_password, content));
@@ -198,7 +199,7 @@ public class Session {
    public void Close() =>
       File = null;
 
-   public Session Check() => Apply(this, _ => {
+   public Session Check() => this.Apply(_ => {
       var names = GetEncryptedFilesRecursively(includeHidden: true).ToList();
       var wrongPassword = new List<string>();
       var notYaml = new List<string>();
@@ -232,14 +233,12 @@ public class Session {
          Console.Error.WriteLine($"YAML check failed for: {(string.Join(", ", notYaml))}");
    });
 
-   public Session CopyText(string text = null) => Apply(this, _ => {
+   public Session CopyText(string text = null) => this.Apply(s => {
       var process = default(Process);
-      if (Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })) == null ||
-         Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })) == null ||
-         Try(() => process = Process.Start(new ProcessStartInfo("xclip -sel clip") { RedirectStandardInput = true })) == null) {
-         process.StandardInput.Write(text ?? "");
-         process.StandardInput.Close();
-      }
+      Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true }))
+         .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })))
+         .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("xclip -sel clip") { RedirectStandardInput = true })));
+      process?.StandardInput.Apply(stdin => stdin.Write(text ?? "")).Apply(stdin => stdin.Close());
    });
 }
 
@@ -262,113 +261,100 @@ class AutoCompletionHandler : IAutoCompleteHandler {
    }
 }
 
-(string, string, string) ParseCommand(string input) {
-   var match = Regex.Match(input, @"^\.(\w+)(?: +(.+))?$");
-   return match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", "");
-}
+(string, string, string) ParseCommand(string input) =>
+   Regex.Match(input, @"^\.(\w+)(?: +(.+))?$").Map(match =>
+      match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", ""));
 
 Action<Session> Route(string input, IFileSystem fs) =>
-    ParseCommand(input) switch {
-       (_, "save", _) => session => session.File?.Save(),
-       ("..", _, _) => session => session.Close(),
-       _ when input.StartsWith("/") => session => session.File?.Replace(input).Print(),
-       (_, "check", _) => session => _ = session.File?.Check() as object ?? session.Check(),
-       (_, "open", var path) => session => session.Open(path)?.Print(),
-       (_, "archive", _) => session => {
-          session.File?.Rename(".archive/" + session.File.Path);
-          session.Close();
-       },
-       (_, "rm", _) => session =>
-          Apply(session.File, file => {
+   ParseCommand(input) switch {
+      (_, "save", _) => session => session.File?.Save(),
+      ("..", _, _) => session => session.Close(),
+      _ when input.StartsWith("/") => session => session.File?.Replace(input).Print(),
+      (_, "check", _) => session => _ = session.File?.Check() as object ?? session.Check(),
+      (_, "open", var path) => session => session.Open(path)?.Print(),
+      (_, "archive", _) => session => {
+         session.File?.Rename(".archive/" + session.File.Path);
+         session.Close();
+      },
+      (_, "rm", _) => session =>
+         session.File.Apply(file => {
             Console.Write("Delete '" + session.File.Path + "'? (y/n)");
             if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
             fs.File.Delete(session.File.Path);
             session.Close();
-          }),
-       (_, "rename", var path) => session => session.File?.Rename(path),
-       (_, "edit", var editor) => session => {
-          var path = session.File?.ExportContentToTempFile();
-          if (path == null) return;
-          editor = string.IsNullOrEmpty(editor) ? Environment.GetEnvironmentVariable("EDITOR") : editor;
-          if (string.IsNullOrEmpty(editor))
-             throw new Exception("The editor is not specified and the environment variable EDITOR is not set.");
-          var originalContent = session.File.Content;
-          try {
-             var process = Process.Start(new ProcessStartInfo(editor, path));
-             process.WaitForExit();
-             session.File.ReadFromFile(path).Print();
-             Console.Write("Save the content (y/n)? ");
-             if (Console.ReadLine().ToLowerInvariant() == "y") session.File.Save();
-             else session.Write(session.File.Path, originalContent);
-          } finally {
-             fs.File.Delete(path);
-          }
-       },
-       (_, "pwd", _) => session => Console.WriteLine(new PasswordGenerator.Password().Next()),
-       (_, "add", var path) => session => {
-          var line = "";
-          var content = new StringBuilder();
-          while ("" != (line = Console.ReadLine()))
-             content.AppendLine(line.Replace("***", new PasswordGenerator.Password().Next()));
-          session.Write(path, content.ToString()).Open(path).Print();
-       },
-       (_, "cc", var name) => session =>
-          Apply(session.File?.Field(name), text => {
-             session.CopyText(text);
-             Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => session.CopyText());
-          }),
-       (_, "ccu", _) => Route(".cc user", fs),
-       (_, "ccp", _) => Route(".cc password", fs),
-       _ => session => {
-          if (session.File != null) {
-             session.File.Print();
-             return;
-          }
+         }),
+      (_, "rename", var path) => session => session.File?.Rename(path),
+      (_, "edit", var editor) => session => {
+         var path = session.File?.ExportContentToTempFile();
+         if (path == null) return;
+         editor = string.IsNullOrEmpty(editor) ? Environment.GetEnvironmentVariable("EDITOR") : editor;
+         if (string.IsNullOrEmpty(editor))
+            throw new Exception("The editor is not specified and the environment variable EDITOR is not set.");
+         var originalContent = session.File.Content;
+         try {
+            Process.Start(new ProcessStartInfo(editor, path)).WaitForExit();
+            session.File.ReadFromFile(path).Print();
+            Console.Write("Save the content (y/n)? ");
+            if (Console.ReadLine().ToLowerInvariant() == "y") session.File.Save();
+            else session.Write(session.File.Path, originalContent);
+         } finally {
+            fs.File.Delete(path);
+         }
+      },
+      (_, "pwd", _) => session => Console.WriteLine(new PasswordGenerator.Password().Next()),
+      (_, "add", var path) => session => {
+         var content = new StringBuilder();
+         for (var line = ""; "" != (line = Console.ReadLine());)
+            content.AppendLine(line.Replace("***", new PasswordGenerator.Password().Next()));
+         session.Write(path, content.ToString()).Open(path).Print();
+      },
+      (_, "cc", var name) => session =>
+         session.File?.Field(name).Apply(text => {
+            session.CopyText(text);
+            Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => session.CopyText());
+         }),
+      (_, "ccu", _) => Route(".cc user", fs),
+      (_, "ccp", _) => Route(".cc password", fs),
+      _ => session => {
+         if (session.File?.Print() != null)
+            return;
 
-          var names = session.GetEncryptedFilesRecursively()
-              .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-              .ToList();
+         var names = session.GetEncryptedFilesRecursively()
+             .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+             .ToList();
 
-          var name = names.Count == 1 && input != ""
-              ? names[0]
-              : names.FirstOrDefault(name => string.Equals(name, input, StringComparison.OrdinalIgnoreCase));
+         var name = names.FirstOrDefault(name => string.Equals(name, input, StringComparison.OrdinalIgnoreCase)) ??
+           (names.Count == 1 && input != "" ? names[0] : default);
 
-          if (name != default) {
-             session.Open(name)?.Print();
-             return;
-          }
+         if (name.Map(_ => session.Open(name)?.Print()) != null)
+            return;
 
-          Console.Write(string.Join("", names.Select(name => $"{name}\n")));
-       }
-    };
+         Console.Write(string.Join("", names.Select(name => $"{name}\n")));
+      }
+   };
 
-if (!Args.Contains("-t")) {
-   var fs = new FileSystem();
-
-   var password = ReadLine.ReadPassword("Password: ");
-
+void Main(IFileSystem fs, Func<string, string> readpwd, Func<string, string> read, Action<Session> init, Action done) {
+   var password = readpwd("Password: ");
    var session = new Session(password, fs);
-   var e1 = Try(() => session.Check());
-   if (e1 != null) {
-      Console.Error.WriteLine(e1.Message);
-      return;
-   }
+   if (Try(() => session.Check()).Map(e => e.Message).Apply(Console.Error.WriteLine) != null) return;
    if (!session.GetEncryptedFilesRecursively(".", true).Any()) {
-      var confirmPassword = ReadLine.ReadPassword("It seems that you are creating a new repository. Please confirm password:");
+      var confirmPassword = readpwd("It seems that you are creating a new repository. Please confirm password: ");
       if (confirmPassword != password) {
-         Console.WriteLine("passwords do not match");
+         Console.Error.WriteLine("passwords do not match");
          return;
       }
    }
-
-   ReadLine.HistoryEnabled = true;
-   ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
-
+   session.Apply(init);
    while (true) {
-      var input = ReadLine.Read((session.File?.Modified ?? false ? "*" : "") + (session.File?.Path ?? "") + "> ").Trim();
+      var input = read((session.File?.Modified ?? false ? "*" : "") + (session.File?.Path ?? "") + "> ").Trim();
       if (input == ".quit") break;
-      var e2 = Try(() => Route(input, fs)?.Invoke(session));
-      if (e2 != null) Console.Error.WriteLine(e2.Message);
+      Try(() => Route(input, fs)?.Invoke(session)).Map(e => e.Message).Apply(Console.Error.WriteLine);
    }
-   Console.Clear();
+   done();
 }
+
+(!Args.Contains("-t")).Apply(_ =>
+   Main(new FileSystem(), text => ReadLine.ReadPassword(text), text => ReadLine.Read(text), session => {
+      ReadLine.HistoryEnabled = true;
+      ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
+   }, () => Console.Clear()));

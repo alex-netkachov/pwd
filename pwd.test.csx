@@ -110,7 +110,7 @@ void Test_OpensslDecryptingEncryptedData() {
 }
 
 void Test_GetFilesRecursively() {
-   var files = GetFiles(new FileSystem(), ".", recursively: true).ToList();
+   var files = GetFiles(new FileSystem(), ".", (true, false, false)).ToList();
    foreach (var file in new[] { "LICENSE", "README.md" })
       Assert(files.Contains(file));
 }
@@ -334,6 +334,50 @@ void Test_AutoCompletionHandler() {
    Assert(string.Join(";", handler.GetSuggestions("regular_dir/encrypted", 0)) == "regular_dir/encrypted");
 }
 
+void Test_Main1() {
+   var (pwd, text) = EncryptionTestData();
+   var fs = GetMockFs();
+   var session = default(Session);
+   IEnumerable<string> Input() {
+      yield return pwd;
+      yield return pwd;
+      yield return "";
+      session.Apply(_ => {
+         session.Write("test", "user: user\npassword: password\n");
+      });
+      yield return "test";
+      yield return "..";
+      yield return ".quit";
+   }
+   var messages = new List<string>();
+   var stdoutsb = new StringBuilder();
+   var e = Input().GetEnumerator();
+   var read = (Func<string, string>)(text => {
+      e.MoveNext();
+      var output = stdoutsb.ToString();
+      if (output.Trim().Length > 0) messages.Add(output);
+      stdoutsb.Clear();
+      messages.Add($"{text}{e.Current}");
+      return e.Current;
+   });
+   var stdout = Console.Out;
+   Console.SetOut(new StringWriter(stdoutsb));
+   Main(fs, read, read, s => session = s, () => {});
+   Console.SetOut(stdout);
+   var expected = string.Join("\n", new [] {
+      "Password: secret",
+      "It seems that you are creating a new repository. Please confirm password: secret",
+      ">",
+      "> test",
+      "user: user",
+      "password: password",
+      "test> ..",
+      "> .quit"
+   });
+   var actual = string.Join("\n", messages.Select(line => line.Trim()).Where(line => !string.IsNullOrEmpty(line)));
+   Assert(expected == actual);
+}
+
 void Tests() {
    Test(Test_ParseRegexCommand, nameof(Test_ParseRegexCommand));
    Test(Test_EncryptDecryptRoundup, nameof(Test_EncryptDecryptRoundup));
@@ -358,6 +402,7 @@ void Tests() {
    Test(Test_File_Update, nameof(Test_File_Update));
    Test(Test_File_Field, nameof(Test_File_Field));
    Test(Test_AutoCompletionHandler, nameof(Test_AutoCompletionHandler));
+   Test(Test_Main1, nameof(Test_Main1));
 }
 
 Tests();
