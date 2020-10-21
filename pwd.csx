@@ -63,10 +63,6 @@ static string Decrypt(string password, byte[] data) {
 static string JoinPath(string path1, string path2) =>
     (path1 == "." ? "" : $"{path1}/") + path2;
 
-static void Test111((bool recursively, bool includeFolders) options = default) {
-}
-Test111((true, false));
-
 static IEnumerable<string> GetFiles(
       IFileSystem fs,
       string path,
@@ -106,6 +102,10 @@ static Exception CheckYaml(string text) {
    using var input = new StringReader(text);
    return Try(() => new YamlStream().Load(input));
 }
+
+static bool Confirm(string question) =>
+   question.Apply(_ => Console.Write($"{question} (y/N) "))
+      .Map(_ => Console.ReadLine().ToUpperInvariant() == "Y");
 
 public class File {
    private IFileSystem _fs;
@@ -252,7 +252,7 @@ class AutoCompletionHandler : IAutoCompleteHandler {
 
    public string[] GetSuggestions(string text, int index) {
       if (text.StartsWith(".") && !text.StartsWith(".."))
-         return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.rename,.rm,.save".Split(',')
+         return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.quit,.rename,.rm,.save".Split(',')
             .Where(item => item.StartsWith(text)).ToArray();
       var p = text.LastIndexOf('/');
       var (folder, query) = p == -1 ? ("", text) : (text.Substring(0, p), text.Substring(p + 1));
@@ -277,12 +277,11 @@ Action<Session> Route(string input, IFileSystem fs) =>
          session.Close();
       },
       (_, "rm", _) => session =>
-         session.File.Apply(file => {
-            Console.Write("Delete '" + session.File.Path + "'? (y/n)");
-            if (Console.ReadLine().Trim().ToUpperInvariant() != "Y") return;
-            fs.File.Delete(session.File.Path);
-            session.Close();
-         }),
+         session.File.Apply(file =>
+            Confirm("Delete '" + session.File.Path + "'?").Apply(_ => {
+               fs.File.Delete(session.File.Path);
+               session.Close();
+            })),
       (_, "rename", var path) => session => session.File?.Rename(path),
       (_, "edit", var editor) => session => {
          var path = session.File?.ExportContentToTempFile();
@@ -293,10 +292,8 @@ Action<Session> Route(string input, IFileSystem fs) =>
          var originalContent = session.File.Content;
          try {
             Process.Start(new ProcessStartInfo(editor, path)).WaitForExit();
-            session.File.ReadFromFile(path).Print();
-            Console.Write("Save the content (y/n)? ");
-            if (Console.ReadLine().ToLowerInvariant() == "y") session.File.Save();
-            else session.Write(session.File.Path, originalContent);
+            session.File.ReadFromFile(path).Print()
+               .Map(file => Confirm("Save the content?") ? file : file.Update(originalContent)).Save();
          } finally {
             fs.File.Delete(path);
          }
@@ -333,7 +330,7 @@ Action<Session> Route(string input, IFileSystem fs) =>
       }
    };
 
-void Main(IFileSystem fs, Func<string, string> readpwd, Func<string, string> read, Action<Session> init, Action done) {
+void Main(IFileSystem fs, Func<string, string> readpwd, Func<string, string> read, Action<Session> init, Action<IFileSystem> done) {
    var password = readpwd("Password: ");
    var session = new Session(password, fs);
    if (Try(() => session.Check()).Map(e => e.Message).Apply(Console.Error.WriteLine) != null) return;
@@ -350,11 +347,18 @@ void Main(IFileSystem fs, Func<string, string> readpwd, Func<string, string> rea
       if (input == ".quit") break;
       Try(() => Route(input, fs)?.Invoke(session)).Map(e => e.Message).Apply(Console.Error.WriteLine);
    }
-   done();
+   done(fs);
 }
 
-(!Args.Contains("-t")).Apply(_ =>
+(!Args.Contains("-t")).Apply(a =>
    Main(new FileSystem(), text => ReadLine.ReadPassword(text), text => ReadLine.Read(text), session => {
       ReadLine.HistoryEnabled = true;
       ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
-   }, () => Console.Clear()));
+   }, fs => {
+      Console.Clear();
+      if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") || fs.Directory.Exists("../../.git")) &&
+            Confirm("Update the repository?"))
+         new [] { "add *", "commit -m update", "push" }
+            .Select(args => Try(() => Process.Start(new ProcessStartInfo("git", args)).WaitForExit()))
+            .FirstOrDefault(e => e != null).Apply(Console.Error.WriteLine);
+   }));

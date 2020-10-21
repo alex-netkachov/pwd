@@ -362,7 +362,7 @@ void Test_Main1() {
    });
    var stdout = Console.Out;
    Console.SetOut(new StringWriter(stdoutsb));
-   Main(fs, read, read, s => session = s, () => {});
+   Main(fs, read, read, s => session = s, _ => {});
    Console.SetOut(stdout);
    var expected = string.Join("\n", new [] {
       "Password: secret",
