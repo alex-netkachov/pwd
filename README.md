@@ -2,15 +2,16 @@
 
 pwd is a simple cross-platform console password manager.
 
-Features:
+It is:
 
-- It is small, less code means less bugs and less hidden places.
-- It is DRY, it is only focused on helping you managing passwords.
-- It does not vendor-lock you, use pwd together with openssl and your text editor.
-- It is opensource, so you can see what it does (and it small).
-- It is cross-platform, it works where dotnet works.
-- It is a script, so add your functionality as you please.
-- It is quite powerful (considering its size).
+- small, less code means less bugs and less hidden places.
+- DRY, it is only focused on helping you managing passwords.
+- free of vendor-lock, use pwd together with openssl and your text editor.
+- opensource, so you can see what it does (and it small).
+- cross-platform, it works where dotnet works.
+- a script, so add your functionality as you please.
+- quite powerful (considering its size).
+- autoupdates git repository.
 
 I'm accepting feature requests, add an [issue](https://github.com/AlexAtNet/pwd/issues) or
 send me a message: <alex.netkachov@gmail.com>. 
@@ -34,6 +35,7 @@ send me a message: <alex.netkachov@gmail.com>.
 10. Now either copy the username by typing `.ccu`, copy the password by typing `.ccp`, go back to the file list
 by typing `..`.
 11. Quit anytime by typing `.quit`.
+12. Press enter (mean No) if it asks you to update the repository.
 
 ## Highlights
 
@@ -72,7 +74,7 @@ only with name that starts with the command text. The command text should not st
 - `.edit editor?` opens the editor with the password file in it. The editor can be set through
 the environment variable `EDITOR`.
 - `.rm` removes the currently opened file.
-- `.arvhive` moves the currently opened file to the folder `.archive`. As this folder begins with `.`,
+- `.archive` moves the currently opened file to the folder `.archive`. As this folder begins with `.`,
 the directory reader will not display this folder in the list of encrypted files. Archived
 files are checked when the tool starts and can be opened with `.open`.
 - `.cc name` copies value of a `name: value` pair to clipboard. `clip.exe` is used for Windows and WSL,
@@ -80,6 +82,15 @@ files are checked when the tool starts and can be opened with `.open`.
 and `.ccp` for `.cc password`. The clipboard is cleared in 5 seconds after copying.
 
 Also see a list of readline commands: https://github.com/tonerdo/readline
+
+## Using on Android
+
+There is no .NET Core on Android (yet?). The files encrypted with `pwd` can be decrypted with the script
+`decrypt.sh`. Unless the environment variable `PWDPWD` is set, it asks the password every time. If this
+variable is set, it reads the password from it.
+
+    $ read -s PWDPWD && export PWDWD
+    $ ./decrypt.sh path/to/file
 
 ## Story of pwd
 

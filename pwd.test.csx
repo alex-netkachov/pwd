@@ -378,7 +378,13 @@ void Test_Main1() {
    Assert(expected == actual);
 }
 
+void Test_Try() {
+   var msg = Try(() => throw new Exception()) switch { Exception e => e.Message, _ => default };
+   Assert(msg != null);
+}
+
 void Tests() {
+   Test(Test_Try, nameof(Test_Try));
    Test(Test_ParseRegexCommand, nameof(Test_ParseRegexCommand));
    Test(Test_EncryptDecryptRoundup, nameof(Test_EncryptDecryptRoundup));
    Test(Test_OpensslDecryptingEncryptedData, nameof(Test_OpensslDecryptingEncryptedData));
