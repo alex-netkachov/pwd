@@ -90,11 +90,19 @@ There is no .NET Core on Android (yet?). The files encrypted with `pwd` can be d
 variable is set, it reads the password from it.
 
     $ read -s PWDPWD && export PWDWD
-    $ ./decrypt.sh path/to/file
+    $ ./decrypt.sh path/to/encrypted_file | less
 
 Clear the environment variable:
 
     $ export PWDPWD=
+
+Encrypt the file:
+
+    $ cat text_file | ./encrypt.sh path/to/encrypted_file
+
+List files:
+
+    $ ./list.sh
 
 ## Story of pwd
 
