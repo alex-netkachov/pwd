@@ -92,6 +92,10 @@ variable is set, it reads the password from it.
     $ read -s PWDPWD && export PWDWD
     $ ./decrypt.sh path/to/file
 
+Clear the environment variable:
+
+    $ export PWDPWD=
+
 ## Story of pwd
 
 For years I was in a search for the right password management tool. I've started
