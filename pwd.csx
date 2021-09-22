@@ -237,7 +237,8 @@ public class Session {
       var process = default(Process);
       Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true }))
          .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })))
-         .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("xclip -sel clip") { RedirectStandardInput = true })));
+         .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("xclip") { Arguments = "-sel clip", RedirectStandardInput = true })))
+         .Apply(e => Console.WriteLine($"Cannot copy to the clipboard. Reason: {e.Message}"));
       process?.StandardInput.Apply(stdin => stdin.Write(text ?? "")).Apply(stdin => stdin.Close());
    });
 }
