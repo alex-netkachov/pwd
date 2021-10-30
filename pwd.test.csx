@@ -1,6 +1,6 @@
 #load "pwd.csx"
 
-#r "nuget: System.IO.Abstractions.TestingHelpers, 12.2.5"
+#r "nuget: System.IO.Abstractions.TestingHelpers, 13.2.47"
 
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;

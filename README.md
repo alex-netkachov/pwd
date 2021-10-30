@@ -1,20 +1,19 @@
 # pwd
 
-pwd is a simple cross-platform console password manager.
+`pwd` is a simple cross-platform console password manager.
 
 It is:
 
 - small, less code means less bugs and less hidden places.
 - DRY, it is only focused on helping you managing passwords.
 - free of vendor-lock, use pwd together with openssl and your text editor.
-- opensource, so you can see what it does (and it small).
-- cross-platform, it works where dotnet works.
-- a script, so add your functionality as you please.
-- quite powerful (considering its size).
-- autoupdates git repository.
+- opensource, you can see what it does.
+- cross-platform, it works where `dotnet` works.
+- a script, no wacky binaries, you can see what runs.  
+- functional, it does quite a lot.
 
-I'm accepting feature requests, add an [issue](https://github.com/AlexAtNet/pwd/issues) or
-send me a message: <alex.netkachov@gmail.com>. 
+Add an [issue](https://github.com/AlexAtNet/pwd/issues) or
+send me a message <alex.netkachov@gmail.com> if you miss some functionality. 
 
 ## Requirements
 
@@ -24,7 +23,7 @@ send me a message: <alex.netkachov@gmail.com>.
 ## Quickstart
 
 1. Install [.NET core](https://dotnet.microsoft.com/download)
-2. Install [dotnet-script](https://github.com/filipw/dotnet-script): `dotnet tool install -g dotnet-script`.
+2. Install [dotnet-script](https://github.com/filipw/dotnet-script): `dotnet tool install -g dotnet-script`. 
 3. Clone/copy this repository: `git clone git@github.com:AlexAtNet/pwd.git && cd pwd`.
 4. Run `dotnet script pwd.csx`.
 5. When the tool runs, type a password for your new storage and confirm it.
@@ -47,8 +46,9 @@ https://yaml.org/.
 
 There are several ways to modify content of the encrypted file:
 
-- using regular expressions, see Quickstart above for the example
-- when the environment variable EDITOR is set, type `.edit`
+- using regular expressions;
+- type `.edit` followed by the name of your editor and press ENTER or just `.edit` alone
+if the environment variable EDITOR is set; 
 - decrypt `cat file | openssl aes-256-cbc -d -salt -pbkdf2 > file.txt`, edit, and then
   encrypt `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2 > file` with openssl
 
@@ -58,7 +58,7 @@ The tests are in the `pwd.test.csx`, and can be run with `dotnet script ./pwd.te
 
 # List of Commands
 
-Commands could be sent to pwd by typing them and pressing enter. Most of the commands are either
+Commands are sent to pwd by typing them and pressing enter. Most of the commands are either
 for a single passwords file or for a list of them. When pwd starts, it enters the list mode. From
 the list mode you can go to the file mode by typing a part of the file name or by using `.open`. 
 
@@ -78,8 +78,9 @@ the environment variable `EDITOR`.
 the directory reader will not display this folder in the list of encrypted files. Archived
 files are checked when the tool starts and can be opened with `.open`.
 - `.cc name` copies value of a `name: value` pair to clipboard. `clip.exe` is used for Windows and WSL,
-`pbcopy` is for mac, and `xclip` is for Linux. There are two shortcuts: `.ccu` for `.cc user`
+`pbcopy` is for mac, and `xsel` is for Linux. There are two shortcuts: `.ccu` for `.cc user`
 and `.ccp` for `.cc password`. The clipboard is cleared in 5 seconds after copying.
+- `.clear` clears the console.
 
 Also see a list of readline commands: https://github.com/tonerdo/readline
 

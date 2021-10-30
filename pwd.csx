@@ -1,14 +1,15 @@
 #!/usr/bin/env dotnet-script
 
 #r "nuget: ReadLine, 2.0.1"
-#r "nuget: YamlDotNet, 8.1.2"
+#r "nuget: YamlDotNet, 11.2.1"
 #r "nuget: PasswordGenerator, 2.0.5"
-#r "nuget: System.IO.Abstractions, 12.2.5"
+#r "nuget: System.IO.Abstractions, 13.2.47"
 
 using System;
 using System.IO.Abstractions;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
 using YamlDotNet.RepresentationModel;
 
 static Exception Try(Action action) {
@@ -163,9 +164,10 @@ public class File {
 public class Session {
    private string _password;
    private IFileSystem _fs;
+   private Timer _cleaner;
 
    public Session(string password, IFileSystem fs) =>
-      (_password, _fs) = (password, fs);
+      (_password, _fs, _cleaner) = (password, fs, new Timer(_ => CopyText()));
 
    public File File { get; private set; } = null;
 
@@ -235,9 +237,10 @@ public class Session {
 
    public Session CopyText(string text = null) => this.Apply(s => {
       var process = default(Process);
+      text.Apply(_ => _cleaner.Change(TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan));
       Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true }))
          .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })))
-         .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("xclip") { Arguments = "-sel clip", RedirectStandardInput = true })))
+         .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("xsel") { RedirectStandardInput = true })))
          .Apply(e => Console.WriteLine($"Cannot copy to the clipboard. Reason: {e.Message}"));
       process?.StandardInput.Apply(stdin => stdin.Write(text ?? "")).Apply(stdin => stdin.Close());
    });
@@ -306,13 +309,10 @@ Action<Session> Route(string input, IFileSystem fs) =>
             content.AppendLine(line.Replace("***", new PasswordGenerator.Password().Next()));
          session.Write(path, content.ToString()).Open(path).Print();
       },
-      (_, "cc", var name) => session =>
-         session.File?.Field(name).Apply(text => {
-            session.CopyText(text);
-            Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => session.CopyText());
-         }),
+      (_, "cc", var name) => session => session.File?.Field(name).Apply(value => session.CopyText(value)),
       (_, "ccu", _) => Route(".cc user", fs),
       (_, "ccp", _) => Route(".cc password", fs),
+      (_, "clear", _) => session => Console.Clear(),
       _ => session => {
          if (session.File?.Print() != null)
             return;
