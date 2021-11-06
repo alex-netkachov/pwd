@@ -11,20 +11,19 @@ using System.Threading;
 using YamlDotNet.RepresentationModel;
 
 public static partial class pwd {
-
-   static Exception Try(Action action) {
+   private static Exception Try(this Action action) {
       try { action(); return null; } catch (Exception e) { return e; }
    }
 
-   static T Apply<T>(this T value, Action<T> action) {
+   private static T Apply<T>(this T value, Action<T> action) {
       if (!EqualityComparer<T>.Default.Equals(value, default)) action(value);
       return value;
    }
 
-   static V Map<T, V>(this T value, Func<T, V> func) =>
+   private static V Map<T, V>(this T value, Func<T, V> func) =>
       EqualityComparer<T>.Default.Equals(value, default) ? default : func(value);
 
-   static Aes CreateAes(byte[] salt, string password) {
+   private static Aes CreateAes(byte[] salt, string password) {
       var aes = Aes.Create();
       (aes.Mode, aes.Padding) = (CipherMode.CBC, PaddingMode.PKCS7);
       // 10000 and SHA256 are defaults for pbkdf2 in openssl
@@ -33,10 +32,10 @@ public static partial class pwd {
       return aes;
    }
 
-   static byte[] ReadBytes(Stream stream, int length) =>
+   private static byte[] ReadBytes(Stream stream, int length) =>
       new byte[length].Apply(_ => stream.Read(_, 0, length));
 
-   static byte[] Encrypt(string password, string text) {
+   private static byte[] Encrypt(string password, string text) {
       using var rng = new RNGCryptoServiceProvider();
       var salt = new byte[8].Apply(rng.GetBytes);
       using var stream = new MemoryStream();
@@ -50,7 +49,7 @@ public static partial class pwd {
       return stream.ToArray();
    }
 
-   static string Decrypt(string password, byte[] data) {
+   private static string Decrypt(string password, byte[] data) {
       using var stream = new MemoryStream(data);
       if ("Salted__" != Encoding.ASCII.GetString(ReadBytes(stream, 8)))
          throw new FormatException("Expecting the data stream to begin with Salted__.");
@@ -77,8 +76,8 @@ public static partial class pwd {
             IDirectoryInfo dir when !dir.Name.StartsWith(".") || options.IncludeDottedFilesAndFolders =>
                   (options.Recursively
                      ? GetFiles(fs, JoinPath(path, dir.Name), options)
-                     : new string[0]).Concat(options.IncludeFolders ? new[] { JoinPath(path, dir.Name) } : new string[0]),
-            _ => new string[0]
+                     : Array.Empty<string>()).Concat(options.IncludeFolders ? new[] { JoinPath(path, dir.Name) } : Array.Empty<string>()),
+            _ => Array.Empty<string>()
          }) : Enumerable.Empty<string>();
 
    static (string, string, string) ParseRegexCommand(string text, int idx = 0) {
@@ -99,9 +98,9 @@ public static partial class pwd {
       return (pattern, replacement, options);
    }
 
-   static Exception CheckYaml(string text) {
+   private static Exception CheckYaml(string text) {
       using var input = new StringReader(text);
-      return Try(() => new YamlStream().Load(input));
+      return new Action(() => new YamlStream().Load(input)).Try();
    }
 
    static bool Confirm(string question) =>
@@ -109,8 +108,8 @@ public static partial class pwd {
          .Map(_ => Console.ReadLine().ToUpperInvariant() == "Y");
 
    public class File {
-      private IFileSystem _fs;
-      private Session _session;
+      private readonly IFileSystem _fs;
+      private readonly Session _session;
 
       public File(IFileSystem fs, Session session, string path, string content) =>
          (_fs, _session, Path, Content, Modified) = (fs, session, path, content, false);
@@ -162,14 +161,14 @@ public static partial class pwd {
    }
 
    public class Session {
-      private string _password;
-      private IFileSystem _fs;
-      private Timer _cleaner;
+      private readonly string _password;
+      private readonly IFileSystem _fs;
+      private readonly Timer _cleaner;
 
       public Session(string password, IFileSystem fs) =>
-         (_password, _fs, _cleaner) = (password, fs, new Timer(_ => CopyText()));
+         (_password, _fs, _cleaner) = (password, fs, new(_ => CopyText()));
 
-      public File File { get; private set; } = null;
+      public File File { get; private set; }
 
       public IEnumerable<string> GetItems(string path = null) =>
          GetFiles(_fs, path ?? ".", (false, true, false))
@@ -177,13 +176,13 @@ public static partial class pwd {
 
       public IEnumerable<string> GetEncryptedFilesRecursively(string path = null, bool includeHidden = false) =>
          GetFiles(_fs, path ?? ".", (true, false, includeHidden))
-            .Where(file => IsFileEncrypted(file));
+            .Where(IsFileEncrypted);
 
-      public bool IsFileEncrypted(string path) => null == Try(() => {
+      private bool IsFileEncrypted(string path) => null == new Action(() => {
          using var stream = _fs.File.OpenRead(path);
-         // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is enrypted or not
+         // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is encrypted or not
          _ = "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8)) ? default(object) : throw new Exception();
-      });
+      }).Try();
 
       public string Read(string path) =>
          Decrypt(_password, _fs.File.ReadAllBytes(path));
@@ -235,41 +234,41 @@ public static partial class pwd {
             Console.Error.WriteLine($"YAML check failed for: {(string.Join(", ", notYaml))}");
       });
 
-      public Session CopyText(string text = null) => this.Apply(s => {
+      public Session CopyText(string text = null) => this.Apply(_ => {
          var process = default(Process);
          text.Apply(_ => _cleaner.Change(TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan));
-         Try(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true }))
-            .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })))
-            .Map(_ => Try(() => process = Process.Start(new ProcessStartInfo("xsel") { RedirectStandardInput = true })))
+         new Action(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })).Try()
+            .Map(_ => new Action(() => process = Process.Start(new ProcessStartInfo("pbcopy") { RedirectStandardInput = true })).Try())
+            .Map(_ => new Action(() => process = Process.Start(new ProcessStartInfo("xsel") { RedirectStandardInput = true })).Try())
             .Apply(e => Console.WriteLine($"Cannot copy to the clipboard. Reason: {e.Message}"));
          process?.StandardInput.Apply(stdin => stdin.Write(text ?? "")).Apply(stdin => stdin.Close());
       });
    }
 
-   class AutoCompletionHandler : IAutoCompleteHandler {
-      private Session _session;
+   private class AutoCompletionHandler : IAutoCompleteHandler {
+      private readonly Session _session;
 
       public AutoCompletionHandler(Session session) =>
          _session = session;
 
-      public char[] Separators { get; set; } = new char[0];
+      public char[] Separators { get; set; } = Array.Empty<char>();
 
       public string[] GetSuggestions(string text, int index) {
          if (text.StartsWith(".") && !text.StartsWith(".."))
             return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.quit,.rename,.rm,.save".Split(',')
                .Where(item => item.StartsWith(text)).ToArray();
          var p = text.LastIndexOf('/');
-         var (folder, query) = p == -1 ? ("", text) : (text.Substring(0, p), text.Substring(p + 1));
+         var (folder, _) = p == -1 ? ("", text) : (text[..p], text[(p + 1)..]);
          return _session.GetItems(folder == "" ? "." : folder)
             .Where(item => item.StartsWith(text)).ToArray();
       }
    }
 
-   static (string, string, string) ParseCommand(string input) =>
+   private static (string, string, string) ParseCommand(string input) =>
       Regex.Match(input, @"^\.(\w+)(?: +(.+))?$").Map(match =>
          match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", ""));
 
-   static Action<Session> Route(string input, IFileSystem fs) =>
+   private static Action<Session> Route(string input, IFileSystem fs) =>
       ParseCommand(input) switch {
          (_, "save", _) => session => session.File?.Save(),
          ("..", _, _) => session => session.Close(),
@@ -281,7 +280,7 @@ public static partial class pwd {
             session.Close();
          },
          (_, "rm", _) => session =>
-            session.File.Apply(file =>
+            session.File.Apply(_ =>
                Confirm("Delete '" + session.File.Path + "'?").Apply(_ => {
                   fs.File.Delete(session.File.Path);
                   session.Close();
@@ -295,7 +294,7 @@ public static partial class pwd {
                throw new Exception("The editor is not specified and the environment variable EDITOR is not set.");
             var originalContent = session.File.Content;
             try {
-               Process.Start(new ProcessStartInfo(editor, path)).WaitForExit();
+               Process.Start(new ProcessStartInfo(editor, path))?.WaitForExit();
                session.File.ReadFromFile(path).Print()
                   .Map(file => Confirm("Save the content?") ? file : file.Update(originalContent)).Save();
             } finally {
@@ -305,14 +304,14 @@ public static partial class pwd {
          (_, "pwd", _) => session => Console.WriteLine(new PasswordGenerator.Password().Next()),
          (_, "add", var path) => session => {
             var content = new StringBuilder();
-            for (var line = ""; "" != (line = Console.ReadLine());)
-               content.AppendLine(line.Replace("***", new PasswordGenerator.Password().Next()));
+            for (string line; "" != (line = Console.ReadLine());)
+               content.AppendLine((line ?? "").Replace("***", new PasswordGenerator.Password().Next()));
             session.Write(path, content.ToString()).Open(path).Print();
          },
          (_, "cc", var name) => session => session.File?.Field(name).Apply(value => session.CopyText(value)),
          (_, "ccu", _) => Route(".cc user", fs),
          (_, "ccp", _) => Route(".cc password", fs),
-         (_, "clear", _) => session => Console.Clear(),
+         (_, "clear", _) => _ => Console.Clear(),
          _ => session => {
             if (session.File?.Print() != null)
                return;
@@ -331,7 +330,7 @@ public static partial class pwd {
          }
       };
 
-   static void Run(IFileSystem fs, Func<string, string> readpwd, Func<string, string> read, Action<Session> init, Action<IFileSystem> done) {
+   private static void Run(IFileSystem fs, Func<string, string> readpwd, Func<string, string> read, Action<Session> init, Action<IFileSystem> done) {
       var password = readpwd("Password: ");
       var session = new Session(password, fs);
       if (Try(() => session.Check()).Map(e => e.Message).Apply(Console.Error.WriteLine) != null) return;
@@ -357,7 +356,7 @@ public static partial class pwd {
          return;
       }
 
-      Run(new FileSystem(), text => ReadLine.ReadPassword(text), text => ReadLine.Read(text), session => {
+      Run(new FileSystem(), ReadLine.ReadPassword, text => ReadLine.Read(text), session => {
          ReadLine.HistoryEnabled = true;
          ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
       }, fs => {
@@ -365,7 +364,7 @@ public static partial class pwd {
          if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") || fs.Directory.Exists("../../.git")) &&
                Confirm("Update the repository?"))
             new [] { "add *", "commit -m update", "push" }
-               .Select(args => Try(() => Process.Start(new ProcessStartInfo("git", args)).WaitForExit()))
+               .Select(_ => Try(() => Process.Start(new ProcessStartInfo("git", _))?.WaitForExit()))
                .FirstOrDefault(e => e != null).Apply(Console.Error.WriteLine);
       });
    }

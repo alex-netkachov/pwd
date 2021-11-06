@@ -2,20 +2,13 @@
 
 `pwd` is a simple cross-platform console password manager, written in C#.
 
-It is:
-
-- small, less code means less bugs and less hidden places.
-- it is only focused on helping you managing passwords.
-- free of vendor-lock, use it together with openssl and your text editor.
-- opensource, you can see what it does.
-- cross-platform, it works where `dotnet` works.
-
-Add an [issue](https://github.com/AlexAtNet/pwd/issues) or
-send me a message <alex.netkachov@gmail.com> if you miss some functionality. 
+- It is tiny yet efficient as it only focused on helping you managing passwords.
+- No vendor-lock, use encrypted passwords with openssl and your text editor.
+- It is opensource and cross-platform, it works where `dotnet` works.
 
 ## Requirements
 
-- [.NET core](https://dotnet.microsoft.com/download)
+- Latest [.NET core](https://dotnet.microsoft.com/download)
 
 ## Quickstart
 
@@ -27,11 +20,11 @@ send me a message <alex.netkachov@gmail.com> if you miss some functionality.
 6. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and then press `Enter` on the empty line.
 7. Command prompt is changed to `website.com>`. Type `..` to go back to the list of files.
 8. Type `websi` and press TAB to autocomplete, then press Enter.
-9.  Now either copy the username by typing `.ccu`, copy the password by typing `.ccp`, go back to the file list
+9. Now either copy the username by typing `.ccu`, copy the password by typing `.ccp`, go back to the file list
 by typing `..`. You have 5 seconds to paste it somewhere.
-1.  Type `.edit notepad` to edit the file in notepad. Save and exit when you finish. Confirm overwriting.
-2.  Quit anytime by typing `.quit`.
-3.  Press enter (mean No) if it asks you to update the repository.
+10. Type `.edit notepad` to edit the file in notepad. Save and exit when you finish. Confirm overwriting.
+11. Quit anytime by typing `.quit`.
+12. Press enter (i.e. No) if it asks you to update the repository.
 
 ## Highlights
 

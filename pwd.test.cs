@@ -8,19 +8,19 @@ using System.Linq;
 using System.Text;
 
 public static partial class pwd {
+   private static void Assert(bool value, string message = "") {
+      if (!value) throw new(message);
+   }
 
-   static bool Assert(bool value, string message = "") =>
-      value ? true : throw new Exception(message);
-
-   static void Test(Action test, string name) {
+   private static void Test(Action test, string name) {
       var e = Try(test);
       Console.WriteLine($"{name}: {(e == null ? "OK" : $"FAIL - {e.Message}")}");
    }
 
-   static (string pwd, string text) EncryptionTestData() =>
+   private static (string pwd, string text) EncryptionTestData() =>
       ("secret", "lorem ipsum ...");
 
-   static IFileSystem GetMockFs() {
+   private static IFileSystem GetMockFs() {
       var fs = new MockFileSystem();
       fs.Directory.CreateDirectory("container/test");
       var dir = fs.DirectoryInfo.FromDirectoryName("container/test").FullName;
@@ -28,7 +28,7 @@ public static partial class pwd {
       return fs;
    }
 
-   static IFileSystem FileLayout1(IFileSystem fs) {
+   private static IFileSystem FileLayout1(IFileSystem fs) {
       var (pwd, text) = EncryptionTestData();
       fs.File.WriteAllText("file", text);
       fs.File.WriteAllText(".hidden", text);
@@ -47,20 +47,20 @@ public static partial class pwd {
       return fs;
    }
 
-   static string LocateOpenssl() =>
+   private static string LocateOpenssl() =>
       new[] {
          Environment.GetEnvironmentVariable("ProgramFiles") + @"\Git\usr\bin\openssl.exe",
          Environment.GetEnvironmentVariable("LOCALAPPDATA") + @"\Programs\Git\usr\bin\openssl.exe"
       }.FirstOrDefault(System.IO.File.Exists) ?? "openssl";
 
-   static void Test_EncryptDecryptRoundup() {
+   private static void Test_EncryptDecryptRoundup() {
       var (password, text) = EncryptionTestData();
       var encrypted = Encrypt(password, text);
       var decrypted = Decrypt(password, encrypted);
       Assert(text == decrypted);
    }
 
-   static void Test_DecryptingOpensslEncryptedData() {
+   private static void Test_DecryptingOpensslEncryptedData() {
       void OpensslEncrypt(string path, string password, string text) {
          var info = new ProcessStartInfo(LocateOpenssl(), "aes-256-cbc -e -salt -pbkdf2 -pass stdin") {
             RedirectStandardInput = true,
@@ -87,7 +87,7 @@ public static partial class pwd {
       Assert(text == decrypted);
    }
 
-   static void Test_OpensslDecryptingEncryptedData() {
+   private static void Test_OpensslDecryptingEncryptedData() {
       string OpensslDecrypt(string path, string password) {
          var info = new ProcessStartInfo(LocateOpenssl(), "aes-256-cbc -d -salt -pbkdf2 -pass stdin") {
             RedirectStandardInput = true,
@@ -113,13 +113,13 @@ public static partial class pwd {
       Assert(text == decrypted);
    }
 
-   static void Test_GetFilesRecursively() {
+   private static void Test_GetFilesRecursively() {
       var files = GetFiles(new FileSystem(), ".", (true, false, false)).ToList();
       foreach (var file in new[] { "LICENSE", "README.md" })
          Assert(files.Contains(file));
    }
 
-   static void Test_ParseRegexCommand() {
+   private static void Test_ParseRegexCommand() {
       void Test(string text, string pattern, string replacement, string options) {
          var (p, r, o) = ParseRegexCommand(text);
          Assert(
@@ -132,13 +132,13 @@ public static partial class pwd {
       Test("/\\n/\\n/", "\\n", "\n", "");
    }
 
-   static void Test_Session_Ctor() {
+   private static void Test_Session_Ctor() {
       var fs = new MockFileSystem();
       var session = new Session("pwd", fs);
       Assert(session.File == null);
    }
 
-   static void Test_Session_WriteFile() {
+   private static void Test_Session_WriteFile() {
       var fs = new MockFileSystem();
       var (pwd, content) = EncryptionTestData();
       var session = new Session(pwd, fs);
@@ -147,16 +147,16 @@ public static partial class pwd {
       Assert(content == Decrypt(pwd, encrypted));
    }
 
-   static void Test_Session_GetItems1() {
+   private static void Test_Session_GetItems1() {
       var (pwd, _) = EncryptionTestData();
       var session = new Session(pwd, GetMockFs());
-      Assert(session.GetItems().Count() == 0);
-      Assert(session.GetItems(null).Count() == 0);
-      Assert(session.GetItems(".").Count() == 0);
+      Assert(!session.GetItems().Any());
+      Assert(!session.GetItems(null).Any());
+      Assert(!session.GetItems(".").Any());
    }
 
-   static void Test_Session_GetItems2() {
-      var (pwd, text) = EncryptionTestData();
+   private static void Test_Session_GetItems2() {
+      var (pwd, _) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
       Assert(string.Join(";", session.GetItems()) == "encrypted;regular_dir");
@@ -166,16 +166,16 @@ public static partial class pwd {
       Assert(string.Join(";", session.GetItems(".hidden_dir")) == ".hidden_dir/encrypted");
    }
 
-   static void Test_Session_GetEncryptedFilesRecursively1() {
+   private static void Test_Session_GetEncryptedFilesRecursively1() {
       var (pwd, _) = EncryptionTestData();
       var session = new Session(pwd, GetMockFs());
-      Assert(session.GetEncryptedFilesRecursively().Count() == 0);
-      Assert(session.GetEncryptedFilesRecursively(null).Count() == 0);
-      Assert(session.GetEncryptedFilesRecursively(".").Count() == 0);
+      Assert(!session.GetEncryptedFilesRecursively().Any());
+      Assert(!session.GetEncryptedFilesRecursively(null).Any());
+      Assert(!session.GetEncryptedFilesRecursively(".").Any());
    }
 
-   static void Test_Session_GetEncryptedFilesRecursively2() {
-      var (pwd, text) = EncryptionTestData();
+   private static void Test_Session_GetEncryptedFilesRecursively2() {
+      var (pwd, _) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
 
@@ -197,7 +197,7 @@ public static partial class pwd {
          ".hidden_dir/.hidden_encrypted;.hidden_dir/encrypted");
    }
 
-   static void Test_Session_Read() {
+   private static void Test_Session_Read() {
       var (pwd, text) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
@@ -215,7 +215,7 @@ public static partial class pwd {
          Assert(session.Read(file) == text);
    }
 
-   static void Test_Session_Write() {
+   private static void Test_Session_Write() {
       var (pwd, text) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
@@ -224,7 +224,7 @@ public static partial class pwd {
       Assert(Decrypt(pwd, fs.File.ReadAllBytes("test")) == text);
    }
 
-   static void Test_Session_Write_Clears_midification_flag_for_open_file() {
+   private static void Test_Session_Write_Clears_midification_flag_for_open_file() {
       var (pwd, text) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
@@ -234,7 +234,7 @@ public static partial class pwd {
       Assert(!session.File.Modified);
    }
 
-   static void Test_File_ExportContentToTempFile() {
+   private static void Test_File_ExportContentToTempFile() {
       var (pwd, text) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
@@ -244,7 +244,7 @@ public static partial class pwd {
       Assert(fs.File.ReadAllText(path) == text);
    }
 
-   static void Test_File_ReadFromFile1() {
+   private static void Test_File_ReadFromFile1() {
       var (pwd, text) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
@@ -254,7 +254,7 @@ public static partial class pwd {
       Assert(file.Modified);
    }
 
-   static void Test_File_ReadFromFile2() {
+   private static void Test_File_ReadFromFile2() {
       var (pwd, text) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
@@ -264,7 +264,7 @@ public static partial class pwd {
       Assert(!file.Modified);
    }
 
-   static void Test_File_Save() {
+   private static void Test_File_Save() {
       var (pwd, text) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
@@ -277,8 +277,8 @@ public static partial class pwd {
       Assert(Decrypt(pwd, fs.File.ReadAllBytes(file.Path)) == text);
    }
 
-   static void Test_File_Rename() {
-      var (pwd, text) = EncryptionTestData();
+   private static void Test_File_Rename() {
+      var (pwd, _) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
       var file = session.Open("encrypted");
@@ -288,7 +288,7 @@ public static partial class pwd {
       Assert(fs.File.Exists("regular_dir/encrypted.test"));
    }
 
-   static void Test_File_Replace() {
+   private static void Test_File_Replace() {
       var (pwd, text) = EncryptionTestData();
       var fs = GetMockFs();
       var session = new Session(pwd, fs);
@@ -301,7 +301,7 @@ public static partial class pwd {
       Assert(file.Content == text);
    }
 
-   static void Test_File_Update() {
+   private static void Test_File_Update() {
       var (pwd, text) = EncryptionTestData();
       var fs = GetMockFs();
       var session = new Session(pwd, fs);
@@ -314,8 +314,8 @@ public static partial class pwd {
       Assert(file.Content == text);
    }
 
-   static void Test_File_Field() {
-      var (pwd, text) = EncryptionTestData();
+   private static void Test_File_Field() {
+      var (pwd, _) = EncryptionTestData();
       var fs = GetMockFs();
       var session = new Session(pwd, fs);
       var file = new File(fs, session, "test", "a: 1\nab: 2");
@@ -323,8 +323,8 @@ public static partial class pwd {
       Assert(file.Field("ab") == "2");
    }
 
-   static void Test_AutoCompletionHandler() {
-      var (pwd, text) = EncryptionTestData();
+   private static void Test_AutoCompletionHandler() {
+      var (pwd, _) = EncryptionTestData();
       var fs = FileLayout1(GetMockFs());
       var session = new Session(pwd, fs);
       var handler = new AutoCompletionHandler(session);
@@ -338,8 +338,8 @@ public static partial class pwd {
       Assert(string.Join(";", handler.GetSuggestions("regular_dir/encrypted", 0)) == "regular_dir/encrypted");
    }
 
-   static void Test_Main1() {
-      var (pwd, text) = EncryptionTestData();
+   private static void Test_Main1() {
+      var (pwd, _) = EncryptionTestData();
       var fs = GetMockFs();
       var session = default(Session);
       IEnumerable<string> Input() {
@@ -382,12 +382,12 @@ public static partial class pwd {
       Assert(expected == actual);
    }
 
-   static void Test_Try() {
-      var msg = Try(() => throw new Exception()) switch { Exception e => e.Message, _ => default };
+   private static void Test_Try() {
+      var msg = Try(() => throw new()) switch { { } e => e.Message, _ => default };
       Assert(msg != null);
    }
 
-   static void Tests() {
+   private static void Tests() {
       Test(Test_Try, nameof(Test_Try));
       Test(Test_ParseRegexCommand, nameof(Test_ParseRegexCommand));
       Test(Test_EncryptDecryptRoundup, nameof(Test_EncryptDecryptRoundup));
