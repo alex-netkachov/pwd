@@ -1,16 +1,14 @@
 # pwd
 
-`pwd` is a simple cross-platform console password manager.
+`pwd` is a simple cross-platform console password manager, written in C#.
 
 It is:
 
 - small, less code means less bugs and less hidden places.
-- DRY, it is only focused on helping you managing passwords.
-- free of vendor-lock, use pwd together with openssl and your text editor.
+- it is only focused on helping you managing passwords.
+- free of vendor-lock, use it together with openssl and your text editor.
 - opensource, you can see what it does.
 - cross-platform, it works where `dotnet` works.
-- a script, no wacky binaries, you can see what runs.  
-- functional, it does quite a lot.
 
 Add an [issue](https://github.com/AlexAtNet/pwd/issues) or
 send me a message <alex.netkachov@gmail.com> if you miss some functionality. 
@@ -18,23 +16,22 @@ send me a message <alex.netkachov@gmail.com> if you miss some functionality.
 ## Requirements
 
 - [.NET core](https://dotnet.microsoft.com/download)
-- [dotnet-script](https://github.com/filipw/dotnet-script)
 
 ## Quickstart
 
 1. Install [.NET core](https://dotnet.microsoft.com/download)
-2. Install [dotnet-script](https://github.com/filipw/dotnet-script): `dotnet tool install -g dotnet-script`. 
-3. Clone/copy this repository: `git clone git@github.com:AlexAtNet/pwd.git && cd pwd`.
-4. Run `dotnet script pwd.csx`.
-5. When the tool runs, type a password for your new storage and confirm it.
-6. Type `.add website.com` to add a new encrypted file.
-7. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and then press `Enter` on the empty line.
-8. Command prompt is changed to `website.com>`. Type `..` to go back to the list of files.
-9. Type `websi` and press TAB to autocomplete, then press Enter.
-10. Now either copy the username by typing `.ccu`, copy the password by typing `.ccp`, go back to the file list
-by typing `..`.
-11. Quit anytime by typing `.quit`.
-12. Press enter (mean No) if it asks you to update the repository.
+2. Clone/copy this repository: `git clone git@github.com:AlexAtNet/pwd.git && cd pwd`.
+3. Run `dotnet run`.
+4. When the tool runs, type a password for your new storage and confirm it.
+5. Type `.add website.com` to add a new encrypted file.
+6. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and then press `Enter` on the empty line.
+7. Command prompt is changed to `website.com>`. Type `..` to go back to the list of files.
+8. Type `websi` and press TAB to autocomplete, then press Enter.
+9.  Now either copy the username by typing `.ccu`, copy the password by typing `.ccp`, go back to the file list
+by typing `..`. You have 5 seconds to paste it somewhere.
+1.  Type `.edit notepad` to edit the file in notepad. Save and exit when you finish. Confirm overwriting.
+2.  Quit anytime by typing `.quit`.
+3.  Press enter (mean No) if it asks you to update the repository.
 
 ## Highlights
 
@@ -44,9 +41,8 @@ Passwords are stored in files. When the tool starts, it checks the integrity of 
 in the folder: it checks that they can be decrypted are valid YAML files. See more on YAML here:
 https://yaml.org/.
 
-There are several ways to modify content of the encrypted file:
+There are two ways to modify content of the encrypted file:
 
-- using regular expressions;
 - type `.edit` followed by the name of your editor and press ENTER or just `.edit` alone
 if the environment variable EDITOR is set; 
 - decrypt `cat file | openssl aes-256-cbc -d -salt -pbkdf2 > file.txt`, edit, and then
@@ -54,7 +50,7 @@ if the environment variable EDITOR is set;
 
 # Testing
 
-The tests are in the `pwd.test.csx`, and can be run with `dotnet script ./pwd.test.csx -- -t`.
+The tests are in the `pwd.test.cs`, and can be run with `dotnet run -- -t`.
 
 # List of Commands
 
@@ -71,8 +67,8 @@ only with name that starts with the command text. The command text should not st
 `***` in the input with a newly generated password.
 - `.open path` opens the encrypted file.
 - `.pwd` prints a strong password.
-- `.edit editor?` opens the editor with the password file in it. The editor can be set through
-the environment variable `EDITOR`.
+- `.edit [editor]` opens the `editor` (e.g. `notepad`) with the current file. Omitting `editor`
+makes `pwd` look for it in the environment variable `EDITOR`.
 - `.rm` removes the currently opened file.
 - `.archive` moves the currently opened file to the folder `.archive`. As this folder begins with `.`,
 the directory reader will not display this folder in the list of encrypted files. Archived
@@ -86,7 +82,7 @@ Also see a list of readline commands: https://github.com/tonerdo/readline
 
 ## Using on Android
 
-There is no .NET Core on Android (yet?). The files encrypted with `pwd` can be decrypted with the script
+There is no .NET Core on Android. The files encrypted with `pwd` can be decrypted with the script
 `decrypt.sh`. Unless the environment variable `PWDPWD` is set, it asks the password every time. If this
 variable is set, it reads the password from it.
 
@@ -104,6 +100,8 @@ Encrypt the file:
 List files:
 
     $ ./list.sh
+
+The `pwd` scripts, e.g. `decrypt.sh`, were tested with Termux. 
 
 ## Story of pwd
 
@@ -161,7 +159,7 @@ so I can encrypt and decrypt any files from the command line, not only text file
 And I recently started using yaml as internal format for the files so the
 programmability is a piece of cake.
 
-./pwd.csx is an amalgamation of a few simple tools that I've developed while
+`pwd` is an amalgamation of a few simple tools that I've developed while
 automatising my daily password managing tasks. It can be used simultaneously
 with openssl to encrypt and decrypt files, it checks the integrity of the passwords
 database, and it allows to view several files without needing to type the password

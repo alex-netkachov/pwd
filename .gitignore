@@ -1,6 +1,7 @@
+# dotnet build folders
 bin
 obj
-template
-test
-update.sh
+
+# popular editors
 .idea
+.vscode
