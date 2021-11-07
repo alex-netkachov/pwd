@@ -155,9 +155,17 @@ public static partial class pwd {
       public File Print() => this.Apply(_ =>
          Console.WriteLine(Content));
 
-      public string Field(string name) =>
-         Regex.Match(Content, @$"{name}: *([^\n]+)")
-            .Map(match => match.Success ? match.Groups[1].Value : null);
+      public string Field(string name)
+      {
+         using var input = new StringReader(Content);
+         var yaml = new YamlStream();
+         yaml.Load(input);
+         if (yaml.Documents.First().RootNode is not YamlMappingNode mappingNode)
+            return "";
+         return (mappingNode.Children
+            .FirstOrDefault(item => string.Equals(item.Key.ToString(), name, StringComparison.OrdinalIgnoreCase))
+            .Value as YamlScalarNode)?.Value ?? "";
+      }
    }
 
    public class Session {

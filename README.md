@@ -159,7 +159,11 @@ database, and it allows to view several files without needing to type the passwo
 each time.
 
 I want to keep it simple and understandable so everyone can make sure that there
-are no hidden threats. The code is clean and simple so new commands can be added easily.
+are no hidden threats. The code is clean and simple so new commands can be added
+easily.
 
 This solution has been serving me well for several years already. As it is now
-a time-proven one, I'm happy to share it with you. Enjoy and be safe.
+a time-proven one, I'm happy to share it with you.
+
+If you like it, consider buying me a coffee
+https://www.buymeacoffee.com/alex.alexander. Thanks!
