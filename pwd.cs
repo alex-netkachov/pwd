@@ -299,7 +299,7 @@ public static partial class pwd {
             if (path == null) return;
             editor = string.IsNullOrEmpty(editor) ? Environment.GetEnvironmentVariable("EDITOR") : editor;
             if (string.IsNullOrEmpty(editor))
-               throw new Exception("The editor is not specified and the environment variable EDITOR is not set.");
+               throw new("The editor is not specified and the environment variable EDITOR is not set.");
             var originalContent = session.File.Content;
             try {
                Process.Start(new ProcessStartInfo(editor, path))?.WaitForExit();
@@ -309,7 +309,7 @@ public static partial class pwd {
                fs.File.Delete(path);
             }
          },
-         (_, "pwd", _) => session => Console.WriteLine(new PasswordGenerator.Password().Next()),
+         (_, "pwd", _) => _ => Console.WriteLine(new PasswordGenerator.Password().Next()),
          (_, "add", var path) => session => {
             var content = new StringBuilder();
             for (string line; "" != (line = Console.ReadLine());)
