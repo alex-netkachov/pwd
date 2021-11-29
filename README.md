@@ -75,6 +75,17 @@ Also see a list of readline commands: https://github.com/tonerdo/readline
 
 ## Using on Android
 
+### HTML Export
+
+Export your password files to HTML and open them with Android's Chrome broser as follows:
+
+1) In your passwords folder run the command: `dotnet script <path-to-pwd>/to-html.csx > _index.html`.
+2) Copy this file to your phone, either by commiting to the shared repository or by copying
+it through Bluetooth, or by any other method.
+3) Open the copied HTML file in your Android's browser and follow the onscreen instruction.
+
+### Termux
+
 There is no .NET Core on Android. The files encrypted with `pwd` can be decrypted with the script
 `decrypt.sh`. Unless the environment variable `PWDPWD` is set, it asks the password every time. If this
 variable is set, it reads the password from it.
