@@ -19,4 +19,4 @@ var script =
 
 var template = File.ReadAllText(Path.Join(GetSourceFolder(), "template.html"));
 var content = template.Replace("const files = { };", "const files = {\n  " + script + "\n};");
-File.WriteAllText("index.html", content);
+Console.WriteLine(content);

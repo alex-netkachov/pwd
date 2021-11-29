@@ -71,9 +71,9 @@ public static partial class pwd {
          .EnumerateFileSystemInfos()
          .OrderBy(info => info.Name)
          .SelectMany(info => info switch {
-            IFileInfo file when !file.Name.StartsWith(".") || options.IncludeDottedFilesAndFolders =>
+            IFileInfo file when !(file.Name.StartsWith('.') || file.Name.StartsWith('_')) || options.IncludeDottedFilesAndFolders =>
                   new[] { JoinPath(path, file.Name) },
-            IDirectoryInfo dir when !dir.Name.StartsWith(".") || options.IncludeDottedFilesAndFolders =>
+            IDirectoryInfo dir when !(dir.Name.StartsWith('.') || dir.Name.StartsWith('_')) || options.IncludeDottedFilesAndFolders =>
                   (options.Recursively
                      ? GetFiles(fs, JoinPath(path, dir.Name), options)
                      : Array.Empty<string>()).Concat(options.IncludeFolders ? new[] { JoinPath(path, dir.Name) } : Array.Empty<string>()),
