@@ -11,30 +11,69 @@ window.onload = () => {
 
   const salted = { text : 'Salted__', bytes : encoder.encode('Salted__'), length : 8 };
 
-  const elements = {
-    pwd : document.getElementById('pwd'),
-    files : document.getElementById('files'),
-    file : document.getElementById('file')
-  };
+  initWithTestData(files);
+  
+  const e = id => ({
+    $e : document.getElementById(id),
+    clear : function () { while (this.$e.firstChild) this.$e.removeChild(this.$e.firstChild); return this; },
+    show : function () { this.css().display = ''; return this; },
+    hide : function () { this.css().display = 'none'; return this; },
+    text : function (text) { this.clear(); this.$e.appendChild(document.createTextNode(text)); return this; },
+    append : function (html) { this.$e.appendChild(html); return this; },
+    val : function () { return this.$e.value; },
+    css : function () { return this.$e.style; },
+    onclick : function (func) { this.$e.onclick = func; return this; },
+    onkeyup : function (func) { this.$e.onkeyup = func; return this; },
+  });
+  
+  function showPwd() {
+    e('pwd').show();
+    e('files').hide();
+    e('file').hide();
+    e('pwd-apply').onclick(() => showFiles(e('pwd-input').val()));
+  }
+  
+  function showFiles(pwd) {
+    e('pwd').hide();
+    e('files').show();
+    e('file').hide();
+    
+    function showFilesList(filter) {
+      e('files-list').clear();
+      for (const key of Object.keys(files).sort()) {
+        if (filter !== '' && key.toUpperCase().indexOf(filter.toUpperCase()) === -1)
+          continue;
+        const item = document.createElement('div');
+        const link = item.appendChild(document.createElement('a'));
+        link.appendChild(document.createTextNode(key));
+        link.setAttribute('href', '#');
+        link.onclick = e => {
+          e.preventDefault();
+          decrypt(files[key], pwd)
+                  .then(value => showFile(pwd, key, value))
+                  .catch(err => showFile(pwd, key, err));
+        };
+        e('files-list').append(item);
+      }
+    }
 
-  for (const key of Object.keys(files).sort()) {
-    const item = document.createElement('li');
-    const link = item.appendChild(document.createElement('a'));
-    link.appendChild(document.createTextNode(key));
-    link.setAttribute('href', '#');
-    link.onclick = e => {
-      e.preventDefault();
-      clear(elements.file);
-      decrypt(files[key], elements.pwd.value).then((value, err) =>
-        file.appendChild(document.createTextNode(err || value)));
-    };
-    elements.files.appendChild(item);
+    e('files-filter-input').onkeyup(() => showFilesList(e('files-filter-input').val()));
+    showFilesList('');
   }
 
-  function clear(element) {
-    while (element.firstChild)
-      element.removeChild(element.firstChild);
+  function showFile(pwd, name, content) {
+    e('pwd').hide();
+    e('files').hide();
+    e('file').show();
+
+    e('file-header-back').onclick(() => showFiles(pwd));
+    e('file-header-title').text(name);
+    e('file-content').text(content);
+    
+    console.log(content);
   }
+
+  showPwd();
 
   function stringToBytes(value) {
     const array = new Uint8Array(value.length >> 1);
@@ -54,7 +93,6 @@ window.onload = () => {
     return pairs.join('');
   }
   
-
   async function deriveKeyAndIv(salt, pwd) {
     const baseKey = await crypto.subtle.importKey('raw', encoder.encode(pwd), 'PBKDF2', false, [ 'deriveBits' ]);
     const bits = await crypto.subtle.deriveBits({ name : 'PBKDF2', hash : 'SHA-256', salt : salt, iterations : 10000 }, baseKey, 384);
@@ -79,25 +117,59 @@ window.onload = () => {
     const decrypted = await crypto.subtle.decrypt({ name : 'AES-CBC', iv }, key, bytes.slice(salted.length + 8));
     return decoder.decode(decrypted);
   }
+
+  async function initWithTestData(files) {
+    if (Object.keys(files).length !== 0)
+      return;
+    
+    for (let i = 0; i < 50; i++)
+      files[`item${i}`] = await encrypt('user: usr\npassword: pwd', 'test');
+  }
 };
     </script>
+    <style>
+      html, body, body>div { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-size: 17pt; font-family: serif; }
+      input:focus { outline: none; }
+
+      #pwd { background: #D0D0F0; }
+      #pwd>div { display: grid; grid-template-columns: 24pt 1fr 24pt; }
+      #pwd>div>label { text-align: center; vertical-align: middle; background: #B0B0E0; }
+
+      #files { display: grid; grid-template-rows: 24pt 1fr; }
+      #files-filter { display: grid; grid-template-columns: 24pt 1fr; background: #D0D0F0; }
+      #files-filter>label { text-align: center; vertical-align: middle; background: #B0B0E0; }
+      #files-list { background: #FFFFFF; overflow-y: scroll; }
+      #files-list>div { padding: 2pt; }
+      #files-list>div>a { text-decoration: none; }
+
+      #file { display: grid; grid-template-rows: 24pt 1fr; }
+      #file-header { display: grid; grid-template-columns: 24pt 1fr; background: #D0D0F0; }
+      #file-header-back { text-align: center; vertical-align: middle; background: #B0B0E0; }
+      #file-header-title { padding: 2pt 0 2pt 5pt; font-size: 17pt; font-family: sans-serif; }
+      #file-content { white-space: pre; font-size: 15pt; font-family: monospace; padding: 4pt; background: #FFFFFF; overflow-y: scroll; }
+    </style>
   </head>
   <body>
-    <div>
-      <label for="pwd">Password:</label>
-      <input id="pwd" type="password">
+    <div id="pwd">
+      <div>
+        <label for="pwd-input">&#128272;</label>
+        <input id="pwd-input" type="password">
+        <button id="pwd-apply">&#10004;</button>
+      </div>
     </div>
-    <table>
-      <tr>
-        <td valign="top">
-          <ul id="files"></ul>
-        </td>
-        <td valign="top">
-          <div>
-            <pre id="file"></pre>
-          </div>
-        </td>
-      </tr>
-    </table>
+    <div id="files">
+      <div id="files-filter">
+        <label for="files-filter-input">&#128270;</label>
+        <input id="files-filter-input" type="text">
+      </div>
+      <div id="files-list"></div>
+    </div>
+    <div id="file">
+      <div id="file-header">
+        <div id="file-header-back">&#129168;</div>
+        <div id="file-header-title"></div>
+      </div>
+      <div id="file-content"></div>
+    </div>
   </body>
 </html>
