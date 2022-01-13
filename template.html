@@ -1,76 +1,71 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>pwd</title>
     <script>
 const files = { };
 
-window.onload = () => {
+window.onload = async () => {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   const salted = { text : 'Salted__', bytes : encoder.encode('Salted__'), length : 8 };
 
-  initWithTestData(files);
+  await initWithTestData(files);
   
-  const e = id => ({
-    $e : document.getElementById(id),
-    clear : function () { while (this.$e.firstChild) this.$e.removeChild(this.$e.firstChild); return this; },
+  const $ = value => ({
+    $e : ('string' === typeof value) ? document.querySelector(value) : value,
+    empty : function () { while (this.$e.firstChild) this.$e.removeChild(this.$e.firstChild); return this; },
+    attr : function (name, value) { this.$e.setAttribute(name, value); return this; },
     show : function () { this.css().display = ''; return this; },
     hide : function () { this.css().display = 'none'; return this; },
-    text : function (text) { this.clear(); this.$e.appendChild(document.createTextNode(text)); return this; },
-    append : function (html) { this.$e.appendChild(html); return this; },
+    text : function (text) { return this.empty().append(document.createTextNode(text)); },
+    append : function (value) { (Array.isArray(value) ? value : [ value ]).forEach(item => item && this.$e.appendChild(item.$e || item)); return this; },
     val : function () { return this.$e.value; },
     css : function () { return this.$e.style; },
-    onclick : function (func) { this.$e.onclick = func; return this; },
-    onkeyup : function (func) { this.$e.onkeyup = func; return this; },
+    click : function (func) { this.$e.onclick = func; return this; },
+    keyup : function (func) { this.$e.onkeyup = func; return this; },
   });
   
   function showPwd() {
-    e('pwd').show();
-    e('files').hide();
-    e('file').hide();
-    e('pwd-apply').onclick(() => showFiles(e('pwd-input').val()));
+    $('#pwd').show();
+    $('#files').hide();
+    $('#file').hide();
+    $('#pwd-apply').click(() => showFiles($('#pwd-input').val()));
   }
   
   function showFiles(pwd) {
-    e('pwd').hide();
-    e('files').show();
-    e('file').hide();
+    $('#pwd').hide();
+    $('#files').show();
+    $('#file').hide();
     
     function showFilesList(filter) {
-      e('files-list').clear();
-      for (const key of Object.keys(files).sort()) {
+      $('#files-list').empty().append(Object.keys(files).sort().map(key => {
         if (filter !== '' && key.toUpperCase().indexOf(filter.toUpperCase()) === -1)
-          continue;
-        const item = document.createElement('div');
-        const link = item.appendChild(document.createElement('a'));
-        link.appendChild(document.createTextNode(key));
-        link.setAttribute('href', '#');
-        link.onclick = e => {
-          e.preventDefault();
-          decrypt(files[key], pwd)
-                  .then(value => showFile(pwd, key, value))
-                  .catch(err => showFile(pwd, key, err));
-        };
-        e('files-list').append(item);
-      }
+          return null;
+        return $(document.createElement('div')).append(
+                $(document.createElement('a')).text(key).attr('href', '#').click(e => {
+                  e.preventDefault();
+                  decrypt(files[key], pwd).then(value => showFile(pwd, key, value))
+                          .catch(err => showFile(pwd, key, err));
+                }));
+      }));
     }
 
-    e('files-filter-input').onkeyup(() => showFilesList(e('files-filter-input').val()));
+    $('#files-filter-input').keyup(e => showFilesList($(e.target).val()));
+
     showFilesList('');
   }
 
   function showFile(pwd, name, content) {
-    e('pwd').hide();
-    e('files').hide();
-    e('file').show();
+    $('#pwd').hide();
+    $('#files').hide();
+    $('#file').show();
 
-    e('file-header-back').onclick(() => showFiles(pwd));
-    e('file-header-title').text(name);
-    e('file-content').text(content);
-    
-    console.log(content);
+    $('#file-header-back').click(() => showFiles(pwd));
+    $('#file-header-title').text(name);
+    $('#file-content').text(content);
   }
 
   showPwd();
@@ -119,11 +114,9 @@ window.onload = () => {
   }
 
   async function initWithTestData(files) {
-    if (Object.keys(files).length !== 0)
-      return;
-    
-    for (let i = 0; i < 50; i++)
-      files[`item${i}`] = await encrypt('user: usr\npassword: pwd', 'test');
+    if (Object.keys(files).length === 0)
+      for (let i = 0; i < 50; i++)
+        files[`item${i}`] = await encrypt('user: usr\npassword: pwd', 'test');
   }
 };
     </script>
@@ -131,9 +124,11 @@ window.onload = () => {
       html, body, body>div { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-size: 17pt; font-family: serif; }
       input:focus { outline: none; }
 
-      #pwd { background: #D0D0F0; }
-      #pwd>div { display: grid; grid-template-columns: 24pt 1fr 24pt; }
-      #pwd>div>label { text-align: center; vertical-align: middle; background: #B0B0E0; }
+      #pwd { background: #D0D0F0; display: grid; }
+      #pwd>div { margin: auto; text-align: center; }
+      #pwd>div>label { text-align: center; display: inline-block; }
+      #pwd>div>input { text-align: center; display: block; font-size: 15pt; }
+      #pwd>div>button { text-align: center; display: inline-block; margin: 10pt; padding: 3pt 7pt; }
 
       #files { display: grid; grid-template-rows: 24pt 1fr; }
       #files-filter { display: grid; grid-template-columns: 24pt 1fr; background: #D0D0F0; }

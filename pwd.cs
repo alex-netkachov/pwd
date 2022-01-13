@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -320,6 +321,28 @@ public static partial class pwd {
          (_, "ccu", _) => Route(".cc user", fs),
          (_, "ccp", _) => Route(".cc password", fs),
          (_, "clear", _) => _ => Console.Clear(),
+         (_, "export", _) => _ =>
+         {
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.template.html");
+            using var reader = new StreamReader(stream);
+            var template = reader.ReadToEnd();
+            var script = string.Join(",\n  ",
+               Directory.GetFiles(".")
+                  .Select(file => (Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
+                  .Where(item =>
+                  {
+                     if (item.Item2.Length < 16) return false;
+                     var prefix = new byte[8];
+                     Array.Copy(item.Item2, 0, prefix, 0, prefix.Length);
+                     var text = Encoding.ASCII.GetString(prefix);
+                     return text == "Salted__";
+                  })
+                  .OrderBy(item => item.Item1)
+                  .Select(item => (item.Item1, string.Join("", item.Item2.Select(value => value.ToString("x2")))))
+                  .Select(item => $"'{item.Item1}' : '{item.Item2}'"));
+            var content = template.Replace("const files = { };", $"const files = {{\n  {script}\n}};");
+            System.IO.File.WriteAllText("_index.html", content);
+         },
          _ => session => {
             if (session.File?.Print() != null)
                return;

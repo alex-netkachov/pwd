@@ -13,4 +13,9 @@
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="template.html" />
+    <EmbeddedResource Include="template.html" />
+  </ItemGroup>
+
 </Project>

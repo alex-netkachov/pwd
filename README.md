@@ -70,6 +70,7 @@ files are checked when the tool starts and can be opened with `.open`.
 `pbcopy` is for mac, and `xsel` is for Linux. There are two shortcuts: `.ccu` for `.cc user`
 and `.ccp` for `.cc password`. The clipboard is cleared in 5 seconds after copying.
 - `.clear` clears the console.
+- `.export` writes the encrypted password files to a single HTML file.
 
 Also see a list of readline commands: https://github.com/tonerdo/readline
 
