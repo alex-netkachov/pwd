@@ -12,7 +12,7 @@ using System.Threading;
 using YamlDotNet.RepresentationModel;
 
 public static partial class pwd {
-   private static Exception Try(this Action action) {
+   private static Exception? Try(this Action action) {
       try { action(); return null; } catch (Exception e) { return e; }
    }
 
@@ -21,7 +21,7 @@ public static partial class pwd {
       return value;
    }
 
-   private static V Map<T, V>(this T value, Func<T, V> func) =>
+   private static V? Map<T, V>(this T value, Func<T, V> func) =>
       EqualityComparer<T>.Default.Equals(value, default) ? default : func(value);
 
    private static Aes CreateAes(byte[] salt, string password) {
@@ -36,8 +36,9 @@ public static partial class pwd {
    private static byte[] ReadBytes(Stream stream, int length) =>
       new byte[length].Apply(_ => stream.Read(_, 0, length));
 
-   private static byte[] Encrypt(string password, string text) {
-      using var rng = new RNGCryptoServiceProvider();
+   private static byte[] Encrypt(string password, string text)
+   {
+      using var rng = RandomNumberGenerator.Create();
       var salt = new byte[8].Apply(rng.GetBytes);
       using var stream = new MemoryStream();
       Encoding.ASCII.GetBytes("Salted__").Concat(salt).Apply(data => stream.Write(data.ToArray(), 0, 16));
@@ -99,14 +100,14 @@ public static partial class pwd {
       return (pattern, replacement, options);
    }
 
-   private static Exception CheckYaml(string text) {
+   private static Exception? CheckYaml(string text) {
       using var input = new StringReader(text);
       return new Action(() => new YamlStream().Load(input)).Try();
    }
 
    static bool Confirm(string question) =>
       question.Apply(_ => Console.Write($"{question} (y/N) "))
-         .Map(_ => Console.ReadLine().ToUpperInvariant() == "Y");
+         .Map(_ => Console.ReadLine()?.ToUpperInvariant() == "Y");
 
    public class File {
       private readonly IFileSystem _fs;
@@ -179,11 +180,11 @@ public static partial class pwd {
 
       public File File { get; private set; }
 
-      public IEnumerable<string> GetItems(string path = null) =>
+      public IEnumerable<string> GetItems(string? path = null) =>
          GetFiles(_fs, path ?? ".", (false, true, false))
             .Where(item => !_fs.File.Exists(item) || IsFileEncrypted(item));
 
-      public IEnumerable<string> GetEncryptedFilesRecursively(string path = null, bool includeHidden = false) =>
+      public IEnumerable<string> GetEncryptedFilesRecursively(string? path = null, bool includeHidden = false) =>
          GetFiles(_fs, path ?? ".", (true, false, includeHidden))
             .Where(IsFileEncrypted);
 
@@ -243,7 +244,7 @@ public static partial class pwd {
             Console.Error.WriteLine($"YAML check failed for: {(string.Join(", ", notYaml))}");
       });
 
-      public Session CopyText(string text = null) => this.Apply(_ => {
+      public Session CopyText(string? text = null) => this.Apply(_ => {
          var process = default(Process);
          text.Apply(_ => _cleaner.Change(TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan));
          new Action(() => process = Process.Start(new ProcessStartInfo("clip.exe") { RedirectStandardInput = true })).Try()

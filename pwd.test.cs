@@ -96,8 +96,8 @@ public static partial class pwd {
          };
          var process = Process.Start(info);
          using var writer = new BinaryWriter(process.StandardInput.BaseStream);
-         var passswordData = Encoding.ASCII.GetBytes(password + "\n");
-         writer.Write(passswordData, 0, passswordData.Length);
+         var passwordData = Encoding.ASCII.GetBytes(password + "\n");
+         writer.Write(passwordData, 0, passwordData.Length);
          var encrypted = System.IO.File.ReadAllBytes(path);
          writer.Write(encrypted, 0, encrypted.Length);
          writer.Close();
