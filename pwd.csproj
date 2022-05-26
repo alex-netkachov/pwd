@@ -1,27 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <DebugType>embedded</DebugType>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <LangVersion>default</LangVersion>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <DebugType>embedded</DebugType>
+        <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+        <LangVersion>default</LangVersion>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="PasswordGenerator" Version="2.1.0" />
-    <PackageReference Include="ReadLine" Version="2.0.1" />
-    <PackageReference Include="System.IO.Abstractions" Version="16.1.4" />
-    <PackageReference Include="System.IO.Abstractions.TestingHelpers" Version="16.1.4" />
-    <PackageReference Include="YamlDotNet" Version="11.2.1" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="PasswordGenerator" Version="2.1.0"/>
+        <PackageReference Include="ReadLine" Version="2.0.1"/>
+        <PackageReference Include="System.IO.Abstractions" Version="16.1.4"/>
+        <PackageReference Include="System.IO.Abstractions.TestingHelpers" Version="16.1.4"/>
+        <PackageReference Include="YamlDotNet" Version="11.2.1"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Remove="template.html" />
-    <EmbeddedResource Include="template.html" />
-  </ItemGroup>
+    <ItemGroup>
+        <None Remove="template.html"/>
+        <EmbeddedResource Include="template.html"/>
+    </ItemGroup>
 
 </Project>

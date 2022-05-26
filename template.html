@@ -1,170 +1,287 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<head>
+    <meta content="width=device-width, initial-scale=1" name="viewport">
     <title>pwd</title>
     <script>
-const files = { };
+        const files = {};
 
-window.onload = async () => {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
+        window.onload = async () => {
+            const encoder = new TextEncoder();
+            const decoder = new TextDecoder();
 
-  const salted = { text : 'Salted__', bytes : encoder.encode('Salted__'), length : 8 };
+            const salted = {text: 'Salted__', bytes: encoder.encode('Salted__'), length: 8};
 
-  await initWithTestData(files);
-  
-  const $ = value => ({
-    $e : ('string' === typeof value) ? document.querySelector(value) : value,
-    empty : function () { while (this.$e.firstChild) this.$e.removeChild(this.$e.firstChild); return this; },
-    attr : function (name, value) { this.$e.setAttribute(name, value); return this; },
-    show : function () { this.css().display = ''; return this; },
-    hide : function () { this.css().display = 'none'; return this; },
-    text : function (text) { return this.empty().append(document.createTextNode(text)); },
-    append : function (value) { (Array.isArray(value) ? value : [ value ]).forEach(item => item && this.$e.appendChild(item.$e || item)); return this; },
-    val : function () { return this.$e.value; },
-    css : function () { return this.$e.style; },
-    click : function (func) { this.$e.onclick = func; return this; },
-    keyup : function (func) { this.$e.onkeyup = func; return this; },
-  });
-  
-  function showPwd() {
-    $('#pwd').show();
-    $('#files').hide();
-    $('#file').hide();
-    $('#pwd-apply').click(() => showFiles($('#pwd-input').val()));
-  }
-  
-  function showFiles(pwd) {
-    $('#pwd').hide();
-    $('#files').show();
-    $('#file').hide();
-    
-    function showFilesList(filter) {
-      $('#files-list').empty().append(Object.keys(files).sort().map(key => {
-        if (filter !== '' && key.toUpperCase().indexOf(filter.toUpperCase()) === -1)
-          return null;
-        return $(document.createElement('div')).append(
-                $(document.createElement('a')).text(key).attr('href', '#').click(e => {
-                  e.preventDefault();
-                  decrypt(files[key], pwd).then(value => showFile(pwd, key, value))
-                          .catch(err => showFile(pwd, key, err));
-                }));
-      }));
-    }
+            await initWithTestData(files);
 
-    $('#files-filter-input').keyup(e => showFilesList($(e.target).val()));
+            const $ = value => ({
+                $e: ('string' === typeof value) ? document.querySelector(value) : value,
+                empty: function () {
+                    while (this.$e.firstChild) this.$e.removeChild(this.$e.firstChild);
+                    return this;
+                },
+                attr: function (name, value) {
+                    this.$e.setAttribute(name, value);
+                    return this;
+                },
+                show: function () {
+                    this.css().display = '';
+                    return this;
+                },
+                hide: function () {
+                    this.css().display = 'none';
+                    return this;
+                },
+                text: function (text) {
+                    return this.empty().append(document.createTextNode(text));
+                },
+                append: function (value) {
+                    (Array.isArray(value) ? value : [value]).forEach(item => item && this.$e.appendChild(item.$e || item));
+                    return this;
+                },
+                val: function () {
+                    return this.$e.value;
+                },
+                css: function () {
+                    return this.$e.style;
+                },
+                click: function (func) {
+                    this.$e.onclick = func;
+                    return this;
+                },
+                keyup: function (func) {
+                    this.$e.onkeyup = func;
+                    return this;
+                },
+            });
 
-    showFilesList('');
-  }
+            function showPwd() {
+                $('#pwd').show();
+                $('#files').hide();
+                $('#file').hide();
+                $('#pwd-apply').click(() => showFiles($('#pwd-input').val()));
+            }
 
-  function showFile(pwd, name, content) {
-    $('#pwd').hide();
-    $('#files').hide();
-    $('#file').show();
+            function showFiles(pwd) {
+                $('#pwd').hide();
+                $('#files').show();
+                $('#file').hide();
 
-    $('#file-header-back').click(() => showFiles(pwd));
-    $('#file-header-title').text(name);
-    $('#file-content').text(content);
-  }
+                function showFilesList(filter) {
+                    $('#files-list').empty().append(Object.keys(files).sort().map(key => {
+                        if (filter !== '' && key.toUpperCase().indexOf(filter.toUpperCase()) === -1)
+                            return null;
+                        return $(document.createElement('div')).append(
+                            $(document.createElement('a')).text(key).attr('href', '#').click(e => {
+                                e.preventDefault();
+                                decrypt(files[key], pwd).then(value => showFile(pwd, key, value))
+                                    .catch(err => showFile(pwd, key, err));
+                            }));
+                    }));
+                }
 
-  showPwd();
+                $('#files-filter-input').keyup(e => showFilesList($(e.target).val()));
 
-  function stringToBytes(value) {
-    const array = new Uint8Array(value.length >> 1);
-    for (let i = 0, j = 0; i < value.length; i += 2, j++)
-      array[j] = parseInt(value.substr(i, 2), 16);
-    return array;
-  }
-  
-  function bytesToString(value) {
-    const bytes = new Uint8Array(value);
-    const pairs = new Array(bytes.byteLength * 2);
-    for (let i = 0, j = 0; i < value.byteLength; i++, j += 2) {
-      const byte = bytes[i];
-      pairs[j] = (byte >>> 4).toString(16);
-      pairs[j + 1] = (byte & 0xF).toString(16);
-    }
-    return pairs.join('');
-  }
-  
-  async function deriveKeyAndIv(salt, pwd) {
-    const baseKey = await crypto.subtle.importKey('raw', encoder.encode(pwd), 'PBKDF2', false, [ 'deriveBits' ]);
-    const bits = await crypto.subtle.deriveBits({ name : 'PBKDF2', hash : 'SHA-256', salt : salt, iterations : 10000 }, baseKey, 384);
-    const key = await crypto.subtle.importKey('raw', bits.slice(0, 32), { name : 'AES-CBC' }, false, [ 'encrypt', 'decrypt' ]);
-    const iv = bits.slice(32, 48);
-    return { key, iv };
-  }
+                showFilesList('');
+            }
 
-  async function encrypt(data, pwd) {
-    const salt = new Uint8Array(8);
-    crypto.getRandomValues(salt);
-    const { key, iv } = await deriveKeyAndIv(salt, pwd);
-    const encrypted = await crypto.subtle.encrypt({ name : 'AES-CBC', iv }, key, encoder.encode(data));
-    const content = new Uint8Array([...salted.bytes, ...salt, ...new Uint8Array(encrypted)]);
-    return bytesToString(content);
-  }
+            function showFile(pwd, name, content) {
+                $('#pwd').hide();
+                $('#files').hide();
+                $('#file').show();
 
-  async function decrypt(data, pwd) {
-    const bytes = stringToBytes(data);
-    const salt = bytes.slice(salted.length, salted.length + 8);
-    const { key, iv } = await deriveKeyAndIv(salt, pwd);
-    const decrypted = await crypto.subtle.decrypt({ name : 'AES-CBC', iv }, key, bytes.slice(salted.length + 8));
-    return decoder.decode(decrypted);
-  }
+                $('#file-header-back').click(() => showFiles(pwd));
+                $('#file-header-title').text(name);
+                $('#file-content').text(content);
+            }
 
-  async function initWithTestData(files) {
-    if (Object.keys(files).length === 0)
-      for (let i = 0; i < 50; i++)
-        files[`item${i}`] = await encrypt('user: usr\npassword: pwd', 'test');
-  }
-};
+            showPwd();
+
+            function stringToBytes(value) {
+                const array = new Uint8Array(value.length >> 1);
+                for (let i = 0, j = 0; i < value.length; i += 2, j++)
+                    array[j] = parseInt(value.substr(i, 2), 16);
+                return array;
+            }
+
+            function bytesToString(value) {
+                const bytes = new Uint8Array(value);
+                const pairs = new Array(bytes.byteLength * 2);
+                for (let i = 0, j = 0; i < value.byteLength; i++, j += 2) {
+                    const byte = bytes[i];
+                    pairs[j] = (byte >>> 4).toString(16);
+                    pairs[j + 1] = (byte & 0xF).toString(16);
+                }
+                return pairs.join('');
+            }
+
+            async function deriveKeyAndIv(salt, pwd) {
+                const baseKey = await crypto.subtle.importKey('raw', encoder.encode(pwd), 'PBKDF2', false, ['deriveBits']);
+                const bits = await crypto.subtle.deriveBits({
+                    name: 'PBKDF2',
+                    hash: 'SHA-256',
+                    salt: salt,
+                    iterations: 10000
+                }, baseKey, 384);
+                const key = await crypto.subtle.importKey('raw', bits.slice(0, 32), {name: 'AES-CBC'}, false, ['encrypt', 'decrypt']);
+                const iv = bits.slice(32, 48);
+                return {key, iv};
+            }
+
+            async function encrypt(data, pwd) {
+                const salt = new Uint8Array(8);
+                crypto.getRandomValues(salt);
+                const {key, iv} = await deriveKeyAndIv(salt, pwd);
+                const encrypted = await crypto.subtle.encrypt({name: 'AES-CBC', iv}, key, encoder.encode(data));
+                const content = new Uint8Array([...salted.bytes, ...salt, ...new Uint8Array(encrypted)]);
+                return bytesToString(content);
+            }
+
+            async function decrypt(data, pwd) {
+                const bytes = stringToBytes(data);
+                const salt = bytes.slice(salted.length, salted.length + 8);
+                const {key, iv} = await deriveKeyAndIv(salt, pwd);
+                const decrypted = await crypto.subtle.decrypt({
+                    name: 'AES-CBC',
+                    iv
+                }, key, bytes.slice(salted.length + 8));
+                return decoder.decode(decrypted);
+            }
+
+            async function initWithTestData(files) {
+                if (Object.keys(files).length === 0)
+                    for (let i = 0; i < 50; i++)
+                        files[`item${i}`] = await encrypt('user: usr\npassword: pwd', 'test');
+            }
+        };
     </script>
     <style>
-      html, body, body>div { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-size: 17pt; font-family: serif; }
-      input:focus { outline: none; }
+        html, body, body > div {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-size: 17pt;
+            font-family: serif;
+        }
 
-      #pwd { background: #D0D0F0; display: grid; }
-      #pwd>div { margin: auto; text-align: center; }
-      #pwd>div>label { text-align: center; display: inline-block; }
-      #pwd>div>input { text-align: center; display: block; font-size: 15pt; }
-      #pwd>div>button { text-align: center; display: inline-block; margin: 10pt; padding: 3pt 7pt; }
+        input:focus {
+            outline: none;
+        }
 
-      #files { display: grid; grid-template-rows: 24pt 1fr; }
-      #files-filter { display: grid; grid-template-columns: 24pt 1fr; background: #D0D0F0; }
-      #files-filter>label { text-align: center; vertical-align: middle; background: #B0B0E0; }
-      #files-list { background: #FFFFFF; overflow-y: scroll; }
-      #files-list>div { padding: 2pt; }
-      #files-list>div>a { text-decoration: none; }
+        #pwd {
+            background: #D0D0F0;
+            display: grid;
+        }
 
-      #file { display: grid; grid-template-rows: 24pt 1fr; }
-      #file-header { display: grid; grid-template-columns: 24pt 1fr; background: #D0D0F0; }
-      #file-header-back { text-align: center; vertical-align: middle; background: #B0B0E0; }
-      #file-header-title { padding: 2pt 0 2pt 5pt; font-size: 17pt; font-family: sans-serif; }
-      #file-content { white-space: pre; font-size: 15pt; font-family: monospace; padding: 4pt; background: #FFFFFF; overflow-y: scroll; }
+        #pwd > div {
+            margin: auto;
+            text-align: center;
+        }
+
+        #pwd > div > label {
+            text-align: center;
+            display: inline-block;
+        }
+
+        #pwd > div > input {
+            text-align: center;
+            display: block;
+            font-size: 15pt;
+        }
+
+        #pwd > div > button {
+            text-align: center;
+            display: inline-block;
+            margin: 10pt;
+            padding: 3pt 7pt;
+        }
+
+        #files {
+            display: grid;
+            grid-template-rows: 24pt 1fr;
+        }
+
+        #files-filter {
+            display: grid;
+            grid-template-columns: 24pt 1fr;
+            background: #D0D0F0;
+        }
+
+        #files-filter > label {
+            text-align: center;
+            vertical-align: middle;
+            background: #B0B0E0;
+        }
+
+        #files-list {
+            background: #FFFFFF;
+            overflow-y: scroll;
+        }
+
+        #files-list > div {
+            padding: 2pt;
+        }
+
+        #files-list > div > a {
+            text-decoration: none;
+        }
+
+        #file {
+            display: grid;
+            grid-template-rows: 24pt 1fr;
+        }
+
+        #file-header {
+            display: grid;
+            grid-template-columns: 24pt 1fr;
+            background: #D0D0F0;
+        }
+
+        #file-header-back {
+            text-align: center;
+            vertical-align: middle;
+            background: #B0B0E0;
+        }
+
+        #file-header-title {
+            padding: 2pt 0 2pt 5pt;
+            font-size: 17pt;
+            font-family: sans-serif;
+        }
+
+        #file-content {
+            white-space: pre;
+            font-size: 15pt;
+            font-family: monospace;
+            padding: 4pt;
+            background: #FFFFFF;
+            overflow-y: scroll;
+        }
     </style>
-  </head>
-  <body>
-    <div id="pwd">
-      <div>
+</head>
+<body>
+<div id="pwd">
+    <div>
         <label for="pwd-input">&#128272;</label>
         <input id="pwd-input" type="password">
         <button id="pwd-apply">&#10004;</button>
-      </div>
     </div>
-    <div id="files">
-      <div id="files-filter">
+</div>
+<div id="files">
+    <div id="files-filter">
         <label for="files-filter-input">&#128270;</label>
         <input id="files-filter-input" type="text">
-      </div>
-      <div id="files-list"></div>
     </div>
-    <div id="file">
-      <div id="file-header">
+    <div id="files-list"></div>
+</div>
+<div id="file">
+    <div id="file-header">
         <div id="file-header-back">&#129168;</div>
         <div id="file-header-title"></div>
-      </div>
-      <div id="file-content"></div>
     </div>
-  </body>
+    <div id="file-content"></div>
+</div>
+</body>
 </html>
