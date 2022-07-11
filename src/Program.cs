@@ -12,69 +12,47 @@ using System.Threading;
 using PasswordGenerator;
 using YamlDotNet.RepresentationModel;
 
-public static partial class pwd
+namespace pwd;
+
+public static partial class Program
 {
-    private static Exception? Try(this Action action)
-    {
-        try
-        {
-            action();
-            return null;
-        }
-        catch (Exception e)
-        {
-            return e;
-        }
-    }
-
-    private static T Apply<T>(this T value, Action<T> action)
-    {
-        if (!EqualityComparer<T>.Default.Equals(value, default)) action(value);
-        return value;
-    }
-
-    private static V? Map<T, V>(this T value, Func<T, V> func)
-    {
-        return EqualityComparer<T>.Default.Equals(value, default) ? default : func(value);
-    }
-
     private static Aes CreateAes(byte[] salt, string password)
     {
         var aes = Aes.Create();
-        (aes.Mode, aes.Padding) = (CipherMode.CBC, PaddingMode.PKCS7);
+        if (aes == null)
+            throw new Exception("Cannot create AES encryption object."); 
+        aes.Mode = CipherMode.CBC;
+        aes.Padding = PaddingMode.PKCS7;
         // 10000 and SHA256 are defaults for pbkdf2 in openssl
         using var rfc2898 = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
-        (aes.Key, aes.IV) = (rfc2898.GetBytes(32), rfc2898.GetBytes(16));
+        aes.Key = rfc2898.GetBytes(32);
+        aes.IV = rfc2898.GetBytes(16);
         return aes;
-    }
-
-    private static byte[] ReadBytes(Stream stream, int length)
-    {
-        return new byte[length].Apply(_ => stream.Read(_, 0, length));
     }
 
     private static byte[] Encrypt(string password, string text)
     {
-        using var rng = RandomNumberGenerator.Create();
-        var salt = new byte[8].Apply(rng.GetBytes);
         using var stream = new MemoryStream();
-        Encoding.ASCII.GetBytes("Salted__").Concat(salt).Apply(data => stream.Write(data.ToArray(), 0, 16));
-        Encoding.UTF8.GetBytes(text).Apply(data =>
-        {
-            using var aes = CreateAes(salt, password);
-            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-            using var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write);
+        stream.Write(Salted.Bytes);
+        using var rng = RandomNumberGenerator.Create();
+        var salt = new byte[8];
+        rng.GetBytes(salt);
+        stream.Write(salt);
+        var data = Encoding.UTF8.GetBytes(text);
+        using (var aes = CreateAes(salt, password))
+        using (var encryptor = aes.CreateEncryptor(aes.Key, aes.IV))
+        using (var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write))
             cryptoStream.Write(data, 0, data.Length);
-        });
         return stream.ToArray();
     }
 
     private static string Decrypt(string password, byte[] data)
     {
         using var stream = new MemoryStream(data);
-        if ("Salted__" != Encoding.ASCII.GetString(ReadBytes(stream, 8)))
-            throw new FormatException("Expecting the data stream to begin with Salted__.");
-        using var aes = CreateAes(ReadBytes(stream, 8), password);
+
+        if (!Salted.Equals(stream.ReadBytes(8)))
+            throw new FormatException($"Expecting the data stream to begin with {Salted.Text}.");
+        using var aes = CreateAes(stream.ReadBytes(8), password);
         using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
         using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read);
         using var reader = new StreamReader(cryptoStream);
@@ -142,8 +120,11 @@ public static partial class pwd
 
     private static Exception? CheckYaml(string text)
     {
-        using var input = new StringReader(text);
-        return new Action(() => new YamlStream().Load(input)).Try();
+        return new Action(() =>
+        {
+            using var input = new StringReader(text);
+            new YamlStream().Load(input);
+        }).Try();
     }
 
     private static bool Confirm(string question)
@@ -174,9 +155,9 @@ public static partial class pwd
             },
             (_, "rm", _) => session =>
                 session.File.Apply(_ =>
-                    Confirm("Delete '" + session.File.Path + "'?").Apply(_ =>
+                    Confirm("Delete '" + session.File?.Path + "'?").Apply(_ =>
                     {
-                        fs.File.Delete(session.File.Path);
+                        session.File?.Path.Apply(fs.File.Delete);
                         session.Close();
                     })),
             (_, "rename", var path) => session => session.File?.Rename(path),
@@ -192,7 +173,8 @@ public static partial class pwd
                 {
                     Process.Start(new ProcessStartInfo(editor, path))?.WaitForExit();
                     session.File.ReadFromFile(path).Print()
-                        .Map(file => Confirm("Save the content?") ? file : file.Update(originalContent)).Save();
+                        .Map(file => Confirm("Save the content?") ? file : file.Update(originalContent))?
+                        .Save();
                 }
                 finally
                 {
@@ -259,7 +241,7 @@ public static partial class pwd
     {
         var password = readpwd("Password: ");
         var session = new Session(password, fs);
-        if (Try(() => session.Check()).Map(e => e.Message).Apply(Console.Error.WriteLine) != null) return;
+        if (new Action(() => session.Check()).Try().Map(e => e.Message).Apply(Console.Error.WriteLine) != null) return;
         if (!session.GetEncryptedFilesRecursively(".", true).Any())
         {
             var confirmPassword = readpwd("It seems that you are creating a new repository. Please confirm password: ");
@@ -275,7 +257,7 @@ public static partial class pwd
         {
             var input = read((session.File?.Modified ?? false ? "*" : "") + (session.File?.Path ?? "") + "> ").Trim();
             if (input == ".quit") break;
-            Try(() => Route(input, fs)?.Invoke(session)).Map(e => e.Message).Apply(Console.Error.WriteLine);
+            new Action(() => Route(input, fs)?.Invoke(session)).Try().Map(e => e.Message).Apply(Console.Error.WriteLine);
         }
 
         done(fs);
@@ -299,7 +281,7 @@ public static partial class pwd
             if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") || fs.Directory.Exists("../../.git")) &&
                 Confirm("Update the repository?"))
                 new[] {"add *", "commit -m update", "push"}
-                    .Select(_ => Try(() => Process.Start(new ProcessStartInfo("git", _))?.WaitForExit()))
+                    .Select(_ => new Action(() => Process.Start(new ProcessStartInfo("git", _))?.WaitForExit()).Try())
                     .FirstOrDefault(e => e != null).Apply(Console.Error.WriteLine);
         });
     }
@@ -406,7 +388,7 @@ public static partial class pwd
             (_password, _fs, _cleaner) = (password, fs, new(_ => CopyText()));
         }
 
-        public File File { get; private set; }
+        public File? File { get; private set; }
 
         public IEnumerable<string> GetItems(string? path = null)
         {
@@ -426,7 +408,7 @@ public static partial class pwd
             {
                 using var stream = _fs.File.OpenRead(path);
                 // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is encrypted or not
-                _ = "Salted__" == Encoding.ASCII.GetString(ReadBytes(stream, 8))
+                _ = "Salted__" == Encoding.ASCII.GetString(stream.ReadBytes(8))
                     ? default(object)
                     : throw new Exception();
             }).Try();
@@ -448,7 +430,7 @@ public static partial class pwd
             });
         }
 
-        public File Open(string path)
+        public File? Open(string path)
         {
             return File = _fs.File.Exists(path) && IsFileEncrypted(path) ? new File(_fs, this, path, Read(path)) : null;
         }

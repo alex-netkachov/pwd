@@ -7,7 +7,9 @@ using System.IO.Abstractions.TestingHelpers;
 using System.Linq;
 using System.Text;
 
-public static partial class pwd
+namespace pwd;
+
+public static partial class Program
 {
     private static void Assert(bool value, string message = "")
     {
@@ -16,7 +18,7 @@ public static partial class pwd
 
     private static void Test(Action test, string name)
     {
-        var e = Try(test);
+        var e = test.Try();
         Console.WriteLine($"{name}: {(e == null ? "OK" : $"FAIL - {e.Message}")}");
     }
 
@@ -419,7 +421,7 @@ public static partial class pwd
 
     private static void Test_Try()
     {
-        var msg = Try(() => throw new()) switch {{ } e => e.Message, _ => default};
+        var msg = new Action(() => throw new()).Try() switch {{ } e => e.Message, _ => default};
         Assert(msg != null);
     }
 

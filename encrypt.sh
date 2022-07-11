@@ -6,10 +6,10 @@
 #
 #     ./encrypt.sh example.com
 #
-# If there is an environment variable PWDPWD, reads the password from it.
-# Otherwise prompts for the password.
+# Reads the password from the environment variable `PWDPWD` if it does exist.
+# Prompts for the password otherwise.
 #
-# Set the password environment variable:
+# Securely set the password environment variable:
 #
 #     read -s PWDPWD && export PWDPWD
 #
