@@ -22,6 +22,8 @@ public interface IView
 public sealed class View
     : IView
 {
+    public IContext? Context { get; private set; }
+
     public void WriteLine(
         string text)
     {
@@ -49,5 +51,6 @@ public sealed class View
     public void Location(
         IContext context)
     {
+        Context = context;
     }
 }

@@ -6,4 +6,6 @@ public interface IContext
         string input);
 
     void Close();
+
+    string Prompt();
 }

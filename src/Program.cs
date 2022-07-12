@@ -1,13 +1,11 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
 using PasswordGenerator;
-using pwd.contexts;
+using File = pwd.contexts.File;
+using Session = pwd.contexts.Session;
 
 namespace pwd;
 
@@ -47,31 +45,31 @@ public static partial class Program
             match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", ""));
     }
 
-    private static Action<Session> Route(string input)
+    private static Action<IContext> Route(string input)
     {
         var view = new View();
         return ParseCommand(input) switch
         {
-            (_, "save", _) => session => session.File?.Save(),
-            ("..", _, _) => session => session.Close(),
-            (_, "check", _) => session => _ = session.File?.Check() as object ?? session.Check(),
-            (_, "open", var path) => session => session.Open(path),
-            (_, "archive", _) => session =>
+            (_, "save", _) => context => (context as File)?.Save(),
+            ("..", _, _) => context => (context as File)?.Close(),
+            (_, "check", _) => context =>
             {
-                session.File?.Rename(".archive/" + session.File.Path);
-                session.Close();
+                (context as Session)?.Check();
+                (context as File)?.Check();
             },
-            (_, "rm", _) => session => session.File?.Delete(),
-            (_, "rename", var path) => session => session.File?.Rename(path),
-            (_, "edit", var editor) => session => session.File?.Edit(editor),
+            (_, "open", var path) => context => (context as Session)?.Open(path),
+            (_, "archive", _) => context => (context as File)?.Archive(),
+            (_, "rm", _) => context => (context as File)?.Delete(),
+            (_, "rename", var path) => context => (context as File)?.Rename(path),
+            (_, "edit", var editor) => context => (context as File)?.Edit(editor),
             (_, "pwd", _) => _ => view.WriteLine(new Password().Next()),
-            (_, "add", var path) => session => session.Add(path),
-            (_, "cc", var name) => session => session.File?.Field(name).Apply(value => session.CopyText(value)),
+            (_, "add", var path) => context => (context as Session)?.Add(path),
+            (_, "cc", var name) => context => (context as File)?.CopyField(name),
             (_, "ccu", _) => Route(".cc user"),
             (_, "ccp", _) => Route(".cc password"),
-            (_, "clear", _) => _ => Console.Clear(),
-            (_, "export", _) => session => session.Export(),
-            _ => session => (session.File as IContext ?? session).Default(input)
+            (_, "clear", _) => _ => view.Clear(),
+            (_, "export", _) => context => (context as Session)?.Export(),
+            _ => context => context.Default(input)
         };
     }
 
@@ -79,8 +77,10 @@ public static partial class Program
         Action<Session> init, Action<IFileSystem> done)
     {
         var password = readPassword("Password: ");
-        var session = new Session(new Cipher(password), fs, new View());
-        if (new Action(() => session.Check()).Try().Map(e => e.Message).Apply(Console.Error.WriteLine) != null) return;
+        var view = new View();
+        var session = new Session(new Cipher(password), fs, new Clipboard(), view);
+        if (new Action(() => session.Check()).Try().Map(e => e.Message).Apply(Console.Error.WriteLine) != null)
+            return;
         if (!session.GetEncryptedFilesRecursively(".", true).Any())
         {
             var confirmPassword =
@@ -93,11 +93,16 @@ public static partial class Program
         }
 
         session.Apply(init);
+        var context = (IContext) session;
         while (true)
         {
-            var input = read((session.File?.Modified ?? false ? "*" : "") + (session.File?.Path ?? "") + "> ").Trim();
+            var input = read($"{context.Prompt()}> ").Trim();
             if (input == ".quit") break;
-            new Action(() => Route(input).Invoke(session)).Try().Map(e => e.Message).Apply(Console.Error.WriteLine);
+            new Action(() =>
+            {
+                Route(input).Invoke(context);
+                context = view.Context;
+            }).Try().Map(e => e.Message).Apply(Console.Error.WriteLine);
         }
 
         done(fs);

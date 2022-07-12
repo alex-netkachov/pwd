@@ -11,6 +11,20 @@ using Session = pwd.contexts.Session;
 
 namespace pwd;
 
+public sealed class MockClipboard
+    : IClipboard
+{
+    public void Put(
+        string text,
+        TimeSpan clearAfter)
+    {
+    }
+
+    public void Clear()
+    {
+    }
+}
+
 public static partial class Program
 {
     private static void Assert(bool value, string message = "")
@@ -164,7 +178,7 @@ public static partial class Program
     {
         var fs = new MockFileSystem();
         var view = new View();
-        var session = new Session(new Cipher("pwd"), fs, view);
+        var session = new Session(new Cipher("pwd"), fs, new MockClipboard(), view);
         Assert(session.File == null);
     }
 
@@ -173,7 +187,7 @@ public static partial class Program
         var fs = new MockFileSystem();
         var (pwd, content) = EncryptionTestData();
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
         session.Write("resource", content);
         var encrypted = fs.File.ReadAllBytes("resource");
         Assert(content == new Cipher(pwd).Decrypt(encrypted));
@@ -182,7 +196,7 @@ public static partial class Program
     private static void Test_Session_GetItems1()
     {
         var (pwd, _) = EncryptionTestData();
-        var session = new Session(new Cipher(pwd), GetMockFs(), new View());
+        var session = new Session(new Cipher(pwd), GetMockFs(), new MockClipboard(), new View());
         Assert(!session.GetItems().Any());
         Assert(!session.GetItems().Any());
         Assert(!session.GetItems(".").Any());
@@ -193,7 +207,7 @@ public static partial class Program
         var (pwd, _) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
         Assert(string.Join(";", session.GetItems()) == "encrypted;regular_dir");
         Assert(string.Join(";", session.GetItems(".")) == "encrypted;regular_dir");
         Assert(string.Join(";", session.GetItems()) == "encrypted;regular_dir");
@@ -204,7 +218,7 @@ public static partial class Program
     private static void Test_Session_GetEncryptedFilesRecursively1()
     {
         var (pwd, _) = EncryptionTestData();
-        var session = new Session(new Cipher(pwd), GetMockFs(), new View());
+        var session = new Session(new Cipher(pwd), GetMockFs(), new MockClipboard(), new View());
         Assert(!session.GetEncryptedFilesRecursively().Any());
         Assert(!session.GetEncryptedFilesRecursively().Any());
         Assert(!session.GetEncryptedFilesRecursively(".").Any());
@@ -215,7 +229,7 @@ public static partial class Program
         var (pwd, _) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
 
         Assert(string.Join(";", session.GetEncryptedFilesRecursively()) == "encrypted;regular_dir/encrypted");
         Assert(string.Join(";", session.GetEncryptedFilesRecursively(".")) == "encrypted;regular_dir/encrypted");
@@ -240,7 +254,7 @@ public static partial class Program
         var (pwd, text) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
 
         var files = new[]
         {
@@ -261,7 +275,7 @@ public static partial class Program
         var (pwd, text) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
         session.Write("test", text);
         Assert(fs.File.Exists("test"));
         Assert(new Cipher(pwd).Decrypt(fs.File.ReadAllBytes("test")) == text);
@@ -272,47 +286,11 @@ public static partial class Program
         var (pwd, text) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
         session.Open("encrypted")?.Update("test");
         Assert(session.File?.Modified == true);
         session.Write("encrypted", text);
         Assert(!session.File?.Modified == true);
-    }
-
-    private static void Test_File_ExportContentToTempFile()
-    {
-        var (pwd, text) = EncryptionTestData();
-        var fs = FileLayout1(GetMockFs());
-        var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
-        var file = new File(fs, view, session, "test", text);
-        var path = file.ExportContentToTempFile();
-        Assert(fs.File.Exists(path));
-        Assert(fs.File.ReadAllText(path) == text);
-    }
-
-    private static void Test_File_ReadFromFile1()
-    {
-        var (pwd, text) = EncryptionTestData();
-        var fs = FileLayout1(GetMockFs());
-        var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
-        var file = new File(fs, view, session, "test", "");
-        file.ReadFromFile("file");
-        Assert(file.Content == text);
-        Assert(file.Modified);
-    }
-
-    private static void Test_File_ReadFromFile2()
-    {
-        var (pwd, text) = EncryptionTestData();
-        var fs = FileLayout1(GetMockFs());
-        var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
-        var file = new File(fs, view, session, "test", text);
-        file.ReadFromFile("file");
-        Assert(file.Content == text);
-        Assert(!file.Modified);
     }
 
     private static void Test_File_Save()
@@ -320,8 +298,10 @@ public static partial class Program
         var (pwd, text) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
-        var file = new File(fs, view, session, "test", "test");
+        var cipher = new Cipher(pwd);
+        var clipboard = new MockClipboard();
+        var session = new Session(cipher, fs, clipboard, view);
+        var file = new File(session, fs, cipher, clipboard, view, "test", "test");
         file.Update(text);
         Assert(file.Modified);
         file.Save();
@@ -335,7 +315,7 @@ public static partial class Program
         var (pwd, _) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
         var file = session.Open("encrypted");
         file?.Rename("encrypted.test");
         Assert(fs.File.Exists("encrypted.test"));
@@ -348,8 +328,10 @@ public static partial class Program
         var (pwd, text) = EncryptionTestData();
         var fs = GetMockFs();
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
-        var file = new File(fs, view, session, "test", "text");
+        var cipher = new Cipher(pwd);
+        var clipboard = new MockClipboard();
+        var session = new Session(cipher, fs, new MockClipboard(), view);
+        var file = new File(session, fs, cipher, clipboard, view, "test", "text");
         Assert(!file.Modified);
         file.Update("text");
         Assert(!file.Modified);
@@ -358,23 +340,12 @@ public static partial class Program
         Assert(file.Content == text);
     }
 
-    private static void Test_File_Field()
-    {
-        var (pwd, _) = EncryptionTestData();
-        var fs = GetMockFs();
-        var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
-        var file = new File(fs, view, session, "test", "a: 1\nab: 2");
-        Assert(file.Field("a") == "1");
-        Assert(file.Field("ab") == "2");
-    }
-
     private static void Test_AutoCompletionHandler()
     {
         var (pwd, _) = EncryptionTestData();
         var fs = FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, view);
+        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
         var handler = new AutoCompletionHandler(session);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
         Assert(string.Join(";", handler.GetSuggestions("", 0)) == "encrypted;regular_dir");
@@ -450,13 +421,9 @@ public static partial class Program
         Test(Test_Session_Write, nameof(Test_Session_Write));
         Test(Test_Session_Write_clears_modification_flag_for_open_file,
             nameof(Test_Session_Write_clears_modification_flag_for_open_file));
-        Test(Test_File_ExportContentToTempFile, nameof(Test_File_ExportContentToTempFile));
-        Test(Test_File_ReadFromFile1, nameof(Test_File_ReadFromFile1));
-        Test(Test_File_ReadFromFile2, nameof(Test_File_ReadFromFile2));
         Test(Test_File_Save, nameof(Test_File_Save));
         Test(Test_File_Rename, nameof(Test_File_Rename));
         Test(Test_File_Update, nameof(Test_File_Update));
-        Test(Test_File_Field, nameof(Test_File_Field));
         Test(Test_AutoCompletionHandler, nameof(Test_AutoCompletionHandler));
         Test(Test_Main1, nameof(Test_Main1));
     }

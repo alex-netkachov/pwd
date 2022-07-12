@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Threading;
 using PasswordGenerator;
 
 namespace pwd.contexts;
@@ -15,26 +13,31 @@ public sealed class Session
     : IContext
 {
     private readonly ICipher _cipher;
-    private readonly Timer _cleaner;
     private readonly IFileSystem _fs;
+    private readonly IClipboard _clipboard;
     private readonly IView _view;
 
     public Session(
         ICipher cipher,
         IFileSystem fs,
+        IClipboard clipboard,
         IView view)
     {
-        _fs = fs;
-        _view = view;
-        _cleaner = new(_ => CopyText());
         _cipher = cipher;
+        _fs = fs;
+        _clipboard = clipboard;
+        _view = view;
     }
 
     public File? File { get; private set; }
 
     public void Close()
     {
-        File = null;
+    }
+
+    public string Prompt()
+    {
+        return "";
     }
 
     public void Default(
@@ -88,8 +91,12 @@ public sealed class Session
         string content)
     {
         var folder = _fs.Path.GetDirectoryName(path);
-        if (folder != "") _fs.Directory.CreateDirectory(folder);
+
+        if (folder != "")
+            _fs.Directory.CreateDirectory(folder);
+
         _fs.File.WriteAllBytes(path, _cipher.Encrypt(content));
+
         if (path == File?.Path)
             Open(path);
         return this;
@@ -99,7 +106,7 @@ public sealed class Session
         string path)
     {
         File = _fs.File.Exists(path) && IsFileEncrypted(path)
-            ? new File(_fs, _view, this, path, Read(path))
+            ? new File(this, _fs, _cipher, _clipboard, _view, path, Read(path))
             : null;
         File?.Print();
         return File;
@@ -152,22 +159,6 @@ public sealed class Session
         if (notYaml.Count > 0)
             Console.Error.WriteLine($"YAML check failed for: {string.Join(", ", notYaml)}");
 
-        return this;
-    }
-
-    public Session CopyText(string? text = null)
-    {
-        var process = default(Process);
-        text.Apply(_ => _cleaner.Change(TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan));
-        new Action(() =>
-                process = Process.Start(new ProcessStartInfo("clip.exe") {RedirectStandardInput = true}))
-            .Try()
-            .Map(_ => new Action(() =>
-                process = Process.Start(new ProcessStartInfo("pbcopy") {RedirectStandardInput = true})).Try())
-            .Map(_ => new Action(() =>
-                process = Process.Start(new ProcessStartInfo("xsel") {RedirectStandardInput = true})).Try())
-            .Apply(e => Console.WriteLine($"Cannot copy to the clipboard. Reason: {e.Message}"));
-        process?.StandardInput.Apply(stdin => stdin.Write(text ?? "")).Apply(stdin => stdin.Close());
         return this;
     }
 

@@ -10,20 +10,26 @@ namespace pwd.contexts;
 public sealed class File
     : IContext
 {
+    private readonly IContext _previous;
     private readonly IFileSystem _fs;
-    private readonly Session _session;
+    private readonly ICipher _cipher;
+    private readonly IClipboard _clipboard;
     private readonly IView _view;
 
     public File(
+        IContext previous,
         IFileSystem fs,
+        ICipher cipher,
+        IClipboard clipboard,
         IView view,
-        Session session,
         string path,
         string content)
     {
+        _previous = previous;
         _fs = fs;
+        _cipher = cipher;
+        _clipboard = clipboard;
         _view = view;
-        _session = session;
         Path = path;
         Content = content;
         Modified = false;
@@ -35,7 +41,7 @@ public sealed class File
 
     public void Close()
     {
-        _view.Location(_session);
+        _view.Location(_previous);
     }
 
     public void Default(
@@ -44,58 +50,74 @@ public sealed class File
         Print();
     }
 
-    public string ExportContentToTempFile()
+    public string Prompt()
     {
-        var path = _fs.Path.GetTempFileName() + ".yaml";
-        _fs.File.WriteAllText(path, Content);
-        return path;
+        return $"{(Modified ? "*" : "")}{Path}";
     }
 
-    public File ReadFromFile(string path)
+    public void Archive()
+    {
+        Rename($".archive/{Path}");
+        Close();
+    }
+
+    private File ReadFromFile(
+        string path)
     {
         var content = _fs.File.ReadAllText(path);
-        Update(content);
-        return this;
+        var file = new File(_previous, _fs, _cipher, _clipboard, _view, path, "");
+        file.Update(content);
+        return file;
     }
 
-    public File Save()
+    public void Save()
     {
-        _session.Write(Path, Content);
+        Write(Path, Content);
         Modified = false;
-        return this;
+    }
+    
+    private void Write(
+        string path,
+        string content)
+    {
+        var folder = _fs.Path.GetDirectoryName(path);
+
+        if (folder != "")
+            _fs.Directory.CreateDirectory(folder);
+
+        _fs.File.WriteAllBytes(path, _cipher.Encrypt(content));
     }
 
-    public File Rename(string path)
+    public void Rename(
+        string path)
     {
         var folder = _fs.Path.GetDirectoryName(path);
         if (folder != "")
             _fs.Directory.CreateDirectory(folder);
         _fs.File.Move(Path, path);
         Path = path;
-        return this;
     }
 
-    public File Update(string content)
+    public void Update(
+        string content)
     {
         Modified = Content != content;
         Content = content;
-        return this;
     }
 
-    public File Check()
+    public void Check()
     {
         if (Content.CheckYaml() is {Message: var msg})
             Console.Error.WriteLine(msg);
-        return this;
     }
 
-    public File Print()
+    public void Print()
     {
         _view.WriteLine(Content);
-        return this;
     }
 
-    public string Field(string name)
+    private string Field(
+        string name)
     {
         using var input = new StringReader(Content);
         var yaml = new YamlStream();
@@ -113,13 +135,13 @@ public sealed class File
         if (!confirmed)
             return;
         _fs.File.Delete(Path);
-        _view.Location(_session);
+        _view.Location(_previous);
     }
 
     public void Edit(
         string editor)
     {
-        var path = ExportContentToTempFile();
+        var path = _fs.ExportContentToTempFile(Content);
         editor = (string.IsNullOrEmpty(editor) ? Environment.GetEnvironmentVariable("EDITOR") : editor) ?? "";
         if (string.IsNullOrEmpty(editor))
             throw new("The editor is not specified and the environment variable EDITOR is not set.");
@@ -127,13 +149,26 @@ public sealed class File
         try
         {
             Process.Start(new ProcessStartInfo(editor, path))?.WaitForExit();
-            ReadFromFile(path).Print()
-                .Map(file => _view.Confirm("Save the content?") ? file : file.Update(originalContent))?
-                .Save();
+            var file = ReadFromFile(path);
+            file.Print();
+            if (!_view.Confirm("Save the content?"))
+                return;
+            Update(originalContent);
+            Save();
         }
         finally
         {
             _fs.File.Delete(path);
         }
+    }
+
+    public void CopyField(
+        string name)
+    {
+        var value = Field(name);
+        if (value == "")
+            _clipboard.Clear();
+        else
+            _clipboard.Put(value, TimeSpan.FromSeconds(5));
     }
 }

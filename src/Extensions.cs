@@ -97,6 +97,15 @@ public static class Extensions
                 })
             : Enumerable.Empty<string>();
     }
+    
+    public static string ExportContentToTempFile(
+        this IFileSystem fs,
+        string content)
+    {
+        var path = fs.Path.GetTempFileName();
+        fs.File.WriteAllText(path, content);
+        return path;
+    }
 
     public static Exception? CheckYaml(
         this string text)
