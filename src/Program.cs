@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using PasswordGenerator;
+using pwd.contexts;
 
 namespace pwd;
 
@@ -46,7 +47,7 @@ public static partial class Program
             match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", ""));
     }
 
-    private static Action<Session> Route(string input, IFileSystem fs)
+    private static Action<Session> Route(string input)
     {
         var view = new View();
         return ParseCommand(input) switch
@@ -64,59 +65,13 @@ public static partial class Program
             (_, "rename", var path) => session => session.File?.Rename(path),
             (_, "edit", var editor) => session => session.File?.Edit(editor),
             (_, "pwd", _) => _ => view.WriteLine(new Password().Next()),
-            (_, "add", var path) => session =>
-            {
-                var content = new StringBuilder();
-                for (string? line; "" != (line = Console.ReadLine());)
-                    content.AppendLine((line ?? "").Replace("***", new Password().Next()));
-                session.Write(path, content.ToString()).Open(path);
-            },
+            (_, "add", var path) => session => session.Add(path),
             (_, "cc", var name) => session => session.File?.Field(name).Apply(value => session.CopyText(value)),
-            (_, "ccu", _) => Route(".cc user", fs),
-            (_, "ccp", _) => Route(".cc password", fs),
+            (_, "ccu", _) => Route(".cc user"),
+            (_, "ccp", _) => Route(".cc password"),
             (_, "clear", _) => _ => Console.Clear(),
-            (_, "export", _) => _ =>
-            {
-                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.template.html");
-                if (stream == null)
-                    return;
-                using var reader = new StreamReader(stream);
-                var template = reader.ReadToEnd();
-                var script = string.Join(",\n  ",
-                    Directory.GetFiles(".")
-                        .Select(file => (Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
-                        .Where(item =>
-                        {
-                            if (item.Item2.Length < 16) return false;
-                            var prefix = new byte[8];
-                            Array.Copy(item.Item2, 0, prefix, 0, prefix.Length);
-                            var text = Encoding.ASCII.GetString(prefix);
-                            return text == "Salted__";
-                        })
-                        .OrderBy(item => item.Item1)
-                        .Select(item => (item.Item1, string.Join("", item.Item2.Select(value => value.ToString("x2")))))
-                        .Select(item => $"'{item.Item1}' : '{item.Item2}'"));
-                var content = template.Replace("const files = { };", $"const files = {{\n  {script}\n}};");
-                System.IO.File.WriteAllText("_index.html", content);
-            },
-            _ => session =>
-            {
-                if (session.File?.Print(view) != null)
-                    return;
-
-                var names = session.GetEncryptedFilesRecursively()
-                    .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                var name =
-                    names.FirstOrDefault(name => string.Equals(name, input, StringComparison.OrdinalIgnoreCase)) ??
-                    (names.Count == 1 && input != "" ? names[0] : default);
-
-                if (name.Map(value => session.Open(value)) != null)
-                    return;
-
-                view.Write(string.Join("", names.Select(value => $"{value}\n")));
-            }
+            (_, "export", _) => session => session.Export(),
+            _ => session => (session.File as IContext ?? session).Default(input)
         };
     }
 
@@ -128,7 +83,8 @@ public static partial class Program
         if (new Action(() => session.Check()).Try().Map(e => e.Message).Apply(Console.Error.WriteLine) != null) return;
         if (!session.GetEncryptedFilesRecursively(".", true).Any())
         {
-            var confirmPassword = readPassword("It seems that you are creating a new repository. Please confirm password: ");
+            var confirmPassword =
+                readPassword("It seems that you are creating a new repository. Please confirm password: ");
             if (confirmPassword != password)
             {
                 Console.Error.WriteLine("passwords do not match");
@@ -141,7 +97,7 @@ public static partial class Program
         {
             var input = read((session.File?.Modified ?? false ? "*" : "") + (session.File?.Path ?? "") + "> ").Trim();
             if (input == ".quit") break;
-            new Action(() => Route(input, fs).Invoke(session)).Try().Map(e => e.Message).Apply(Console.Error.WriteLine);
+            new Action(() => Route(input).Invoke(session)).Try().Map(e => e.Message).Apply(Console.Error.WriteLine);
         }
 
         done(fs);

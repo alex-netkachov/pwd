@@ -57,7 +57,7 @@ public static class Extensions
 
         return buffer;
     }
-    
+
     public static IEnumerable<string> GetFiles(
         this IFileSystem fs,
         string path,
@@ -97,7 +97,7 @@ public static class Extensions
                 })
             : Enumerable.Empty<string>();
     }
-    
+
     public static Exception? CheckYaml(
         this string text)
     {

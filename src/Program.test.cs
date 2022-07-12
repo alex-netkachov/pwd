@@ -6,6 +6,8 @@ using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.Linq;
 using System.Text;
+using File = pwd.contexts.File;
+using Session = pwd.contexts.Session;
 
 namespace pwd;
 

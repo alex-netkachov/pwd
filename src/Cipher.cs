@@ -25,25 +25,6 @@ public sealed class Cipher
         _password = password;
     }
 
-    private Aes CreateAes(
-        byte[] salt)
-    {
-        var aes = Aes.Create();
-
-        if (aes == null)
-            throw new Exception("Cannot create AES encryption object.");
-
-        aes.Mode = CipherMode.CBC;
-        aes.Padding = PaddingMode.PKCS7;
-
-        // 10000 and SHA256 are defaults for pbkdf2 in openssl
-        using var rfc2898 = new Rfc2898DeriveBytes(_password, salt, 10000, HashAlgorithmName.SHA256);
-        aes.Key = rfc2898.GetBytes(32);
-        aes.IV = rfc2898.GetBytes(16);
-
-        return aes;
-    }
-
     public byte[] Encrypt(
         string text)
     {
@@ -80,5 +61,24 @@ public sealed class Cipher
         using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read);
         using var reader = new StreamReader(cryptoStream);
         return reader.ReadToEnd();
+    }
+
+    private Aes CreateAes(
+        byte[] salt)
+    {
+        var aes = Aes.Create();
+
+        if (aes == null)
+            throw new Exception("Cannot create AES encryption object.");
+
+        aes.Mode = CipherMode.CBC;
+        aes.Padding = PaddingMode.PKCS7;
+
+        // 10000 and SHA256 are defaults for pbkdf2 in openssl
+        using var rfc2898 = new Rfc2898DeriveBytes(_password, salt, 10000, HashAlgorithmName.SHA256);
+        aes.Key = rfc2898.GetBytes(32);
+        aes.IV = rfc2898.GetBytes(16);
+
+        return aes;
     }
 }

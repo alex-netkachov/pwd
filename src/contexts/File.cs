@@ -5,14 +5,14 @@ using System.IO.Abstractions;
 using System.Linq;
 using YamlDotNet.RepresentationModel;
 
-namespace pwd;
+namespace pwd.contexts;
 
 public sealed class File
     : IContext
 {
     private readonly IFileSystem _fs;
-    private readonly IView _view;
     private readonly Session _session;
+    private readonly IView _view;
 
     public File(
         IFileSystem fs,
@@ -32,6 +32,17 @@ public sealed class File
     public string Path { get; private set; }
     public string Content { get; private set; }
     public bool Modified { get; private set; }
+
+    public void Close()
+    {
+        _view.Location(_session);
+    }
+
+    public void Default(
+        string input)
+    {
+        Print();
+    }
 
     public string ExportContentToTempFile()
     {
@@ -78,10 +89,9 @@ public sealed class File
         return this;
     }
 
-    public File Print(
-        IView view)
+    public File Print()
     {
-        view.WriteLine(Content);
+        _view.WriteLine(Content);
         return this;
     }
 
@@ -117,7 +127,7 @@ public sealed class File
         try
         {
             Process.Start(new ProcessStartInfo(editor, path))?.WaitForExit();
-            ReadFromFile(path).Print(_view)
+            ReadFromFile(path).Print()
                 .Map(file => _view.Confirm("Save the content?") ? file : file.Update(originalContent))?
                 .Save();
         }
@@ -125,10 +135,5 @@ public sealed class File
         {
             _fs.File.Delete(path);
         }
-    }
-
-    public void Close()
-    {
-        _view.Location(_session);
     }
 }
