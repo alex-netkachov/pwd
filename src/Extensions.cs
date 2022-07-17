@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Abstractions;
-using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd;
@@ -15,6 +15,20 @@ public static class Extensions
         try
         {
             action();
+            return default;
+        }
+        catch (Exception e)
+        {
+            return e;
+        }
+    }
+    
+    public static async Task<Exception?> Try(
+        this Func<Task> action)
+    {
+        try
+        {
+            await action();
             return default;
         }
         catch (Exception e)
@@ -41,72 +55,6 @@ public static class Extensions
             : func(value!);
     }
 
-    public static byte[] ReadBytes(
-        this Stream stream,
-        int length)
-    {
-        var buffer = new byte[length];
-        var offset = 0;
-        while (offset != length)
-        {
-            var read = stream.Read(buffer, offset, length - offset);
-            if (read == 0)
-                throw new Exception("Reading from the stream failed.");
-            offset += read;
-        }
-
-        return buffer;
-    }
-
-    public static IEnumerable<string> GetFiles(
-        this IFileSystem fs,
-        string path,
-        (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default)
-    {
-        string JoinPath(
-            string path1,
-            string path2)
-        {
-            return (path1 == "." ? "" : $"{path1}/") + path2;
-        }
-
-        bool IsDotted(
-            IFileSystemInfo info)
-        {
-            var name = info.Name;
-            return name.StartsWith('.') || name.StartsWith('_');
-        }
-
-        return fs.Directory.Exists(path)
-            ? fs.DirectoryInfo.FromDirectoryName(path)
-                .EnumerateFileSystemInfos()
-                .OrderBy(info => info.Name)
-                .SelectMany(info => info switch
-                {
-                    IFileInfo file when !IsDotted(file) || options.IncludeDottedFilesAndFolders =>
-                        new[] {JoinPath(path, file.Name)},
-                    IDirectoryInfo dir when !IsDotted(dir) || options.IncludeDottedFilesAndFolders =>
-                        (options.Recursively
-                            ? fs.GetFiles(JoinPath(path, dir.Name), options)
-                            : Array.Empty<string>())
-                        .Concat(
-                            options.IncludeFolders
-                                ? new[] {JoinPath(path, dir.Name)}
-                                : Array.Empty<string>()),
-                    _ => Array.Empty<string>()
-                })
-            : Enumerable.Empty<string>();
-    }
-    
-    public static string ExportContentToTempFile(
-        this IFileSystem fs,
-        string content)
-    {
-        var path = fs.Path.GetTempFileName();
-        fs.File.WriteAllText(path, content);
-        return path;
-    }
-
     public static Exception? CheckYaml(
         this string text)
     {
@@ -115,5 +63,11 @@ public static class Extensions
             using var input = new StringReader(text);
             new YamlStream().Load(input);
         }).Try();
+    }
+    
+    public static (string, string, string) ParseCommand(this string input)
+    {
+        return Regex.Match(input, @"^\.(\w+)(?: +(.+))?$").Map(match =>
+            match.Success ? ("", match.Groups[1].Value, match.Groups[2].Value) : (input, "", ""));
     }
 }

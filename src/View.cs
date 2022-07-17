@@ -13,17 +13,12 @@ public interface IView
     bool Confirm(
         string question);
 
-    void Location(
-        IContext context);
-
     void Clear();
 }
 
 public sealed class View
     : IView
 {
-    public IContext? Context { get; private set; }
-
     public void WriteLine(
         string text)
     {
@@ -46,11 +41,5 @@ public sealed class View
     public void Clear()
     {
         Console.Clear();
-    }
-
-    public void Location(
-        IContext context)
-    {
-        Context = context;
     }
 }

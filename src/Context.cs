@@ -1,11 +1,12 @@
+using System.Threading.Tasks;
+
 namespace pwd;
 
 public interface IContext
 {
-    void Default(
+    Task Process(
+        IState state,
         string input);
-
-    void Close();
-
+    
     string Prompt();
 }

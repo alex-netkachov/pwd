@@ -5,7 +5,9 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using PasswordGenerator;
+using pwd.extensions;
 
 namespace pwd.contexts;
 
@@ -29,64 +31,86 @@ public sealed class Session
         _view = view;
     }
 
-    public File? File { get; private set; }
-
-    public void Close()
-    {
-    }
-
     public string Prompt()
     {
         return "";
     }
 
-    public void Default(
+    public Task Process(
+        IState state,
         string input)
     {
-        var names = GetEncryptedFilesRecursively()
-            .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var name =
-            names.FirstOrDefault(name => string.Equals(name, input, StringComparison.OrdinalIgnoreCase)) ??
-            (names.Count == 1 && input != "" ? names[0] : default);
-
-        if (name.Map(value => Open(value)) != null)
-            return;
-
-        _view.Write(string.Join("", names.Select(value => $"{value}\n")));
-    }
-
-    public IEnumerable<string> GetItems(string? path = null)
-    {
-        return _fs.GetFiles(path ?? ".", (false, true, false))
-            .Where(item => !_fs.File.Exists(item) || IsFileEncrypted(item));
-    }
-
-    public IEnumerable<string> GetEncryptedFilesRecursively(string? path = null, bool includeHidden = false)
-    {
-        return _fs.GetFiles(path ?? ".", (true, false, includeHidden))
-            .Where(IsFileEncrypted);
-    }
-
-    private bool IsFileEncrypted(string path)
-    {
-        return null == new Action(() =>
+        return ((Func<Task>) (input.ParseCommand() switch
         {
-            using var stream = _fs.File.OpenRead(path);
-            // openssl adds Salted__ at the beginning of a file, let's use to to check whether it is encrypted or not
-            _ = "Salted__" == Encoding.ASCII.GetString(stream.ReadBytes(8))
-                ? default(object)
-                : throw new Exception();
-        }).Try();
+            (_, "check", _) => Check,
+            (_, "open", var path) => () => Open(state, path),
+            (_, "pwd", _) => Task () =>
+            {
+                _view.WriteLine(new Password().Next());
+                return Task.CompletedTask;
+            },
+            (_, "add", var path) => Task () => Add(state, path),
+            (_, "clear", _) => Task () =>
+            {
+                _view.Clear();
+                return Task.CompletedTask;
+            },
+            (_, "export", _) => Export,
+            _ => async Task () =>
+            {
+                var names = (await GetEncryptedFilesRecursively())
+                    .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var name =
+                    names.FirstOrDefault(name => string.Equals(name, input, StringComparison.OrdinalIgnoreCase)) ??
+                    (names.Count == 1 && input != "" ? names[0] : default);
+
+                if (name == null)
+                    _view.Write(string.Join("", names.Select(value => $"{value}\n")));
+                else
+                    await Open(state, name);
+            }
+        })).Invoke();
     }
 
-    public string Read(string path)
+    public async Task<IEnumerable<string>> GetItems(
+        string? path = null)
     {
-        return _cipher.Decrypt(_fs.File.ReadAllBytes(path));
+        var files = _fs.GetFiles(path ?? ".", (false, true, false));
+        var result = new List<string>();
+        foreach (var file in files)
+            if (!_fs.File.Exists(file) || await IsFileEncrypted(file))
+                result.Add(file);
+        return result;
     }
 
-    public Session Write(
+    public async Task<IEnumerable<string>> GetEncryptedFilesRecursively(
+        string? path = null,
+        bool includeHidden = false)
+    {
+        var files = _fs.GetFiles(path ?? ".", (true, false, includeHidden));
+        var result = new List<string>();
+        foreach (var file in files)
+            if (await IsFileEncrypted(file))
+                result.Add(file);
+        return result;
+    }
+
+    private async Task<bool> IsFileEncrypted(
+        string path)
+    {
+        await using var stream = _fs.File.OpenRead(path);
+        return Salted.Equals(await stream.ReadBytesAsync(8));
+    }
+
+    private async Task<string> Read(
+        string path)
+    {
+        return await _cipher.Decrypt(await _fs.File.ReadAllBytesAsync(path));
+    }
+
+    private async Task Write(
         string path,
         string content)
     {
@@ -95,26 +119,24 @@ public sealed class Session
         if (folder != "")
             _fs.Directory.CreateDirectory(folder);
 
-        _fs.File.WriteAllBytes(path, _cipher.Encrypt(content));
-
-        if (path == File?.Path)
-            Open(path);
-        return this;
+        await _fs.File.WriteAllBytesAsync(path, await _cipher.Encrypt(content));
     }
 
-    public File? Open(
+    private async Task Open(
+        IState state,
         string path)
     {
-        File = _fs.File.Exists(path) && IsFileEncrypted(path)
-            ? new File(this, _fs, _cipher, _clipboard, _view, path, Read(path))
-            : null;
-        File?.Print();
-        return File;
+        if (!_fs.File.Exists(path) || !await IsFileEncrypted(path))
+            return;
+
+        var file = new File(this, _fs, _cipher, _clipboard, _view, path, await Read(path));
+        await file.Print();
+        state.Context = file;
     }
 
-    public Session Check()
+    public async Task Check()
     {
-        var names = GetEncryptedFilesRecursively(includeHidden: true).ToList();
+        var names = (await GetEncryptedFilesRecursively(includeHidden: true)).ToList();
         var wrongPassword = new List<string>();
         var notYaml = new List<string>();
         foreach (var name in names)
@@ -122,7 +144,7 @@ public sealed class Session
             string? content;
             try
             {
-                content = _cipher.Decrypt(_fs.File.ReadAllBytes(name));
+                content = await _cipher.Decrypt(await _fs.File.ReadAllBytesAsync(name));
                 if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
                     content = default;
             }
@@ -134,20 +156,21 @@ public sealed class Session
             if (content == default)
             {
                 wrongPassword.Add(name);
-                Console.Write('*');
+                _view.Write("*");
             }
             else if (content.CheckYaml() != null)
             {
                 notYaml.Add(name);
-                Console.Write('+');
+                _view.Write("+");
             }
             else
             {
-                Console.Write('.');
+                _view.Write(".");
             }
         }
 
-        if (names.Any()) Console.WriteLine();
+        if (names.Any())
+            _view.WriteLine("");
 
         if (wrongPassword.Count > 0)
         {
@@ -157,18 +180,16 @@ public sealed class Session
         }
 
         if (notYaml.Count > 0)
-            Console.Error.WriteLine($"YAML check failed for: {string.Join(", ", notYaml)}");
-
-        return this;
+            _view.WriteLine($"YAML check failed for: {string.Join(", ", notYaml)}");
     }
 
-    public void Export()
+    private static async Task Export()
     {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.template.html");
+        await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.template.html");
         if (stream == null)
             return;
         using var reader = new StreamReader(stream);
-        var template = reader.ReadToEnd();
+        var template = await reader.ReadToEndAsync();
         var script = string.Join(",\n  ",
             Directory.GetFiles(".")
                 .Select(file => (Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
@@ -184,15 +205,17 @@ public sealed class Session
                 .Select(item => (item.Item1, string.Join("", item.Item2.Select(value => value.ToString("x2")))))
                 .Select(item => $"'{item.Item1}' : '{item.Item2}'"));
         var content = template.Replace("const files = { };", $"const files = {{\n  {script}\n}};");
-        System.IO.File.WriteAllText("_index.html", content);
+        await System.IO.File.WriteAllTextAsync("_index.html", content);
     }
 
-    public void Add(
+    private async Task Add(
+        IState state,
         string path)
     {
         var content = new StringBuilder();
         for (string? line; "" != (line = Console.ReadLine());)
             content.AppendLine((line ?? "").Replace("***", new Password().Next()));
-        Write(path, content.ToString()).Open(path);
+        await Write(path, content.ToString());
+        await Open(state, path);
     }
 }

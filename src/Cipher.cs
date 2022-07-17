@@ -2,15 +2,17 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
+using pwd.extensions;
 
 namespace pwd;
 
 public interface ICipher
 {
-    byte[] Encrypt(
+    Task<byte[]> Encrypt(
         string text);
 
-    string Decrypt(
+    Task<string> Decrypt(
         byte[] data);
 }
 
@@ -25,42 +27,42 @@ public sealed class Cipher
         _password = password;
     }
 
-    public byte[] Encrypt(
+    public async Task<byte[]> Encrypt(
         string text)
     {
         using var stream = new MemoryStream();
 
-        stream.Write(Salted.Bytes);
+        await stream.WriteAsync(Salted.Bytes);
 
         using var rng = RandomNumberGenerator.Create();
         var salt = new byte[8];
         rng.GetBytes(salt);
-        stream.Write(salt);
+        await stream.WriteAsync(salt);
 
         var data = Encoding.UTF8.GetBytes(text);
         using (var aes = CreateAes(salt))
         using (var encryptor = aes.CreateEncryptor(aes.Key, aes.IV))
-        using (var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write))
+        await using (var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write))
         {
-            cryptoStream.Write(data, 0, data.Length);
+            await cryptoStream.WriteAsync(data);
         }
 
         return stream.ToArray();
     }
 
-    public string Decrypt(
+    public async Task<string> Decrypt(
         byte[] data)
     {
         using var stream = new MemoryStream(data);
 
-        if (!Salted.Equals(stream.ReadBytes(8)))
+        if (!Salted.Equals(await stream.ReadBytesAsync(8)))
             throw new FormatException($"Expecting the data stream to begin with {Salted.Text}.");
 
-        using var aes = CreateAes(stream.ReadBytes(8));
+        using var aes = CreateAes(await stream.ReadBytesAsync(8));
         using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-        using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read);
+        await using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read);
         using var reader = new StreamReader(cryptoStream);
-        return reader.ReadToEnd();
+        return await reader.ReadToEndAsync();
     }
 
     private Aes CreateAes(
