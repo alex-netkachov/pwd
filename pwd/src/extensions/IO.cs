@@ -20,9 +20,9 @@ public static class IO
         while (offset != length)
         {
             var read = await stream.ReadAsync(buffer.AsMemory(offset, length - offset));
-            if (read == 0)
-                throw new Exception("Reading from the stream failed.");
             offset += read;
+            if (read == 0)
+                return buffer[..offset];
         }
 
         return buffer;

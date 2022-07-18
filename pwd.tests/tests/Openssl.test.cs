@@ -1,15 +1,9 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace pwd;
+namespace pwd.tests;
 
-// ReSharper disable UnusedMember.Local because the tests are called through reflection
-
-public static partial class Program
+public sealed class Openssl_Tests
 {
     private static string LocateOpenssl()
     {
@@ -17,13 +11,13 @@ public static partial class Program
         {
             Environment.GetEnvironmentVariable("ProgramFiles") + @"\Git\usr\bin\openssl.exe",
             Environment.GetEnvironmentVariable("LOCALAPPDATA") + @"\Programs\Git\usr\bin\openssl.exe"
-        }.FirstOrDefault(System.IO.File.Exists) ?? "openssl";
+        }.FirstOrDefault(File.Exists) ?? "openssl";
     }
 
-
-    private static async Task Test_Openssl_Encrypt()
+    [Test]
+    public async Task Encrypt()
     {
-        void OpensslEncrypt(string path, string pwd, string txt)
+        async Task OpensslEncrypt(string path, string pwd, string txt)
         {
             var info = new ProcessStartInfo(LocateOpenssl(), "aes-256-cbc -e -salt -pbkdf2 -pass stdin")
             {
@@ -34,30 +28,32 @@ public static partial class Program
             var process = Process.Start(info);
             if (process == null)
                 return;
-            using var writer = new BinaryWriter(process.StandardInput.BaseStream);
+            await using var writer = new BinaryWriter(process.StandardInput.BaseStream);
             var passwordData = Encoding.ASCII.GetBytes(pwd + "\n");
             writer.Write(passwordData, 0, passwordData.Length);
             var data = Encoding.UTF8.GetBytes(txt);
             writer.Write(data, 0, data.Length);
             writer.Close();
-            using var stream = System.IO.File.OpenWrite(path);
-            process.StandardOutput.BaseStream.CopyTo(stream);
+            await using var stream = File.OpenWrite(path);
+            await process.StandardOutput.BaseStream.CopyToAsync(stream);
         }
 
-        var (password, text) = EncryptionTestData();
+        var (password, text) = Shared.EncryptionTestData();
 
         var path = Path.GetTempFileName();
-        OpensslEncrypt(path, password, text);
+        await OpensslEncrypt(path, password, text);
         var cipher = new Cipher(password);
-        var data = System.IO.File.ReadAllBytes(path);
-        var decrypted = await cipher.Decrypt(data);
-        System.IO.File.Delete(path);
-        Assert(text == decrypted);
+        await using var stream = File.OpenRead(path);
+        var decrypted = await cipher.Decrypt(stream);
+        stream.Close();
+        File.Delete(path);
+        Assert.That(text, Is.EqualTo(decrypted));
     }
 
-    private static async Task Test_Openssl_Decrypt()
+    [Test]
+    public async Task Decrypt()
     {
-        string? OpensslDecrypt(string path, string pwd)
+        async Task<string?> OpensslDecrypt(string path, string pwd)
         {
             var info = new ProcessStartInfo(LocateOpenssl(), "aes-256-cbc -d -salt -pbkdf2 -pass stdin")
             {
@@ -68,21 +64,23 @@ public static partial class Program
             var process = Process.Start(info);
             if (process == null)
                 return null;
-            using var writer = new BinaryWriter(process.StandardInput.BaseStream);
+            await using var writer = new BinaryWriter(process.StandardInput.BaseStream);
             var passwordData = Encoding.ASCII.GetBytes(pwd + "\n");
             writer.Write(passwordData, 0, passwordData.Length);
-            var encrypted = System.IO.File.ReadAllBytes(path);
+            var encrypted = await File.ReadAllBytesAsync(path);
             writer.Write(encrypted, 0, encrypted.Length);
             writer.Close();
-            return process.StandardOutput.ReadToEnd();
+            return await process.StandardOutput.ReadToEndAsync();
         }
 
-        var (password, text) = EncryptionTestData();
+        var (password, text) = Shared.EncryptionTestData();
 
         var path = Path.GetTempFileName();
-        System.IO.File.WriteAllBytes(path, await new Cipher(password).Encrypt(text));
-        var decrypted = OpensslDecrypt(path, password);
-        System.IO.File.Delete(path);
-        Assert(text == decrypted);
+        await using var stream = File.OpenWrite(path);
+        await new Cipher(password).Encrypt(text, stream);
+        stream.Close();
+        var decrypted = await OpensslDecrypt(path, password);
+        File.Delete(path);
+        Assert.That(text, Is.EqualTo(decrypted));
     }
 }

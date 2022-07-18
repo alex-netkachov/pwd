@@ -1,21 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
-using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
+using Moq;
 using File = pwd.contexts.File;
 using Session = pwd.contexts.Session;
-using pwd.tests;
 
 // ReSharper disable UnusedMember.Local because the tests are called through reflection
 
 namespace pwd;
 
-public static partial class Program
+public static class Shared
 {
     private static void Assert(
         bool value,
@@ -32,12 +27,12 @@ public static partial class Program
         Console.WriteLine($"{name}: {(e == null ? "OK" : $"FAIL - {e}")}");
     }
 
-    private static (string pwd, string text) EncryptionTestData()
+    public static (string pwd, string text) EncryptionTestData()
     {
         return ("secret", "lorem ipsum ...");
     }
 
-    private static IFileSystem GetMockFs()
+    public static IFileSystem GetMockFs()
     {
         var fs = new MockFileSystem();
         fs.Directory.CreateDirectory("container/test");
@@ -46,10 +41,20 @@ public static partial class Program
         return fs;
     }
 
-    private static async Task<IFileSystem> FileLayout1(IFileSystem fs)
+    public static async Task<IFileSystem> FileLayout1(IFileSystem fs)
     {
         var (pwd, text) = EncryptionTestData();
         var cipher = new Cipher(pwd);
+
+        async Task EncryptWrite(
+            string path,
+            ICipher cipher1,
+            string text1)
+        {
+            using var stream = new MemoryStream();
+            await cipher1.Encrypt(text1, stream);
+            await fs.File.WriteAllBytesAsync(path, stream.ToArray());
+        }
 
         fs.File.WriteAllText("file", text);
         fs.File.WriteAllText(".hidden", text);
@@ -59,34 +64,21 @@ public static partial class Program
         fs.Directory.CreateDirectory(".hidden_dir");
         fs.File.WriteAllText(".hidden_dir/file", text);
         fs.File.WriteAllText(".hidden_dir/.hidden", text);
-        fs.File.WriteAllBytes("encrypted", await cipher.Encrypt(text));
-        fs.File.WriteAllBytes(".hidden_encrypted", await cipher.Encrypt(text));
-        fs.File.WriteAllBytes("regular_dir/encrypted", await cipher.Encrypt(text));
-        fs.File.WriteAllBytes("regular_dir/.hidden_encrypted", await cipher.Encrypt(text));
-        fs.File.WriteAllBytes(".hidden_dir/encrypted", await cipher.Encrypt(text));
-        fs.File.WriteAllBytes(".hidden_dir/.hidden_encrypted", await cipher.Encrypt(text));
+        await EncryptWrite("encrypted", cipher, text);
+        await EncryptWrite(".hidden_encrypted", cipher, text);
+        await EncryptWrite("regular_dir/encrypted", cipher, text);
+        await EncryptWrite("regular_dir/.hidden_encrypted", cipher, text);
+        await EncryptWrite(".hidden_dir/encrypted", cipher, text);
+        await EncryptWrite(".hidden_dir/.hidden_encrypted", cipher, text);
         return fs;
-    }
-
-    private static (Session, ICipher, IFileSystem, IClipboard, IView) CreateSessionWithMocks(
-        ICipher? cipher = null,
-        IFileSystem? fs = null,
-        IClipboard? clipboard = null,
-        IView? view = null)
-    {
-        cipher ??= new MockCipher();
-        fs ??= new MockFileSystem();
-        clipboard ??= new MockClipboard();
-        view ??= new MockView();
-        return (new Session(cipher, fs, clipboard, view), cipher, fs, clipboard, view);
     }
 
     private static async Task Test_File_Rename()
     {
         var (pwd, _) = EncryptionTestData();
         var fs = await FileLayout1(GetMockFs());
-        var view = new MockView();
-        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
+        var view = new Mock<View>();
+        var session = new Session(new Cipher(pwd), fs, Mock.Of<Clipboard>(), view.Object);
         var state = new State(session);
         await session.Process(state, ".open encrypted");
         var file = state.Context as File;
@@ -101,7 +93,7 @@ public static partial class Program
         var (pwd, _) = EncryptionTestData();
         var fs = await FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, new MockClipboard(), view);
+        var session = new Session(new Cipher(pwd), fs, Mock.Of<Clipboard>(), view);
         var handler = new AutoCompletionHandler(session);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
         Assert(string.Join(";", handler.GetSuggestions("", 0)) == "encrypted;regular_dir");
@@ -119,14 +111,15 @@ public static partial class Program
         var fs = GetMockFs();
         var session = default(Session);
 
-        var testData = await new Cipher(pwd).Encrypt("user: user\npassword: password\n");
+        var testData = new MemoryStream();
+        await new Cipher(pwd).Encrypt("user: user\npassword: password\n", testData);
 
         IEnumerable<string> Input()
         {
             yield return pwd;
             yield return pwd;
             yield return "";
-            fs.File.WriteAllBytes("test", testData);
+            fs.File.WriteAllBytes("test", testData.ToArray());
             yield return "test";
             yield return "..";
             yield return ".quit";
@@ -147,7 +140,7 @@ public static partial class Program
         });
         var stdout = Console.Out;
         Console.SetOut(new StringWriter(stdoutBuilder));
-        await Run(fs, read, read, s => session = s, _ => { });
+        await Program.Run(fs, read, read, s => session = s, _ => { });
         Console.SetOut(stdout);
         var expected = string.Join("\n", "Password: secret",
             "It seems that you are creating a new repository. Please confirm password: secret", ">", "> test",
@@ -160,30 +153,5 @@ public static partial class Program
     {
         var msg = new Action(() => throw new()).Try() switch {{ } e => e.Message, _ => default};
         Assert(msg != null);
-    }
-
-    private static async Task Tests(
-        string[] tests)
-    {
-        var allTests =
-            typeof(Program)
-                .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-                .Where(item => item.Name.StartsWith("Test_"));
-
-        var selectedTests = allTests
-            .Where(item => tests.Length == 0 ||
-                           tests.Any(value => item.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
-
-        foreach (var test in selectedTests.OrderBy(item => item.Name))
-        {
-            if (test.ReturnType == typeof(void))
-                await Test(() =>
-                {
-                    test.Invoke(null, null);
-                    return Task.CompletedTask;
-                }, test.Name);
-            else
-                await Test(() => (Task) test.Invoke(null, null)!, test.Name);
-        }
     }
 }

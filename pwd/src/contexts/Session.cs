@@ -80,8 +80,9 @@ public sealed class Session
         var files = _fs.GetFiles(path ?? ".", (false, true, false));
         var result = new List<string>();
         foreach (var file in files)
-            if (!_fs.File.Exists(file) || await IsFileEncrypted(file))
+            if (!_fs.File.Exists(file) || await IsFileEncrypted(file, _cipher))
                 result.Add(file);
+
         return result;
     }
 
@@ -92,22 +93,23 @@ public sealed class Session
         var files = _fs.GetFiles(path ?? ".", (true, false, includeHidden));
         var result = new List<string>();
         foreach (var file in files)
-            if (await IsFileEncrypted(file))
+            if (await IsFileEncrypted(file, _cipher))
                 result.Add(file);
         return result;
     }
 
     private async Task<bool> IsFileEncrypted(
-        string path)
+        string path,
+        ICipher cipher)
     {
         await using var stream = _fs.File.OpenRead(path);
-        return Salted.Equals(await stream.ReadBytesAsync(8));
+        return await cipher.IsEncrypted(stream);
     }
 
     private async Task<string> Read(
         string path)
     {
-        return await _cipher.Decrypt(await _fs.File.ReadAllBytesAsync(path));
+        return await _cipher.Decrypt(_fs.File.OpenRead(path));
     }
 
     private async Task Write(
@@ -119,14 +121,15 @@ public sealed class Session
         if (folder != "")
             _fs.Directory.CreateDirectory(folder);
 
-        await _fs.File.WriteAllBytesAsync(path, await _cipher.Encrypt(content));
+        await using var stream = _fs.File.Open(path, FileMode.Create, FileAccess.Write);
+        await _cipher.Encrypt(content, stream);
     }
 
     private async Task Open(
         IState state,
         string path)
     {
-        if (!_fs.File.Exists(path) || !await IsFileEncrypted(path))
+        if (!_fs.File.Exists(path) || !await IsFileEncrypted(path, _cipher))
             return;
 
         var file = new File(this, _fs, _cipher, _clipboard, _view, path, await Read(path));
@@ -136,15 +139,16 @@ public sealed class Session
 
     public async Task Check()
     {
-        var names = (await GetEncryptedFilesRecursively(includeHidden: true)).ToList();
+        var files = (await GetEncryptedFilesRecursively(includeHidden: true)).ToList();
         var wrongPassword = new List<string>();
         var notYaml = new List<string>();
-        foreach (var name in names)
+        foreach (var file in files)
         {
             string? content;
             try
             {
-                content = await _cipher.Decrypt(await _fs.File.ReadAllBytesAsync(name));
+                await using var stream = _fs.File.OpenRead(file);
+                content = await _cipher.Decrypt(stream);
                 if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
                     content = default;
             }
@@ -155,12 +159,12 @@ public sealed class Session
 
             if (content == default)
             {
-                wrongPassword.Add(name);
+                wrongPassword.Add(file);
                 _view.Write("*");
             }
             else if (content.CheckYaml() != null)
             {
-                notYaml.Add(name);
+                notYaml.Add(file);
                 _view.Write("+");
             }
             else
@@ -169,7 +173,7 @@ public sealed class Session
             }
         }
 
-        if (names.Any())
+        if (files.Any())
             _view.WriteLine("");
 
         if (wrongPassword.Count > 0)

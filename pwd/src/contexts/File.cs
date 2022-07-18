@@ -93,7 +93,9 @@ public sealed class File
 
     private async Task Save()
     {
-        await _fs.Write(_path, await _cipher.Encrypt(_content));
+        var stream = new MemoryStream();
+        await _cipher.Encrypt(_content, stream);
+        await _fs.Write(_path, stream.ToArray());
         _modified = false;
     }
 

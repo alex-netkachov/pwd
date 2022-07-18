@@ -5,3 +5,4 @@ obj
 # popular editors
 .idea
 .vscode
+*.user

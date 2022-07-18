@@ -2,14 +2,17 @@ using System;
 using System.Diagnostics;
 using System.IO.Abstractions;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Session = pwd.contexts.Session;
 
+[assembly:InternalsVisibleTo("pwd.tests")]
+
 namespace pwd;
 
-public static partial class Program
+public static class Program
 {
-    private static async Task Run(
+    internal static async Task Run(
         IFileSystem fs,
         Func<string, string> readPassword,
         Func<string, string> read,
@@ -52,13 +55,6 @@ public static partial class Program
     public static async Task Main(
         string[] args)
     {
-        var testIndex = Array.IndexOf(args, "-t"); 
-        if (-1 != testIndex)
-        {
-            await Tests(args[(testIndex + 1)..]);
-            return;
-        }
-
         await Run(new FileSystem(), ReadLine.ReadPassword, text => ReadLine.Read(text), session =>
         {
             ReadLine.HistoryEnabled = true;
@@ -74,28 +70,28 @@ public static partial class Program
                     .FirstOrDefault(e => e != null).Apply(Console.Error.WriteLine);
         });
     }
+}
 
-    private class AutoCompletionHandler
-        : IAutoCompleteHandler
+public class AutoCompletionHandler
+    : IAutoCompleteHandler
+{
+    private readonly Session _session;
+
+    public AutoCompletionHandler(Session session)
     {
-        private readonly Session _session;
+        _session = session;
+    }
 
-        public AutoCompletionHandler(Session session)
-        {
-            _session = session;
-        }
+    public char[] Separators { get; set; } = Array.Empty<char>();
 
-        public char[] Separators { get; set; } = Array.Empty<char>();
-
-        public string[] GetSuggestions(string text, int index)
-        {
-            if (text.StartsWith(".") && !text.StartsWith(".."))
-                return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.quit,.rename,.rm,.save".Split(',')
-                    .Where(item => item.StartsWith(text)).ToArray();
-            var p = text.LastIndexOf('/');
-            var (folder, _) = p == -1 ? ("", text) : (text[..p], text[(p + 1)..]);
-            return _session.GetItems(folder == "" ? "." : folder).Result
+    public string[] GetSuggestions(string text, int index)
+    {
+        if (text.StartsWith(".") && !text.StartsWith(".."))
+            return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.quit,.rename,.rm,.save".Split(',')
                 .Where(item => item.StartsWith(text)).ToArray();
-        }
+        var p = text.LastIndexOf('/');
+        var (folder, _) = p == -1 ? ("", text) : (text[..p], text[(p + 1)..]);
+        return _session.GetItems(folder == "" ? "." : folder).Result
+            .Where(item => item.StartsWith(text)).ToArray();
     }
 }
