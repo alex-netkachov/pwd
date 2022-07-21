@@ -141,7 +141,7 @@ public sealed class Session
         var files = (await GetEncryptedFilesRecursively(includeHidden: true)).ToList();
         var wrongPassword = new List<string>();
         var notYaml = new List<string>();
-        foreach (var file in files)
+        await Task.WhenAll(files.Select(async file =>
         {
             string? content;
             try
@@ -170,7 +170,7 @@ public sealed class Session
             {
                 _view.Write(".");
             }
-        }
+        }));
 
         if (files.Any())
             _view.WriteLine("");
