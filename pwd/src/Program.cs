@@ -14,61 +14,99 @@ public static class Program
 {
     internal static async Task Run(
         IFileSystem fs,
-        Func<string, string> readPassword,
-        Func<string, string> read,
+        IView view,
         Action<Session> init,
-        Action<IFileSystem> done)
+        Action<IFileSystem, IView> done)
     {
-        var password = readPassword("Password: ");
-        var view = new View();
-        var session = new Session(new Cipher(password), fs, new Clipboard(), view);
-        if ((await new Func<Task>(() => session.Check()).Try()).Map(e => e.Message).Apply(Console.Error.WriteLine) != null)
+        var password = view.ReadPassword("Password: ");
+        var clipboard = new Clipboard();
+        var session = new Session(new Cipher(password), fs, clipboard, view);
+        
+        try
+        {
+            await session.Check();
+        }
+        catch (Exception e)
+        {
+            await Console.Error.WriteLineAsync(e.Message);
             return;
+        }
+
         if (!(await session.GetEncryptedFilesRecursively(".", true)).Any())
         {
             var confirmPassword =
-                readPassword("It seems that you are creating a new repository. Please confirm password: ");
+                view.ReadPassword("It seems that you are creating a new repository. Please confirm password: ");
             if (confirmPassword != password)
             {
-                Console.Error.WriteLine("passwords do not match");
+                await Console.Error.WriteLineAsync("passwords do not match");
                 return;
             }
         }
 
-        session.Apply(init);
+        init(session);
+
         var context = (IContext) session;
         while (true)
         {
-            var input = read($"{context.Prompt()}> ").Trim();
-            if (input == ".quit") break;
-            new Action(() =>
+            var input = view.Read($"{context.Prompt()}> ").Trim();
+            
+            if (input == ".quit")
+                break;
+            
+            try
             {
                 var state = new State(context);
-                context.Process(state, input);
+                await context.Process(state, input);
                 context = state.Context;
-            }).Try().Map(e => e.Message).Apply(Console.Error.WriteLine);
+            }
+            catch (Exception e)
+            {
+                await Console.Error.WriteLineAsync(e.Message);
+            }
         }
 
-        done(fs);
+        clipboard.Dispose();
+
+        done(fs, view);
     }
 
     public static async Task Main(
         string[] args)
     {
-        await Run(new FileSystem(), ReadLine.ReadPassword, text => ReadLine.Read(text), session =>
-        {
-            ReadLine.HistoryEnabled = true;
-            ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
-        }, fs =>
-        {
-            var view = new View();
-            view.Clear();
-            if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") || fs.Directory.Exists("../../.git")) &&
-                view.Confirm("Update the repository?"))
-                new[] {"add *", "commit -m update", "push"}
-                    .Select(_ => new Action(() => Process.Start(new ProcessStartInfo("git", _))?.WaitForExit()).Try())
-                    .FirstOrDefault(e => e != null).Apply(Console.Error.WriteLine);
-        });
+        await Run(
+            new FileSystem(),
+            new View(),
+            session =>
+            {
+                ReadLine.HistoryEnabled = true;
+                ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
+            },
+            (fs, view) =>
+            {
+                view.Clear();
+                if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") ||
+                     fs.Directory.Exists("../../.git")) &&
+                    view.Confirm("Update the repository?"))
+                {
+                    var tempQualifier = new[] {"add *", "commit -m update", "push"}
+                        .Select(_ =>
+                        {
+                            try
+                            {
+                                Process.Start(new ProcessStartInfo("git", _))?.WaitForExit();
+                                return default;
+                            }
+                            catch (Exception e)
+                            {
+                                return e;
+                            }
+                        })
+                        .FirstOrDefault(e => e != null);
+
+                    if (tempQualifier != null)
+                        Console.Error.WriteLine(tempQualifier);
+                }
+            });
     }
 }
 

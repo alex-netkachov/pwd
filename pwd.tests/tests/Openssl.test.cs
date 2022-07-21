@@ -17,7 +17,10 @@ public sealed class Openssl_Tests
     [Test]
     public async Task Encrypt()
     {
-        async Task OpensslEncrypt(string path, string pwd, string txt)
+        async Task OpensslEncrypt(
+            string path,
+            string pwd,
+            string txt)
         {
             var info = new ProcessStartInfo(LocateOpenssl(), "aes-256-cbc -e -salt -pbkdf2 -pass stdin")
             {
@@ -38,7 +41,7 @@ public sealed class Openssl_Tests
             await process.StandardOutput.BaseStream.CopyToAsync(stream);
         }
 
-        var (password, text) = Shared.EncryptionTestData();
+        var (password, text, _) = Shared.EncryptionTestData();
 
         var path = Path.GetTempFileName();
         await OpensslEncrypt(path, password, text);
@@ -53,7 +56,9 @@ public sealed class Openssl_Tests
     [Test]
     public async Task Decrypt()
     {
-        async Task<string?> OpensslDecrypt(string path, string pwd)
+        async Task<string?> OpensslDecrypt(
+            string path,
+            string pwd)
         {
             var info = new ProcessStartInfo(LocateOpenssl(), "aes-256-cbc -d -salt -pbkdf2 -pass stdin")
             {
@@ -73,7 +78,7 @@ public sealed class Openssl_Tests
             return await process.StandardOutput.ReadToEndAsync();
         }
 
-        var (password, text) = Shared.EncryptionTestData();
+        var (password, text, _) = Shared.EncryptionTestData();
 
         var path = Path.GetTempFileName();
         await using var stream = File.OpenWrite(path);

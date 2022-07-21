@@ -1,9 +1,7 @@
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
-using System.Reflection;
 using System.Text;
 using Moq;
-using File = pwd.contexts.File;
 using Session = pwd.contexts.Session;
 
 // ReSharper disable UnusedMember.Local because the tests are called through reflection
@@ -19,17 +17,13 @@ public static class Shared
         if (!value) throw new(message);
     }
 
-    private static async Task Test(
-        Func<Task> test,
-        string name)
+    public static (string pwd, string text, byte[] encrypted) EncryptionTestData()
     {
-        var e = await test.Try();
-        Console.WriteLine($"{name}: {(e == null ? "OK" : $"FAIL - {e}")}");
-    }
-
-    public static (string pwd, string text) EncryptionTestData()
-    {
-        return ("secret", "lorem ipsum ...");
+        return (
+            "secret",
+            "only you can protect what is yours",
+            Convert.FromHexString(
+                "53616C7465645F5FD2586E38D8F094E37022709B84AAD604AB513AA251223B2F49E2222A67C81DF3A2A772B33D8EEC32C83AB0FE7C46860575E695E2F7858D3A"));
     }
 
     public static IFileSystem GetMockFs()
@@ -43,7 +37,7 @@ public static class Shared
 
     public static async Task<IFileSystem> FileLayout1(IFileSystem fs)
     {
-        var (pwd, text) = EncryptionTestData();
+        var (pwd, text, _) = EncryptionTestData();
         var cipher = new Cipher(pwd);
 
         async Task EncryptWrite(
@@ -73,24 +67,9 @@ public static class Shared
         return fs;
     }
 
-    private static async Task Test_File_Rename()
-    {
-        var (pwd, _) = EncryptionTestData();
-        var fs = await FileLayout1(GetMockFs());
-        var view = new Mock<View>();
-        var session = new Session(new Cipher(pwd), fs, Mock.Of<Clipboard>(), view.Object);
-        var state = new State(session);
-        await session.Process(state, ".open encrypted");
-        var file = state.Context as File;
-        file?.Process(state, ".rename encrypted.test");
-        Assert(fs.File.Exists("encrypted.test"));
-        file?.Process(state, ".rename regular_dir/encrypted.test");
-        Assert(fs.File.Exists("regular_dir/encrypted.test"));
-    }
-
     private static async Task Test_AutoCompletionHandler()
     {
-        var (pwd, _) = EncryptionTestData();
+        var (pwd, _, _) = EncryptionTestData();
         var fs = await FileLayout1(GetMockFs());
         var view = new View();
         var session = new Session(new Cipher(pwd), fs, Mock.Of<Clipboard>(), view);
@@ -107,7 +86,7 @@ public static class Shared
 
     private static async Task Test_Main1()
     {
-        var (pwd, _) = EncryptionTestData();
+        var (pwd, _, _) = EncryptionTestData();
         var fs = GetMockFs();
         var session = default(Session);
 
@@ -138,20 +117,17 @@ public static class Shared
             messages.Add($"{text}{e.Current}");
             return e.Current;
         });
+        var view = new Mock<IView>();
+        view.Setup(m => m.Read(It.IsAny<string>())).Returns(read);
+        view.Setup(m => m.ReadPassword(It.IsAny<string>())).Returns(read);
         var stdout = Console.Out;
         Console.SetOut(new StringWriter(stdoutBuilder));
-        await Program.Run(fs, read, read, s => session = s, _ => { });
+        await Program.Run(fs, view.Object, s => session = s, (_, _) => { });
         Console.SetOut(stdout);
         var expected = string.Join("\n", "Password: secret",
             "It seems that you are creating a new repository. Please confirm password: secret", ">", "> test",
             "user: user", "password: password", "test> ..", "> .quit");
         var actual = string.Join("\n", messages.Select(line => line.Trim()).Where(line => !string.IsNullOrEmpty(line)));
         Assert(expected == actual);
-    }
-
-    private static void Test_Try()
-    {
-        var msg = new Action(() => throw new()).Try() switch {{ } e => e.Message, _ => default};
-        Assert(msg != null);
     }
 }

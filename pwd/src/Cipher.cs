@@ -4,7 +4,6 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using pwd.extensions;
 
 namespace pwd;
 
@@ -45,9 +44,11 @@ public sealed class Cipher
     public async Task<bool> IsEncrypted(
         Stream stream)
     {
-        var octet = await stream.ReadBytesAsync(8);
+        var octet = await ReadBytesAsync(stream, 8);
+        var salt = await ReadBytesAsync(stream, 8);
         return octet.Length == Salted.Length &&
-               !Salted.Where((t, i) => octet[i] != t).Any();
+               !Salted.Where((t, i) => octet[i] != t).Any() &&
+               salt.Length == 8;
     }
 
     public async Task<int> Encrypt(
@@ -73,11 +74,11 @@ public sealed class Cipher
     public async Task<string> Decrypt(
         Stream stream)
     {
-        var octet = await stream.ReadBytesAsync(8);
+        var octet = await ReadBytesAsync(stream, 8);
         if (octet.Length != Salted.Length || Salted.Where((t, i) => octet[i] != t).Any())
-            throw new FormatException($"The data stream is not encrypted.");
+            throw new FormatException("The data stream is not encrypted.");
 
-        using var aes = CreateAes(await stream.ReadBytesAsync(8));
+        using var aes = CreateAes(await ReadBytesAsync(stream, 8));
         using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
         await using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read, true);
         using var reader = new StreamReader(cryptoStream);
@@ -97,9 +98,27 @@ public sealed class Cipher
 
         // 10000 and SHA256 are defaults for pbkdf2 in openssl
         using var rfc2898 = new Rfc2898DeriveBytes(_password, salt, 10000, HashAlgorithmName.SHA256);
+
         aes.Key = rfc2898.GetBytes(32);
         aes.IV = rfc2898.GetBytes(16);
 
         return aes;
+    }
+    
+    private static async Task<byte[]> ReadBytesAsync(
+        Stream stream,
+        int length)
+    {
+        var buffer = new byte[length];
+        var offset = 0;
+        while (offset != length)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(offset, length - offset));
+            offset += read;
+            if (read == 0)
+                return buffer[..offset];
+        }
+
+        return buffer;
     }
 }

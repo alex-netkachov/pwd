@@ -4,8 +4,6 @@ using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Threading.Tasks;
-using PasswordGenerator;
-using pwd.extensions;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts;
@@ -42,34 +40,48 @@ public sealed class File
         _modified = false;
     }
 
-    public Task Process(
+    public async Task Process(
         IState state,
         string input)
     {
-        return ((Func<Task>) (input.ParseCommand() switch
+        switch (Shared.ParseCommand(input))
         {
-            (_, "save", _) => Save,
-            ("..", _, _) => () => Close(state),
-            (_, "check", _) => Check,
-            (_, "archive", _) => () => Archive(state),
-            (_, "rm", _) => () => Delete(state),
-            (_, "rename", var path) => () => Rename(path),
-            (_, "edit", var editor) => () => Edit(editor),
-            (_, "pwd", _) => Task () =>
-            {
-                _view.WriteLine(new Password().Next());
-                return Task.CompletedTask;
-            },
-            (_, "cc", var name) => () => CopyField(name),
-            (_, "ccu", _) => () => Process(state, ".cc user"),
-            (_, "ccp", _) => () => Process(state, ".cc password"),
-            (_, "clear", _) => Task () =>
-            {
-                _view.Clear();
-                return Task.CompletedTask;
-            },
-            _ => Print
-        })).Invoke();
+            case (_, "save", _):
+                await Save();
+                break;
+            case ("..", _, _):
+                Close(state);
+                break;
+            case (_, "check", _):
+                Check();
+                break;
+            case (_, "archive", _):
+                Archive(state);
+                break;
+            case (_, "rm", _):
+                Delete(state);
+                break;
+            case (_, "rename", var path):
+                Rename(path);
+                break;
+            case (_, "edit", var editor):
+                await Edit(editor);
+                break;
+            case (_, "cc", var name):
+                CopyField(name);
+                break;
+            case (_, "ccu", _):
+                CopyField("user");
+                break;
+            case (_, "ccp", _):
+                CopyField("password");
+                break;
+            default:
+                if (await Shared.Process(input, _view))
+                    return;
+                Print();
+                break;
+        }
     }
 
     public string Prompt()
@@ -77,32 +89,31 @@ public sealed class File
         return $"{(_modified ? "*" : "")}{_path}";
     }
 
-    private Task Close(
+    private void Close(
         IState state)
     {
         state.Context = _previous;
-        return Task.CompletedTask;
     }
 
-    private async Task Archive(
+    private void Archive(
         IState state)
     {
-        await Rename($".archive/{_path}");
-        await Close(state);
+        Rename($".archive/{_path}");
+        Close(state);
     }
 
     private async Task Save()
     {
         var stream = new MemoryStream();
         await _cipher.Encrypt(_content, stream);
-        await _fs.Write(_path, stream.ToArray());
+        await Write(_fs, _path, stream.ToArray());
         _modified = false;
     }
 
-    private async Task Rename(
+    private void Rename(
         string path)
     {
-        await _fs.MoveFile(_path, path);
+        MoveFile(_fs, _path, path);
         _path = path;
     }
 
@@ -113,17 +124,15 @@ public sealed class File
         _content = content;
     }
 
-    private Task Check()
+    private void Check()
     {
-        if (_content.CheckYaml() is {Message: var msg})
-            Console.Error.WriteLine(msg);
-        return Task.CompletedTask;
+        if (Shared.CheckYaml(_content) is {Message: var msg})
+            _view.WriteLine(msg);
     }
 
-    public Task Print()
+    public void Print()
     {
         _view.WriteLine(_content);
-        return Task.CompletedTask;
     }
 
     private string Field(
@@ -139,14 +148,14 @@ public sealed class File
             .Value as YamlScalarNode)?.Value ?? "";
     }
 
-    private async Task Delete(
+    private void Delete(
         IState state)
     {
         if (!_view.Confirm($"Delete '{_path}'?"))
             return;
         
         _fs.File.Delete(_path);
-        await Close(state);
+        Close(state);
     }
 
     private async Task Edit(
@@ -162,7 +171,7 @@ public sealed class File
             return;
         }
 
-        var path = await _fs.WriteToTempFile(_content);
+        var path = await WriteToTempFile(_fs, _content);
         
         try
         {
@@ -187,7 +196,7 @@ public sealed class File
         }
     }
 
-    private Task CopyField(
+    private void CopyField(
         string path)
     {
         var value = Field(path);
@@ -195,6 +204,36 @@ public sealed class File
             _clipboard.Clear();
         else
             _clipboard.Put(value, TimeSpan.FromSeconds(5));
-        return Task.CompletedTask;
+    }
+    
+    private static async Task<string> WriteToTempFile(
+        IFileSystem fs,
+        string content)
+    {
+        var path = fs.Path.GetTempFileName();
+        await fs.File.WriteAllTextAsync(path, content);
+        return path;
+    }
+
+    private static async Task Write(
+        IFileSystem fs,
+        string path,
+        byte[] data)
+    {
+        var folder = fs.Path.GetDirectoryName(path);
+        if (folder != "")
+            fs.Directory.CreateDirectory(folder);
+        await fs.File.WriteAllBytesAsync(path, data);
+    }
+
+    private static void MoveFile(
+        IFileSystem fs,
+        string sourceFileName,
+        string destFileName)
+    {
+        var folder = fs.Path.GetDirectoryName(destFileName);
+        if (folder != "")
+            fs.Directory.CreateDirectory(folder);
+        fs.File.Move(sourceFileName, destFileName);
     }
 }

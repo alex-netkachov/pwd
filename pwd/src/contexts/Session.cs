@@ -7,7 +7,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using PasswordGenerator;
-using pwd.extensions;
 
 namespace pwd.contexts;
 
@@ -36,28 +35,28 @@ public sealed class Session
         return "";
     }
 
-    public Task Process(
+    public async Task Process(
         IState state,
         string input)
     {
-        return ((Func<Task>) (input.ParseCommand() switch
+        switch (Shared.ParseCommand(input))
         {
-            (_, "check", _) => Check,
-            (_, "open", var path) => () => Open(state, path),
-            (_, "pwd", _) => Task () =>
-            {
-                _view.WriteLine(new Password().Next());
-                return Task.CompletedTask;
-            },
-            (_, "add", var path) => Task () => Add(state, path),
-            (_, "clear", _) => Task () =>
-            {
-                _view.Clear();
-                return Task.CompletedTask;
-            },
-            (_, "export", _) => Export,
-            _ => async Task () =>
-            {
+            case (_, "check", _):
+                await Check();
+                break;
+            case (_, "open", var path):
+                await Open(state, path);
+                break;
+            case (_, "add", var path):
+                await Add(state, path);
+                break;
+            case (_, "export", _):
+                await Export();
+                break;
+            default:
+                if (await Shared.Process(input, _view))
+                    break;
+
                 var names = (await GetEncryptedFilesRecursively())
                     .Where(name => name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -67,17 +66,17 @@ public sealed class Session
                     (names.Count == 1 && input != "" ? names[0] : default);
 
                 if (name == null)
-                    _view.Write(string.Join("", names.Select(value => $"{value}\n")));
+                    _view.WriteLine(string.Join("\n", names));
                 else
                     await Open(state, name);
-            }
-        })).Invoke();
+                break;
+        }
     }
 
     public async Task<IEnumerable<string>> GetItems(
         string? path = null)
     {
-        var files = _fs.GetFiles(path ?? ".", (false, true, false));
+        var files = GetFiles(_fs, path ?? ".", (false, true, false));
         var result = new List<string>();
         foreach (var file in files)
             if (!_fs.File.Exists(file) || await IsFileEncrypted(file, _cipher))
@@ -90,7 +89,7 @@ public sealed class Session
         string? path = null,
         bool includeHidden = false)
     {
-        var files = _fs.GetFiles(path ?? ".", (true, false, includeHidden));
+        var files = GetFiles(_fs, path ?? ".", (true, false, includeHidden));
         var result = new List<string>();
         foreach (var file in files)
             if (await IsFileEncrypted(file, _cipher))
@@ -133,7 +132,7 @@ public sealed class Session
             return;
 
         var file = new File(this, _fs, _cipher, _clipboard, _view, path, await Read(path));
-        await file.Print();
+        file.Print();
         state.Context = file;
     }
 
@@ -162,7 +161,7 @@ public sealed class Session
                 wrongPassword.Add(file);
                 _view.Write("*");
             }
-            else if (content.CheckYaml() != null)
+            else if (Shared.CheckYaml(content) != null)
             {
                 notYaml.Add(file);
                 _view.Write("+");
@@ -221,5 +220,47 @@ public sealed class Session
             content.AppendLine((line ?? "").Replace("***", new Password().Next()));
         await Write(path, content.ToString());
         await Open(state, path);
+    }
+
+    private static IEnumerable<string> GetFiles(
+        IFileSystem fs,
+        string path,
+        (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default)
+    {
+        string JoinPath(
+            string path1,
+            string path2)
+        {
+            return path1 == "."
+                ? path2
+                : $"{path1}/{path2}";
+        }
+
+        bool IsDotted(
+            IFileSystemInfo info)
+        {
+            var name = info.Name;
+            return name.StartsWith('.') || name.StartsWith('_');
+        }
+
+        return fs.Directory.Exists(path)
+            ? fs.DirectoryInfo.FromDirectoryName(path)
+                .EnumerateFileSystemInfos()
+                .OrderBy(info => info.Name)
+                .SelectMany(info => info switch
+                {
+                    IFileInfo file when !IsDotted(file) || options.IncludeDottedFilesAndFolders =>
+                        new[] {JoinPath(path, file.Name)},
+                    IDirectoryInfo dir when !IsDotted(dir) || options.IncludeDottedFilesAndFolders =>
+                        (options.Recursively
+                            ? GetFiles(fs, JoinPath(path, dir.Name), options)
+                            : Array.Empty<string>())
+                        .Concat(
+                            options.IncludeFolders
+                                ? new[] {JoinPath(path, dir.Name)}
+                                : Array.Empty<string>()),
+                    _ => Array.Empty<string>()
+                })
+            : Enumerable.Empty<string>();
     }
 }

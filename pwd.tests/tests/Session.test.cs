@@ -17,7 +17,12 @@ public sealed class Session_Tests
         fs ??= Mock.Of<IFileSystem>();
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
-        return (new Session(cipher, fs, clipboard, view), cipher, fs, clipboard, view);
+
+        return (new Session(cipher, fs, clipboard, view),
+            cipher,
+            fs,
+            clipboard,
+            view);
     }
 
     [Test]
@@ -38,7 +43,7 @@ public sealed class Session_Tests
     [Test]
     public async Task GetItems2()
     {
-        var (pwd, _) = Shared.EncryptionTestData();
+        var (pwd, _, _) = Shared.EncryptionTestData();
         var cipher = new Cipher(pwd);
         var fs = await Shared.FileLayout1(Shared.GetMockFs());
         var (session, _, _, _, _) = CreateSessionWithMocks(fs: fs, cipher: cipher);
@@ -61,7 +66,7 @@ public sealed class Session_Tests
     [Test]
     public async Task GetEncryptedFilesRecursively2()
     {
-        var (pwd, _) = Shared.EncryptionTestData();
+        var (pwd, _, _) = Shared.EncryptionTestData();
         var cipher = new Cipher(pwd);
         var fs = await Shared.FileLayout1(Shared.GetMockFs());
 
@@ -88,7 +93,7 @@ public sealed class Session_Tests
     [Test]
     public async Task Read()
     {
-        var (pwd, text) = Shared.EncryptionTestData();
+        var (pwd, text, _) = Shared.EncryptionTestData();
         var cipher = new Cipher(pwd);
 
         var sb = new StringBuilder();

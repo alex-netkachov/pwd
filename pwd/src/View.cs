@@ -13,6 +13,12 @@ public interface IView
     bool Confirm(
         string question);
 
+    string Read(
+        string prompt);
+
+    string ReadPassword(
+        string prompt);
+
     void Clear();
 }
 
@@ -36,6 +42,18 @@ public sealed class View
     {
         Console.Write($"{question} (y/N) ");
         return Console.ReadLine()?.ToUpperInvariant() == "Y";
+    }
+
+    public string Read(
+        string prompt)
+    {
+        return ReadLine.Read(prompt);
+    }
+
+    public string ReadPassword(
+        string prompt)
+    {
+        return ReadLine.ReadPassword(prompt);
     }
 
     public void Clear()
