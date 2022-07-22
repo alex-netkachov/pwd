@@ -56,13 +56,13 @@ public sealed class File
                 Check();
                 break;
             case (_, "archive", _):
-                Archive(state);
+                await Archive(state);
                 break;
             case (_, "rm", _):
                 Delete(state);
                 break;
             case (_, "rename", var path):
-                Rename(path);
+                await Rename(path);
                 break;
             case (_, "edit", var editor):
                 await Edit(editor);
@@ -89,31 +89,54 @@ public sealed class File
         return $"{(_modified ? "*" : "")}{_path}";
     }
 
+    public string[] GetInputSuggestions(
+        string input,
+        int index)
+    {
+        return Array.Empty<string>();
+    }
+
     private void Close(
         IState state)
     {
         state.Context = _previous;
     }
 
-    private void Archive(
+    private async Task Archive(
         IState state)
     {
-        Rename($".archive/{_path}");
+        await Rename($".archive/{_path}");
         Close(state);
     }
 
     private async Task Save()
     {
-        var stream = new MemoryStream();
-        await _cipher.Encrypt(_content, stream);
-        await Write(_fs, _path, stream.ToArray());
+        await Write(_fs, _path, _content);
         _modified = false;
     }
 
-    private void Rename(
+    private async Task Rename(
         string path)
     {
-        MoveFile(_fs, _path, path);
+        if (path == _path)
+            return;
+
+        await Write(_fs, path, _content);
+        _modified = false;
+
+        try
+        {
+            _fs.File.Delete(_path);
+        }
+        catch (FileNotFoundException)
+        {
+            _view.WriteLine("The file did not exist.");
+        }
+        catch (Exception e)
+        {
+            _view.WriteLine(e.Message);
+        }
+
         _path = path;
     }
 
@@ -215,25 +238,18 @@ public sealed class File
         return path;
     }
 
-    private static async Task Write(
+    private async Task Write(
         IFileSystem fs,
         string path,
-        byte[] data)
+        string text)
     {
+        var stream = new MemoryStream();
+        await _cipher.Encrypt(text, stream);
+
         var folder = fs.Path.GetDirectoryName(path);
         if (folder != "")
             fs.Directory.CreateDirectory(folder);
-        await fs.File.WriteAllBytesAsync(path, data);
-    }
 
-    private static void MoveFile(
-        IFileSystem fs,
-        string sourceFileName,
-        string destFileName)
-    {
-        var folder = fs.Path.GetDirectoryName(destFileName);
-        if (folder != "")
-            fs.Directory.CreateDirectory(folder);
-        fs.File.Move(sourceFileName, destFileName);
+        await fs.File.WriteAllBytesAsync(path, stream.ToArray());
     }
 }

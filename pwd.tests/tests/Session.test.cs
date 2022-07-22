@@ -7,11 +7,17 @@ namespace pwd.tests;
 
 public sealed class Session_Tests
 {
-    private static (Session, ICipher, IFileSystem, IClipboard, IView) CreateSessionWithMocks(
-        ICipher? cipher = null,
-        IFileSystem? fs = null,
-        IClipboard? clipboard = null,
-        IView? view = null)
+    private static (
+        Session Session,
+        ICipher Cipher,
+        IFileSystem FileSystem,
+        IClipboard Clipboard,
+        IView View)
+        CreateSessionContext(
+            ICipher? cipher = null,
+            IFileSystem? fs = null,
+            IClipboard? clipboard = null,
+            IView? view = null)
     {
         cipher ??= Mock.Of<ICipher>();
         fs ??= Mock.Of<IFileSystem>();
@@ -28,13 +34,13 @@ public sealed class Session_Tests
     [Test]
     public void Constructs_session_well()
     {
-        CreateSessionWithMocks();
+        CreateSessionContext();
     }
 
     [Test]
     public async Task GetItems1()
     {
-        var (session, _, _, _, _) = CreateSessionWithMocks(fs: Shared.GetMockFs());
+        var session = CreateSessionContext(fs: Shared.GetMockFs()).Session;
         Assert.That(!(await session.GetItems()).Any());
         Assert.That(!(await session.GetItems()).Any());
         Assert.That(!(await session.GetItems(".")).Any());
@@ -46,7 +52,7 @@ public sealed class Session_Tests
         var (pwd, _, _) = Shared.EncryptionTestData();
         var cipher = new Cipher(pwd);
         var fs = await Shared.FileLayout1(Shared.GetMockFs());
-        var (session, _, _, _, _) = CreateSessionWithMocks(fs: fs, cipher: cipher);
+        var (session, _, _, _, _) = CreateSessionContext(fs: fs, cipher: cipher);
         var items1 = await session.GetItems();
         Assert.That(string.Join(";", items1) == "encrypted;regular_dir");
         Assert.That(string.Join(";", await session.GetItems(".")) == "encrypted;regular_dir");
@@ -58,7 +64,7 @@ public sealed class Session_Tests
     [Test]
     public async Task GetEncryptedFilesRecursively1()
     {
-        var (session, _, _, _, _) = CreateSessionWithMocks(fs: Shared.GetMockFs());
+        var (session, _, _, _, _) = CreateSessionContext(fs: Shared.GetMockFs());
         Assert.That(!(await session.GetEncryptedFilesRecursively()).ToList().Any());
         Assert.That(!(await session.GetEncryptedFilesRecursively(".")).Any());
     }
@@ -70,7 +76,7 @@ public sealed class Session_Tests
         var cipher = new Cipher(pwd);
         var fs = await Shared.FileLayout1(Shared.GetMockFs());
 
-        var (session, _, _, _, _) = CreateSessionWithMocks(fs: fs, cipher: cipher);
+        var (session, _, _, _, _) = CreateSessionContext(fs: fs, cipher: cipher);
 
         Assert.That(string.Join(";", await session.GetEncryptedFilesRecursively()) == "encrypted;regular_dir/encrypted");
         Assert.That(string.Join(";", await session.GetEncryptedFilesRecursively(".")) == "encrypted;regular_dir/encrypted");
@@ -103,7 +109,7 @@ public sealed class Session_Tests
         view.Setup(m => m.WriteLine(It.IsAny<string>())).Callback<string>(value => sb.AppendLine(value));
 
         var (session, _, _, _, _) =
-            CreateSessionWithMocks(
+            CreateSessionContext(
                 cipher: cipher,
                 fs: await Shared.FileLayout1(Shared.GetMockFs()),
                 view: view.Object);

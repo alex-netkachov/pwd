@@ -9,4 +9,8 @@ public interface IContext
         string input);
     
     string Prompt();
+
+    string[] GetInputSuggestions(
+        string input,
+        int index);
 }

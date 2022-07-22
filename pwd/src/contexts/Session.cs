@@ -30,11 +30,6 @@ public sealed class Session
         _view = view;
     }
 
-    public string Prompt()
-    {
-        return "";
-    }
-
     public async Task Process(
         IState state,
         string input)
@@ -71,6 +66,24 @@ public sealed class Session
                     await Open(state, name);
                 break;
         }
+    }
+    
+    public string Prompt()
+    {
+        return "";
+    }
+
+    public string[] GetInputSuggestions(
+        string input,
+        int index)
+    {
+        if (input.StartsWith(".") && !input.StartsWith(".."))
+            return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.export,.open,.pwd,.quit,.rename,.rm,.save".Split(',')
+                .Where(item => item.StartsWith(input)).ToArray();
+        var p = input.LastIndexOf('/');
+        var (folder, _) = p == -1 ? ("", text: input) : (input[..p], input[(p + 1)..]);
+        return GetItems(folder == "" ? "." : folder).Result
+            .Where(item => item.StartsWith(input)).ToArray();
     }
 
     public async Task<IEnumerable<string>> GetItems(

@@ -73,7 +73,8 @@ public static class Shared
         var fs = await FileLayout1(GetMockFs());
         var view = new View();
         var session = new Session(new Cipher(pwd), fs, Mock.Of<Clipboard>(), view);
-        var handler = new AutoCompletionHandler(session);
+        var state = new State(session);
+        var handler = new AutoCompletionHandler(state);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
         Assert(string.Join(";", handler.GetSuggestions("", 0)) == "encrypted;regular_dir");
         Assert(string.Join(";", handler.GetSuggestions("enc", 0)) == "encrypted");
@@ -122,7 +123,7 @@ public static class Shared
         view.Setup(m => m.ReadPassword(It.IsAny<string>())).Returns(read);
         var stdout = Console.Out;
         Console.SetOut(new StringWriter(stdoutBuilder));
-        await Program.Run(fs, view.Object, s => session = s, (_, _) => { });
+        await Program.Run(fs, view.Object, s => session = (Session) s.Context, (_, _) => { });
         Console.SetOut(stdout);
         var expected = string.Join("\n", "Password: secret",
             "It seems that you are creating a new repository. Please confirm password: secret", ">", "> test",

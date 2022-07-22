@@ -1,27 +1,39 @@
 using System.IO.Abstractions;
 using Moq;
-using pwd.contexts;
 using File = pwd.contexts.File;
 
 namespace pwd.tests;
 
 public class File_Tests
 {
-    private static (File, IContext, IFileSystem, ICipher, IClipboard, IView, string) CreateFileWithMocks(
-        string path = "",
-        string content = "",
-        IContext? context = null,
-        ICipher? cipher = null,
-        IFileSystem? fs = null,
-        IClipboard? clipboard = null,
-        IView? view = null)
+    private static (
+        File File,
+        IContext Context,
+        IFileSystem FileSystem,
+        ICipher Cipher,
+        IClipboard Clipboard,
+        IView View,
+        string Path)
+        CreateFileContext(
+            string path = "",
+            string content = "",
+            IContext? context = null,
+            ICipher? cipher = null,
+            IFileSystem? fs = null,
+            IClipboard? clipboard = null,
+            IView? view = null)
     {
-        path = string.IsNullOrEmpty(path) ? Path.GetTempFileName() : path;
+        path =
+            string.IsNullOrEmpty(path)
+                ? Path.GetFileName(Path.GetTempFileName())
+                : path;
+
         context ??= Mock.Of<IContext>();
         cipher ??= Mock.Of<ICipher>();
         fs ??= Mock.Of<IFileSystem>();
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
+
         return (new File(context, fs, cipher, clipboard, view, path, content),
             context,
             fs,
@@ -32,36 +44,41 @@ public class File_Tests
     }
 
     [Test]
-    public async Task given_opened_file_when_saved_then_saves_the_file()
+    public async Task saving_creates_a_file()
     {
         var fs = Shared.GetMockFs();
-        var (file, _, _, _, _, _, path) = CreateFileWithMocks(fs: fs);
-        await file.Process(Mock.Of<IState>(), ".save");
-        Assert.That(fs.File.Exists(path));
+        var sut = CreateFileContext(fs: fs);
+        await sut.File.Process(Mock.Of<IState>(), ".save");
+        Assert.That(fs.File.Exists(sut.Path));
     }
-
+    
     [Test]
-    public async Task given_opened_file_when_close_then_replace_the_context()
+    public async Task closing_changes_the_context()
     {
-        var (file, context, _, _, _, _, _) = CreateFileWithMocks();
+        var sut = CreateFileContext();
+        var context = sut.Context;
         var state = new Mock<IState>();
-        await file.Process(state.Object, "..");
+        await sut.File.Process(state.Object, "..");
         state.VerifySet(m => m.Context = context, Times.Once);
     }
+    
+    [Test]
+    public void printing_outputs_the_content()
+    {
+        var view = new Mock<IView>();
+        var sut = CreateFileContext(view: view.Object, content: "test");
+        sut.File.Print();
+        view.Verify(m => m.WriteLine("test"), Times.Once);
+    }
 
     [Test]
-    public async Task Test_File_Rename()
+    public async Task renaming_moves_the_file()
     {
-        var (pwd, _, _) = Shared.EncryptionTestData();
-        var fs = await Shared.FileLayout1(Shared.GetMockFs());
-        var view = new Mock<IView>();
-        var session = new Session(new Cipher(pwd), fs, Mock.Of<IClipboard>(), view.Object);
-        var state = new State(session);
-        await session.Process(state, ".open encrypted");
-        var file = state.Context as File;
-        file?.Process(state, ".rename encrypted.test");
-        Assert.That(fs.File.Exists("encrypted.test"));
-        file?.Process(state, ".rename regular_dir/encrypted.test");
-        Assert.That(fs.File.Exists("regular_dir/encrypted.test"));
+        var fs = Shared.GetMockFs();
+        await fs.File.WriteAllBytesAsync("test1", Array.Empty<byte>());
+        var sut = CreateFileContext(fs: fs, path: "test1");
+        await sut.File.Process(Mock.Of<IState>(), ".rename test2");
+        Assert.That(fs.File.Exists("test2"));
+        Assert.That(!fs.File.Exists(sut.Path));
     }
 }

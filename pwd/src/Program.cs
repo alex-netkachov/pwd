@@ -15,7 +15,7 @@ public static class Program
     internal static async Task Run(
         IFileSystem fs,
         IView view,
-        Action<Session> init,
+        Action<IState> init,
         Action<IFileSystem, IView> done)
     {
         var password = view.ReadPassword("Password: ");
@@ -43,21 +43,20 @@ public static class Program
             }
         }
 
-        init(session);
+        var state = new State(session);
 
-        var context = (IContext) session;
+        init(state);
+
         while (true)
         {
-            var input = view.Read($"{context.Prompt()}> ").Trim();
+            var input = view.Read($"{state.Context.Prompt()}> ").Trim();
             
             if (input == ".quit")
                 break;
             
             try
             {
-                var state = new State(context);
-                await context.Process(state, input);
-                context = state.Context;
+                await state.Context.Process(state, input);
             }
             catch (Exception e)
             {
@@ -76,10 +75,10 @@ public static class Program
         await Run(
             new FileSystem(),
             new View(),
-            session =>
+            state =>
             {
                 ReadLine.HistoryEnabled = true;
-                ReadLine.AutoCompletionHandler = new AutoCompletionHandler(session);
+                ReadLine.AutoCompletionHandler = new AutoCompletionHandler(state);
             },
             (fs, view) =>
             {
@@ -113,23 +112,20 @@ public static class Program
 public class AutoCompletionHandler
     : IAutoCompleteHandler
 {
-    private readonly Session _session;
+    private readonly IState _state;
 
-    public AutoCompletionHandler(Session session)
+    public AutoCompletionHandler(
+        IState state)
     {
-        _session = session;
+        _state = state;
     }
 
     public char[] Separators { get; set; } = Array.Empty<char>();
 
-    public string[] GetSuggestions(string text, int index)
+    public string[] GetSuggestions(
+        string text,
+        int index)
     {
-        if (text.StartsWith(".") && !text.StartsWith(".."))
-            return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.open,.pwd,.quit,.rename,.rm,.save".Split(',')
-                .Where(item => item.StartsWith(text)).ToArray();
-        var p = text.LastIndexOf('/');
-        var (folder, _) = p == -1 ? ("", text) : (text[..p], text[(p + 1)..]);
-        return _session.GetItems(folder == "" ? "." : folder).Result
-            .Where(item => item.StartsWith(text)).ToArray();
+        return _state.Context.GetInputSuggestions(text, index);
     }
 }
