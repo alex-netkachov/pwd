@@ -36,17 +36,17 @@ public sealed class Session
     {
         switch (Shared.ParseCommand(input))
         {
-            case (_, "check", _):
-                await Check();
-                break;
-            case (_, "open", var path):
-                await Open(state, path);
-                break;
             case (_, "add", var path):
                 await Add(state, path);
                 break;
+            case (_, "check", _):
+                await Check();
+                break;
             case (_, "export", _):
                 await Export();
+                break;
+            case (_, "open", var path):
+                await Open(state, path);
                 break;
             default:
                 if (await Shared.Process(input, _view))
@@ -78,10 +78,23 @@ public sealed class Session
         int index)
     {
         if (input.StartsWith(".") && !input.StartsWith(".."))
-            return ".add,.archive,.cc,.ccp,.ccu,.check,.edit,.export,.open,.pwd,.quit,.rename,.rm,.save".Split(',')
-                .Where(item => item.StartsWith(input)).ToArray();
+        {
+            return new[]
+                {
+                    ".add",
+                    ".archive",
+                    ".check",
+                    ".clear",
+                    ".export",
+                    ".pwd",
+                    ".quit",
+                }
+                .Where(item => item.StartsWith(input))
+                .ToArray();
+        }
+
         var p = input.LastIndexOf('/');
-        var (folder, _) = p == -1 ? ("", text: input) : (input[..p], input[(p + 1)..]);
+        var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
         return GetItems(folder == "" ? "." : folder).Result
             .Where(item => item.StartsWith(input)).ToArray();
     }

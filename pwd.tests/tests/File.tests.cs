@@ -70,6 +70,15 @@ public class File_Tests
         sut.File.Print();
         view.Verify(m => m.WriteLine("test"), Times.Once);
     }
+    
+    [Test]
+    public void printing_hides_passwords()
+    {
+        var view = new Mock<IView>();
+        var sut = CreateFileContext(view: view.Object, content: "password: secret");
+        sut.File.Print();
+        view.Verify(m => m.WriteLine("password: ************"), Times.Once);
+    }
 
     [Test]
     public async Task renaming_moves_the_file()

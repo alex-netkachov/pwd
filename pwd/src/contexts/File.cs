@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
 
@@ -46,26 +47,11 @@ public sealed class File
     {
         switch (Shared.ParseCommand(input))
         {
-            case (_, "save", _):
-                await Save();
-                break;
             case ("..", _, _):
                 Close(state);
                 break;
-            case (_, "check", _):
-                Check();
-                break;
             case (_, "archive", _):
                 await Archive(state);
-                break;
-            case (_, "rm", _):
-                Delete(state);
-                break;
-            case (_, "rename", var path):
-                await Rename(path);
-                break;
-            case (_, "edit", var editor):
-                await Edit(editor);
                 break;
             case (_, "cc", var name):
                 CopyField(name);
@@ -75,6 +61,21 @@ public sealed class File
                 break;
             case (_, "ccp", _):
                 CopyField("password");
+                break;
+            case (_, "check", _):
+                Check();
+                break;
+            case (_, "edit", var editor):
+                await Edit(editor);
+                break;
+            case (_, "rename", var path):
+                await Rename(path);
+                break;
+            case (_, "rm", _):
+                Delete(state);
+                break;
+            case (_, "save", _):
+                await Save();
                 break;
             default:
                 if (await Shared.Process(input, _view))
@@ -93,6 +94,27 @@ public sealed class File
         string input,
         int index)
     {
+        if (input.StartsWith(".") && !input.StartsWith(".."))
+        {
+            return new[]
+                {
+                    ".archive",
+                    ".cc",
+                    ".ccp",
+                    ".ccu",
+                    ".check",
+                    ".clear",
+                    ".edit",
+                    ".pwd",
+                    ".quit",
+                    ".rename",
+                    ".rm",
+                    ".save"
+                }
+                .Where(item => item.StartsWith(input))
+                .ToArray();
+        }
+
         return Array.Empty<string>();
     }
 
@@ -155,7 +177,13 @@ public sealed class File
 
     public void Print()
     {
-        _view.WriteLine(_content);
+        var secured =
+            Regex.Replace(
+                _content,
+                "password: [^\n]+",
+                "password: ************");
+
+        _view.WriteLine(secured);
     }
 
     private string Field(
