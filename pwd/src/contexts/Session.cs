@@ -77,26 +77,26 @@ public sealed class Session
         string input,
         int index)
     {
-        if (input.StartsWith(".") && !input.StartsWith(".."))
+        if (!input.StartsWith('.'))
         {
-            return new[]
-                {
-                    ".add",
-                    ".archive",
-                    ".check",
-                    ".clear",
-                    ".export",
-                    ".pwd",
-                    ".quit",
-                }
-                .Where(item => item.StartsWith(input))
-                .ToArray();
+            var p = input.LastIndexOf('/');
+            var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
+            return GetItems(folder == "" ? "." : folder).Result
+                .Where(item => item.StartsWith(input)).ToArray();
         }
 
-        var p = input.LastIndexOf('/');
-        var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-        return GetItems(folder == "" ? "." : folder).Result
-            .Where(item => item.StartsWith(input)).ToArray();
+        return new[]
+            {
+                ".add",
+                ".archive",
+                ".check",
+                ".clear",
+                ".export",
+                ".pwd",
+                ".quit",
+            }
+            .Where(item => item.StartsWith(input))
+            .ToArray();
     }
 
     public async Task<IEnumerable<string>> GetItems(
@@ -157,9 +157,9 @@ public sealed class Session
         if (!_fs.File.Exists(path) || !await IsFileEncrypted(path, _cipher))
             return;
 
-        var file = new File(this, _fs, _cipher, _clipboard, _view, path, await Read(path));
+        var file = new File(_fs, _cipher, _clipboard, _view, path, await Read(path));
         file.Print();
-        state.Context = file;
+        state.Down(file);
     }
 
     public async Task Check()

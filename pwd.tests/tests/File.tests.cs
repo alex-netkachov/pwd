@@ -34,7 +34,7 @@ public class File_Tests
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
 
-        return (new File(context, fs, cipher, clipboard, view, path, content),
+        return (new File(fs, cipher, clipboard, view, path, content),
             context,
             fs,
             cipher,
@@ -56,10 +56,9 @@ public class File_Tests
     public async Task closing_changes_the_context()
     {
         var sut = CreateFileContext();
-        var context = sut.Context;
         var state = new Mock<IState>();
         await sut.File.Process(state.Object, "..");
-        state.VerifySet(m => m.Context = context, Times.Once);
+        state.Verify(m => m.Up(), Times.Once);
     }
     
     [Test]

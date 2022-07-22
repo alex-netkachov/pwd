@@ -12,7 +12,6 @@ namespace pwd.contexts;
 public sealed class File
     : IContext
 {
-    private readonly IContext _previous;
     private readonly IFileSystem _fs;
     private readonly ICipher _cipher;
     private readonly IClipboard _clipboard;
@@ -23,7 +22,6 @@ public sealed class File
     private bool _modified;
 
     public File(
-        IContext previous,
         IFileSystem fs,
         ICipher cipher,
         IClipboard clipboard,
@@ -31,7 +29,6 @@ public sealed class File
         string path,
         string content)
     {
-        _previous = previous;
         _fs = fs;
         _cipher = cipher;
         _clipboard = clipboard;
@@ -48,7 +45,7 @@ public sealed class File
         switch (Shared.ParseCommand(input))
         {
             case ("..", _, _):
-                Close(state);
+                state.Up();
                 break;
             case (_, "archive", _):
                 await Archive(state);
@@ -67,6 +64,9 @@ public sealed class File
                 break;
             case (_, "edit", var editor):
                 await Edit(editor);
+                break;
+            case (_, "unobscured", _):
+                Unobscured();
                 break;
             case (_, "rename", var path):
                 await Rename(path);
@@ -94,41 +94,55 @@ public sealed class File
         string input,
         int index)
     {
-        if (input.StartsWith(".") && !input.StartsWith(".."))
+        if (!input.StartsWith('.'))
+            return Array.Empty<string>();
+
+        if (input == "..")
+            return Array.Empty<string>();
+
+        if (input.StartsWith(".cc ", StringComparison.Ordinal))
         {
-            return new[]
-                {
-                    ".archive",
-                    ".cc",
-                    ".ccp",
-                    ".ccu",
-                    ".check",
-                    ".clear",
-                    ".edit",
-                    ".pwd",
-                    ".quit",
-                    ".rename",
-                    ".rm",
-                    ".save"
-                }
-                .Where(item => item.StartsWith(input))
+            using var reader = new StringReader(_content);
+            var yaml = new YamlStream();
+            yaml.Load(reader);
+            if (yaml.Documents.First().RootNode is not YamlMappingNode mappingNode)
+                return Array.Empty<string>();
+
+            var prefix = input[4..];
+
+            return mappingNode
+                .Children
+                .Select(item => item.Key.ToString())
+                .Where(item => item.StartsWith(prefix, StringComparison.Ordinal))
+                .Select(item => $".cc {item}")
                 .ToArray();
         }
 
-        return Array.Empty<string>();
-    }
-
-    private void Close(
-        IState state)
-    {
-        state.Context = _previous;
+        return new[]
+            {
+                ".archive",
+                ".cc",
+                ".ccp",
+                ".ccu",
+                ".check",
+                ".clear",
+                ".edit",
+                ".pwd",
+                ".quit",
+                ".rename",
+                ".rm",
+                ".save",
+                ".unobscured"
+            }
+            .Where(item => item.StartsWith(input))
+            .ToArray();
     }
 
     private async Task Archive(
         IState state)
     {
         await Rename($".archive/{_path}");
-        Close(state);
+        state.Up();
     }
 
     private async Task Save()
@@ -177,15 +191,20 @@ public sealed class File
 
     public void Print()
     {
-        var secured =
+        var obscured =
             Regex.Replace(
                 _content,
                 "password: [^\n]+",
                 "password: ************");
 
-        _view.WriteLine(secured);
+        _view.WriteLine(obscured);
     }
 
+    private void Unobscured()
+    {
+        _view.WriteLine(_content);
+    }
+    
     private string Field(
         string name)
     {
@@ -206,7 +225,7 @@ public sealed class File
             return;
         
         _fs.File.Delete(_path);
-        Close(state);
+        state.Up();
     }
 
     private async Task Edit(
