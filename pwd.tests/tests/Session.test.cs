@@ -57,12 +57,12 @@ public sealed class Session_Tests
         var cipher = new ContentCipher(pwd);
         var fs = await Shared.FileLayout1(Shared.GetMockFs());
         var sut = CreateSessionContext(fs: fs, contentCipher: cipher);
-        var items1 = await sut.Session.GetItems();
+        var items1 = (await sut.Session.GetItems()).Select(item => item.Name);
         Assert.That(string.Join(";", items1) == "encrypted;regular_dir");
-        Assert.That(string.Join(";", await sut.Session.GetItems(".")) == "encrypted;regular_dir");
-        Assert.That(string.Join(";", await sut.Session.GetItems()) == "encrypted;regular_dir");
-        Assert.That(string.Join(";", await sut.Session.GetItems("regular_dir")) == "regular_dir/encrypted");
-        Assert.That(string.Join(";", await sut.Session.GetItems(".hidden_dir")) == ".hidden_dir/encrypted");
+        Assert.That(string.Join(";", (await sut.Session.GetItems(".")).Select(item => item.Name)) == "encrypted;regular_dir");
+        Assert.That(string.Join(";", (await sut.Session.GetItems()).Select(item => item.Name)) == "encrypted;regular_dir");
+        Assert.That(string.Join(";", (await sut.Session.GetItems("regular_dir")).Select(item => item.Name)) == "regular_dir/encrypted");
+        Assert.That(string.Join(";", (await sut.Session.GetItems(".hidden_dir")).Select(item => item.Name)) == ".hidden_dir/encrypted");
     }
 
     [Test]

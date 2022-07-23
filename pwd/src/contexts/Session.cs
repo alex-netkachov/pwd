@@ -167,19 +167,6 @@ public sealed class Session
         return _contentCipher.DecryptStringAsync(_fs.File.OpenRead(path));
     }
 
-    private async Task Write(
-        string path,
-        string content)
-    {
-        var folder = _fs.Path.GetDirectoryName(path);
-
-        if (folder != "")
-            _fs.Directory.CreateDirectory(folder);
-
-        await using var stream = _fs.File.Open(path, FileMode.Create, FileAccess.Write);
-        await _contentCipher.EncryptAsync(content, stream);
-    }
-
     private async Task Open(
         IState state,
         string path)
@@ -269,13 +256,16 @@ public sealed class Session
 
     private async Task Add(
         IState state,
-        string path)
+        string name)
     {
         var content = new StringBuilder();
         for (string? line; "" != (line = Console.ReadLine());)
             content.AppendLine((line ?? "").Replace("***", new Password().Next()));
-        await Write(path, content.ToString());
-        await Open(state, path);
+
+        var encryptedName = Encoding.UTF8.GetString(await _nameCipher.EncryptAsync(name));
+        await using var stream = _fs.File.Open(encryptedName, FileMode.Create, FileAccess.Write);
+        await _contentCipher.EncryptAsync(content.ToString(), stream);
+        await Open(state, name);
     }
 
     private static IEnumerable<string> GetFiles(
