@@ -1,14 +1,14 @@
 namespace pwd.tests;
 
-public sealed class Cipher_Tests
+public sealed class NameCipher_Tests
 {
     [Test]
     public async Task the_cipher_decrypts_the_message_correctly()
     {
-        var (password, text, encrypted) = Shared.EncryptionTestData();
-        var cipher = new Cipher(password);
+        var (password, text, encrypted) = Shared.NameEncryptionTestData();
+        var cipher = new NameCipher(password);
         using var stream = new MemoryStream(encrypted);
-        var decrypted = await cipher.Decrypt(stream);
+        var decrypted = await cipher.DecryptStringAsync(stream);
         Assert.That(text, Is.EqualTo(decrypted));
     }
 
@@ -19,22 +19,22 @@ public sealed class Cipher_Tests
         char symbol,
         int length)
     {
-        var cipher = new Cipher("pa$$w0rd");
+        var cipher = new NameCipher("pa$$w0rd");
         var text = new string(symbol, length);
         var stream = new MemoryStream();
-        await cipher.Encrypt(new string(symbol, length), stream);
+        await cipher.EncryptAsync(new string(symbol, length), stream);
         stream.Position = 0;
-        var decrypted = await cipher.Decrypt(stream);
+        var decrypted = await cipher.DecryptStringAsync(stream);
         Assert.That(text, Is.EqualTo(decrypted));
     }
 
     [Test]
     public async Task the_cipher_detects_encrypted_stream_correctly()
     {
-        var (password, _, encrypted) = Shared.EncryptionTestData();
-        var cipher = new Cipher(password);
+        var (password, _, encrypted) = Shared.NameEncryptionTestData();
+        var cipher = new NameCipher(password);
         using var stream = new MemoryStream(encrypted);
-        Assert.That(await cipher.IsEncrypted(stream));
+        Assert.That(await cipher.IsEncryptedAsync(stream));
     }
     
     [TestCase("")]
@@ -43,8 +43,8 @@ public sealed class Cipher_Tests
     public async Task the_cipher_detects_unencrypted_stream_correctly(
         string data)
     {
-        var cipher = new Cipher("pa$$w0rd");
+        var cipher = new NameCipher("pa$$w0rd");
         using var stream = new MemoryStream(Convert.FromHexString(data));
-        Assert.That(await cipher.IsEncrypted(stream), Is.False);
+        Assert.That(await cipher.IsEncryptedAsync(stream), Is.False);
     }
 }

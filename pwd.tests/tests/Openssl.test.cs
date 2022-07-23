@@ -41,13 +41,13 @@ public sealed class Openssl_Tests
             await process.StandardOutput.BaseStream.CopyToAsync(stream);
         }
 
-        var (password, text, _) = Shared.EncryptionTestData();
+        var (password, text, _) = Shared.ContentEncryptionTestData();
 
         var path = Path.GetTempFileName();
         await OpensslEncrypt(path, password, text);
-        var cipher = new Cipher(password);
+        var cipher = new ContentCipher(password);
         await using var stream = File.OpenRead(path);
-        var decrypted = await cipher.Decrypt(stream);
+        var decrypted = await cipher.DecryptStringAsync(stream);
         stream.Close();
         File.Delete(path);
         Assert.That(text, Is.EqualTo(decrypted));
@@ -78,11 +78,11 @@ public sealed class Openssl_Tests
             return await process.StandardOutput.ReadToEndAsync();
         }
 
-        var (password, text, _) = Shared.EncryptionTestData();
+        var (password, text, _) = Shared.ContentEncryptionTestData();
 
         var path = Path.GetTempFileName();
         await using var stream = File.OpenWrite(path);
-        await new Cipher(password).Encrypt(text, stream);
+        await new ContentCipher(password).EncryptAsync(text, stream);
         stream.Close();
         var decrypted = await OpensslDecrypt(path, password);
         File.Delete(path);

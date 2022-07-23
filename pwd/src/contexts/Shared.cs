@@ -26,7 +26,8 @@ public static class Shared
         }
     }
     
-    public static (string, string, string) ParseCommand(string input)
+    public static (string, string, string) ParseCommand(
+            string input)
     {
         var match = Regex.Match(input, @"^\.(\w+)(?: +(.+))?$");
         return match.Success

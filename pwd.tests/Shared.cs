@@ -17,13 +17,22 @@ public static class Shared
         if (!value) throw new(message);
     }
 
-    public static (string pwd, string text, byte[] encrypted) EncryptionTestData()
+    public static (string pwd, string text, byte[] encrypted) ContentEncryptionTestData()
     {
         return (
             "secret",
             "only you can protect what is yours",
             Convert.FromHexString(
                 "53616C7465645F5FD2586E38D8F094E37022709B84AAD604AB513AA251223B2F49E2222A67C81DF3A2A772B33D8EEC32C83AB0FE7C46860575E695E2F7858D3A"));
+    }
+
+    public static (string pwd, string text, byte[] encrypted) NameEncryptionTestData()
+    {
+        return (
+            "secret",
+            "only you can protect what is yours",
+            Convert.FromHexString(
+                "72665346696C554148784346584B317539686A307057654D314F74655F533639446653326E54656C6B7A7A484F43466A564D596333564D53765A506D736A396246695946523955553848343D"));
     }
 
     public static IFileSystem GetMockFs()
@@ -37,8 +46,8 @@ public static class Shared
 
     public static async Task<IFileSystem> FileLayout1(IFileSystem fs)
     {
-        var (pwd, text, _) = EncryptionTestData();
-        var cipher = new Cipher(pwd);
+        var (pwd, text, _) = ContentEncryptionTestData();
+        var cipher = new ContentCipher(pwd);
 
         async Task EncryptWrite(
             string path,
@@ -46,7 +55,7 @@ public static class Shared
             string text1)
         {
             using var stream = new MemoryStream();
-            await cipher1.Encrypt(text1, stream);
+            await cipher1.EncryptAsync(text1, stream);
             await fs.File.WriteAllBytesAsync(path, stream.ToArray());
         }
 
@@ -69,10 +78,10 @@ public static class Shared
 
     private static async Task Test_AutoCompletionHandler()
     {
-        var (pwd, _, _) = EncryptionTestData();
+        var (pwd, _, _) = ContentEncryptionTestData();
         var fs = await FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new Cipher(pwd), fs, Mock.Of<Clipboard>(), view);
+        var session = new Session(new ContentCipher(pwd), new ZeroCipher(), fs, Mock.Of<Clipboard>(), view);
         var state = new State(session);
         var handler = new AutoCompletionHandler(state);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
@@ -87,12 +96,12 @@ public static class Shared
 
     private static async Task Test_Main1()
     {
-        var (pwd, _, _) = EncryptionTestData();
+        var (pwd, _, _) = ContentEncryptionTestData();
         var fs = GetMockFs();
         var session = default(Session);
 
         var testData = new MemoryStream();
-        await new Cipher(pwd).Encrypt("user: user\npassword: password\n", testData);
+        await new ContentCipher(pwd).EncryptAsync("user: user\npassword: password\n", testData);
 
         IEnumerable<string> Input()
         {

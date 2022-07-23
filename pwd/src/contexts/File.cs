@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
@@ -13,7 +14,8 @@ public sealed class File
     : IContext
 {
     private readonly IFileSystem _fs;
-    private readonly ICipher _cipher;
+    private readonly ICipher _contentCipher;
+    private readonly ICipher _nameCipher;
     private readonly IClipboard _clipboard;
     private readonly IView _view;
 
@@ -23,14 +25,16 @@ public sealed class File
 
     public File(
         IFileSystem fs,
-        ICipher cipher,
+        ICipher contentCipher,
+        ICipher nameCipher,
         IClipboard clipboard,
         IView view,
         string path,
         string content)
     {
         _fs = fs;
-        _cipher = cipher;
+        _contentCipher = contentCipher;
+        _nameCipher = nameCipher; 
         _clipboard = clipboard;
         _view = view;
         _path = path;
@@ -87,7 +91,7 @@ public sealed class File
 
     public string Prompt()
     {
-        return $"{(_modified ? "*" : "")}{_path}";
+        return $"{(_modified ? "*" : "")}{GetName()}";
     }
 
     public string[] GetInputSuggestions(
@@ -138,11 +142,30 @@ public sealed class File
             .ToArray();
     }
 
-    private async Task Archive(
+    private string GetName()
+    {
+        var name = _fs.Path.GetFileName(_path);
+        try
+        {
+            var data = Encoding.UTF8.GetBytes(name);
+            return _nameCipher.IsEncrypted(data)
+                ? _nameCipher.DecryptString(data)
+                : name;
+        }
+        catch
+        {
+            return name;
+        }
+    } 
+
+    private Task Archive(
         IState state)
     {
-        await Rename($".archive/{_path}");
+        var name = _fs.Path.GetFileName(_path);
+        var folder = _fs.Path.GetDirectoryName(_path);
+        _fs.File.Move(_path, Path.Combine(folder, ".archive", name));
         state.Up();
+        return Task.CompletedTask;
     }
 
     private async Task Save()
@@ -152,11 +175,12 @@ public sealed class File
     }
 
     private async Task Rename(
-        string path)
+        string name)
     {
-        if (path == _path)
-            return;
+        var encryptedName = Encoding.UTF8.GetString(await _nameCipher.EncryptAsync(name));
 
+        var path = _fs.Path.Combine(_fs.Path.GetDirectoryName(_path), encryptedName);
+        
         await Write(_fs, path, _content);
         _modified = false;
 
@@ -221,7 +245,7 @@ public sealed class File
     private void Delete(
         IState state)
     {
-        if (!_view.Confirm($"Delete '{_path}'?"))
+        if (!_view.Confirm($"Delete '{GetName()}'?"))
             return;
         
         _fs.File.Delete(_path);
@@ -291,7 +315,7 @@ public sealed class File
         string text)
     {
         var stream = new MemoryStream();
-        await _cipher.Encrypt(text, stream);
+        await _contentCipher.EncryptAsync(text, stream);
 
         var folder = fs.Path.GetDirectoryName(path);
         if (folder != "")

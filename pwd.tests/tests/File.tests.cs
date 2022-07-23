@@ -10,7 +10,8 @@ public class File_Tests
         File File,
         IContext Context,
         IFileSystem FileSystem,
-        ICipher Cipher,
+        ICipher ContentCipher,
+        ICipher NameCipher,
         IClipboard Clipboard,
         IView View,
         string Path)
@@ -18,7 +19,8 @@ public class File_Tests
             string path = "",
             string content = "",
             IContext? context = null,
-            ICipher? cipher = null,
+            ICipher? contentCipher = null,
+            ICipher? nameCipher = null,
             IFileSystem? fs = null,
             IClipboard? clipboard = null,
             IView? view = null)
@@ -29,15 +31,17 @@ public class File_Tests
                 : path;
 
         context ??= Mock.Of<IContext>();
-        cipher ??= Mock.Of<ICipher>();
+        contentCipher ??= Mock.Of<ICipher>();
+        nameCipher ??= Mock.Of<ICipher>();
         fs ??= Mock.Of<IFileSystem>();
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
 
-        return (new File(fs, cipher, clipboard, view, path, content),
+        return (new File(fs, contentCipher, nameCipher, clipboard, view, path, content),
             context,
             fs,
-            cipher,
+            contentCipher,
+            nameCipher,
             clipboard,
             view,
             path);
@@ -84,7 +88,7 @@ public class File_Tests
     {
         var fs = Shared.GetMockFs();
         await fs.File.WriteAllBytesAsync("test1", Array.Empty<byte>());
-        var sut = CreateFileContext(fs: fs, path: "test1");
+        var sut = CreateFileContext(fs: fs, nameCipher: new ZeroCipher(), path: "test1");
         await sut.File.Process(Mock.Of<IState>(), ".rename test2");
         Assert.That(fs.File.Exists("test2"));
         Assert.That(!fs.File.Exists(sut.Path));

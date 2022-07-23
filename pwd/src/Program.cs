@@ -20,7 +20,7 @@ public static class Program
     {
         var password = view.ReadPassword("Password: ");
         var clipboard = new Clipboard();
-        var session = new Session(new Cipher(password), fs, clipboard, view);
+        var session = new Session(new ContentCipher(password), new NameCipher(password), fs, clipboard, view);
         
         try
         {
@@ -28,7 +28,7 @@ public static class Program
         }
         catch (Exception e)
         {
-            await Console.Error.WriteLineAsync(e.Message);
+            await Console.Error.WriteLineAsync(e.ToString());
             return;
         }
 
