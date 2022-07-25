@@ -4,6 +4,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd", "pwd\pwd.csproj", "{8
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.tests", "pwd.tests\pwd.tests.csproj", "{93F2FF93-15AD-427C-A7BD-BA90101030BF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{DFD2D72D-3231-4021-B880-C4727570CD2E}"
+	ProjectSection(SolutionItems) = preProject
+		decrypt.sh = decrypt.sh
+		encrypt.sh = encrypt.sh
+		list.sh = list.sh
+		add.sh = add.sh
+		pwd.sh = pwd.sh
+		publish.sh = publish.sh
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

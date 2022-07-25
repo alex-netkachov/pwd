@@ -23,6 +23,8 @@ public sealed class File
     private string _content;
     private bool _modified;
 
+    private Lazy<string> _name;
+
     public File(
         IFileSystem fs,
         ICipher contentCipher,
@@ -40,6 +42,8 @@ public sealed class File
         _path = path;
         _content = content;
         _modified = false;
+
+        _name = new Lazy<string>(GetName);
     }
 
     public async Task Process(
@@ -52,7 +56,7 @@ public sealed class File
                 state.Up();
                 break;
             case (_, "archive", _):
-                await Archive(state);
+                Archive(state);
                 break;
             case (_, "cc", var name):
                 CopyField(name);
@@ -72,8 +76,8 @@ public sealed class File
             case (_, "unobscured", _):
                 Unobscured();
                 break;
-            case (_, "rename", var path):
-                await Rename(path);
+            case (_, "rename", var name):
+                await Rename(name);
                 break;
             case (_, "rm", _):
                 Delete(state);
@@ -91,7 +95,7 @@ public sealed class File
 
     public string Prompt()
     {
-        return $"{(_modified ? "*" : "")}{GetName()}";
+        return $"{(_modified ? "*" : "")}{_name.Value}";
     }
 
     public string[] GetInputSuggestions(
@@ -112,6 +116,7 @@ public sealed class File
             if (yaml.Documents.First().RootNode is not YamlMappingNode mappingNode)
                 return Array.Empty<string>();
 
+            // 4 is the length of the ".cc " string
             var prefix = input[4..];
 
             return mappingNode
@@ -158,14 +163,13 @@ public sealed class File
         }
     } 
 
-    private Task Archive(
+    private void Archive(
         IState state)
     {
         var name = _fs.Path.GetFileName(_path);
         var folder = _fs.Path.GetDirectoryName(_path);
         _fs.File.Move(_path, Path.Combine(folder, ".archive", name));
         state.Up();
-        return Task.CompletedTask;
     }
 
     private async Task Save()
@@ -177,16 +181,21 @@ public sealed class File
     private async Task Rename(
         string name)
     {
+        var originalPath = _path;
+
         var encryptedName = Encoding.UTF8.GetString(await _nameCipher.EncryptAsync(name));
 
-        var path = _fs.Path.Combine(_fs.Path.GetDirectoryName(_path), encryptedName);
+        var path = _fs.Path.Combine(_fs.Path.GetDirectoryName(originalPath), encryptedName);
         
         await Write(_fs, path, _content);
+
         _modified = false;
+        _name = new Lazy<string>(GetName);
+        _path = path;
 
         try
         {
-            _fs.File.Delete(_path);
+            _fs.File.Delete(originalPath);
         }
         catch (FileNotFoundException)
         {
@@ -196,8 +205,6 @@ public sealed class File
         {
             _view.WriteLine(e.Message);
         }
-
-        _path = path;
     }
 
     private void Update(
@@ -245,7 +252,7 @@ public sealed class File
     private void Delete(
         IState state)
     {
-        if (!_view.Confirm($"Delete '{GetName()}'?"))
+        if (!_view.Confirm($"Delete '{_name.Value}'?"))
             return;
         
         _fs.File.Delete(_path);
@@ -265,7 +272,7 @@ public sealed class File
             return;
         }
 
-        var path = await WriteToTempFile(_fs, _content);
+        var path = await ExportToTempFile(_fs, _content);
         
         try
         {
@@ -300,7 +307,7 @@ public sealed class File
             _clipboard.Put(value, TimeSpan.FromSeconds(5));
     }
     
-    private static async Task<string> WriteToTempFile(
+    private static async Task<string> ExportToTempFile(
         IFileSystem fs,
         string content)
     {
@@ -314,7 +321,7 @@ public sealed class File
         string path,
         string text)
     {
-        var stream = new MemoryStream();
+        using var stream = new MemoryStream();
         await _contentCipher.EncryptAsync(text, stream);
 
         var folder = fs.Path.GetDirectoryName(path);

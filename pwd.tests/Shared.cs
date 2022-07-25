@@ -141,3 +141,51 @@ public static class Shared
         Assert(expected == actual);
     }
 }
+
+public sealed class ZeroCipher
+    : ICipher
+{
+    public bool IsEncrypted(
+        Stream stream)
+    {
+        return true;
+    }
+
+    public Task<bool> IsEncryptedAsync(
+        Stream stream)
+    {
+        return Task.FromResult(true);
+    }
+
+    public int Encrypt(
+        string text,
+        Stream stream)
+    {
+        var data = Encoding.UTF8.GetBytes(text);
+        stream.Write(data);
+        return data.Length;
+    }
+
+    public Task<int> EncryptAsync(
+        string text,
+        Stream stream)
+    {
+        var data = Encoding.UTF8.GetBytes(text);
+        stream.Write(data);
+        return Task.FromResult(data.Length);
+    }
+
+    public string DecryptString(
+        Stream stream)
+    {
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    public async Task<string> DecryptStringAsync(
+        Stream stream)
+    {
+        using var reader = new StreamReader(stream);
+        return await reader.ReadToEndAsync();
+    }
+}

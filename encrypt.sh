@@ -4,18 +4,19 @@
 #
 # Usage:
 #
-#     ./encrypt.sh example.com
-#
-# Reads the password from the environment variable `PWDPWD` if it does exist.
-# Prompts for the password otherwise.
-#
-# Securely set the password environment variable:
-#
-#     read -s PWDPWD && export PWDPWD
+#     cat file | ./encrypt.sh example.com
 #
 
-if [[ -z "${PWDPWD}" ]]; then
-    openssl aes-256-cbc -e -salt -pbkdf2 -out $1
-else
-    openssl aes-256-cbc -e -salt -pbkdf2 -out $1 -pass env:PWDPWD
+if [[ -z "$1" ]]; then
+  echo "Usage: encrypt.sh name"
+  exit
 fi
+
+if [[ -z "${PWDPWD}" ]]; then
+  echo -n Password:
+  read -r -s PWDPWD
+  export PWDPWD
+  echo ""
+fi
+
+openssl aes-256-cbc -e -salt -pbkdf2 -out "$1" -pass env:PWDPWD

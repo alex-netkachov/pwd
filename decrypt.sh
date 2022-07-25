@@ -1,21 +1,22 @@
 #!/bin/bash
 #
-# Decrypts the specified file and prints the content.
+# Decrypts the specified file and outputs its content.
 #
-# Usage:
+# Example:
 #
 #     ./decrypt.sh example.com
 #
-# Reads the password from the environment variable `PWDPWD` if it does exist.
-# Prompts for the password otherwise.
-#
-# Securely set the password environment variable:
-#
-#     read -s PWDPWD && export PWDPWD
-#
+
+if [[ -z "$1" ]]; then
+  echo "Usage: decrypt.sh name"
+  exit
+fi
 
 if [[ -z "${PWDPWD}" ]]; then
-    openssl aes-256-cbc -d -salt -pbkdf2 -in $1
-else
-    openssl aes-256-cbc -d -salt -pbkdf2 -in $1 -pass env:PWDPWD
+  echo -n Password:
+  read -r -s PWDPWD
+  export PWDPWD
+  echo ""
 fi
+
+openssl aes-256-cbc -d -salt -pbkdf2 -in "$1" -pass env:PWDPWD

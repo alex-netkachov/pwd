@@ -97,55 +97,6 @@ public static class CipherExtensions
     }
 }
 
-public sealed class ZeroCipher
-    : ICipher
-{
-    public bool IsEncrypted(
-        Stream stream)
-    {
-        return true;
-    }
-
-    public Task<bool> IsEncryptedAsync(
-        Stream stream)
-    {
-        return Task.FromResult(true);
-    }
-
-    public int Encrypt(
-        string text,
-        Stream stream)
-    {
-        var data = Encoding.UTF8.GetBytes(text);
-        stream.Write(data);
-        return data.Length;
-    }
-
-    public Task<int> EncryptAsync(
-        string text,
-        Stream stream)
-    {
-        var data = Encoding.UTF8.GetBytes(text);
-        stream.Write(data);
-        return Task.FromResult(data.Length);
-    }
-
-    public string DecryptString(
-        Stream stream)
-    {
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
-
-    public async Task<string> DecryptStringAsync(
-        Stream stream)
-    {
-        using var reader = new StreamReader(stream);
-        return await reader.ReadToEndAsync();
-    }
-}
-
-
 public sealed class NameCipher
     : ICipher
 {
@@ -183,7 +134,7 @@ public sealed class NameCipher
         using var aes = CipherShared.CreateAes(_password, salt);
         using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
         using var cryptoStream = new CryptoStream(dataStream, encryptor, CryptoStreamMode.Write, true);
-        var data = Encoding.UTF8.GetBytes($":{text}");
+        var data = Encoding.UTF8.GetBytes(text);
         cryptoStream.Write(data);
         cryptoStream.FlushFinalBlock();
 
@@ -265,8 +216,7 @@ public sealed class NameCipher
                     true);
 
             using var cryptoStreamReader = new StreamReader(cryptoStream);
-            var text = cryptoStreamReader.ReadToEnd();
-            return text.StartsWith(':') ? text[1..] : default;
+            return cryptoStreamReader.ReadToEnd();
         }
         catch
         {
@@ -300,8 +250,7 @@ public sealed class NameCipher
                     true);
 
             using var cryptoStreamReader = new StreamReader(cryptoStream);
-            var text = await cryptoStreamReader.ReadToEndAsync();
-            return text.StartsWith(':') ? text[1..] : default;
+            return await cryptoStreamReader.ReadToEndAsync();
         }
         catch
         {
