@@ -19,8 +19,9 @@ public static class Program
         Action<IFileSystem, IView> done)
     {
         var password = view.ReadPassword("Password: ");
+        var repository = new Repository(fs, new NameCipher(password), new ContentCipher(password), ".");
         var clipboard = new Clipboard();
-        var session = new Session(new ContentCipher(password), new NameCipher(password), fs, clipboard, view);
+        var session = new Session(repository, clipboard, view);
         
         try
         {
@@ -32,7 +33,7 @@ public static class Program
             return;
         }
 
-        if (!(await session.GetEncryptedFilesRecursively(".", true)).Any())
+        if (!(await repository.GetEncryptedFilesRecursively(".", true)).Any())
         {
             var confirmPassword =
                 view.ReadPassword("It seems that you are creating a new repository. Please confirm password: ");

@@ -32,7 +32,7 @@ public static class Shared
             "secret",
             "only you can protect what is yours",
             Convert.FromHexString(
-                "72665346696C554148784346584B317539686A307057654D314F74655F533639446653326E54656C6B7A7A484F43466A564D596333564D53765A506D736A396246695946523955553848343D"));
+                "475349596B69396453506F675378444A525F73396D6D636E616D6A746A3734616E4D43793255324B6A464B48345F335234477859675452326C446E726778352B694E654A573375474F63737E"));
     }
 
     public static IFileSystem GetMockFs()
@@ -81,7 +81,8 @@ public static class Shared
         var (pwd, _, _) = ContentEncryptionTestData();
         var fs = await FileLayout1(GetMockFs());
         var view = new View();
-        var session = new Session(new ContentCipher(pwd), new ZeroCipher(), fs, Mock.Of<Clipboard>(), view);
+        var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
+        var session = new Session(repository, Mock.Of<Clipboard>(), view);
         var state = new State(session);
         var handler = new AutoCompletionHandler(state);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");

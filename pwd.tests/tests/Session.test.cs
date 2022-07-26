@@ -1,4 +1,3 @@
-using System.IO.Abstractions;
 using System.Text;
 using Moq;
 using pwd.contexts;
@@ -9,28 +8,20 @@ public sealed class Session_Tests
 {
     private static (
         Session Session,
-        ICipher ContentCipher,
-        ICipher NameCipher,
-        IFileSystem FileSystem,
+        IRepository repository,
         IClipboard Clipboard,
         IView View)
         CreateSessionContext(
-            ICipher? contentCipher = null,
-            ICipher? nameCipher = null,
-            IFileSystem? fs = null,
+            IRepository? repository = null,
             IClipboard? clipboard = null,
             IView? view = null)
     {
-        contentCipher ??= Mock.Of<ICipher>();
-        nameCipher ??= Mock.Of<ICipher>();
-        fs ??= Mock.Of<IFileSystem>();
+        repository ??= Mock.Of<IRepository>();
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
 
-        return (new Session(contentCipher, nameCipher, fs, clipboard, view),
-            contentCipher,
-            nameCipher,
-            fs,
+        return (new Session(repository, clipboard, view),
+            repository,
             clipboard,
             view);
     }
@@ -39,86 +30,6 @@ public sealed class Session_Tests
     public void Constructs_session_well()
     {
         CreateSessionContext();
-    }
-
-    [Test]
-    public async Task GetItems1()
-    {
-        var session = CreateSessionContext(fs: Shared.GetMockFs()).Session;
-        Assert.That(!(await session.GetItems()).Any());
-        Assert.That(!(await session.GetItems()).Any());
-        Assert.That(!(await session.GetItems(".")).Any());
-    }
-
-    [Test]
-    public async Task GetItems2()
-    {
-        var (pwd, _, _) = Shared.ContentEncryptionTestData();
-        var cipher = new ContentCipher(pwd);
-        var fs = await Shared.FileLayout1(Shared.GetMockFs());
-        var sut = CreateSessionContext(fs: fs, contentCipher: cipher);
-        var items1 = (await sut.Session.GetItems()).Select(item => item.Name);
-        Assert.That(string.Join(";", items1) == "encrypted;regular_dir");
-        Assert.That(string.Join(";", (await sut.Session.GetItems(".")).Select(item => item.Name)) == "encrypted;regular_dir");
-        Assert.That(string.Join(";", (await sut.Session.GetItems()).Select(item => item.Name)) == "encrypted;regular_dir");
-        Assert.That(string.Join(";", (await sut.Session.GetItems("regular_dir")).Select(item => item.Name)) == "regular_dir/encrypted");
-        Assert.That(string.Join(";", (await sut.Session.GetItems(".hidden_dir")).Select(item => item.Name)) == ".hidden_dir/encrypted");
-    }
-
-    [Test]
-    public async Task GetEncryptedFilesRecursively1()
-    {
-        var sut = CreateSessionContext(fs: Shared.GetMockFs());
-        Assert.That(!(await sut.Session.GetEncryptedFilesRecursively()).ToList().Any());
-        Assert.That(!(await sut.Session.GetEncryptedFilesRecursively(".")).Any());
-    }
-
-    [Test]
-    public async Task GetEncryptedFilesRecursively2()
-    {
-        var (pwd, _, _) = Shared.ContentEncryptionTestData();
-        var cipher = new ContentCipher(pwd);
-        var fs = await Shared.FileLayout1(Shared.GetMockFs());
-
-        var sut = CreateSessionContext(fs: fs, contentCipher: cipher);
-
-        var session = sut.Session;
-
-        Assert.That(
-            string.Join(";", (await session.GetEncryptedFilesRecursively()).Select(item => item.Path)),
-            Is.EqualTo("encrypted;regular_dir/encrypted"));
-
-        Assert.That(
-            string.Join(";", (await session.GetEncryptedFilesRecursively(".")).Select(item => item.Path)),
-            Is.EqualTo("encrypted;regular_dir/encrypted"));
-
-        Assert.That(
-            string.Join(";", (await session.GetEncryptedFilesRecursively()).Select(item => item.Path)),
-            Is.EqualTo("encrypted;regular_dir/encrypted"));
-
-        Assert.That(
-            string.Join(";",
-                (await session.GetEncryptedFilesRecursively(includeHidden: true)).Select(item => item.Path)),
-            Is.EqualTo(
-                ".hidden_dir/.hidden_encrypted;.hidden_dir/encrypted;.hidden_encrypted;encrypted;regular_dir/.hidden_encrypted;regular_dir/encrypted"));
-
-        Assert.That(
-            string.Join(";", (await session.GetEncryptedFilesRecursively("regular_dir")).Select(item => item.Path)),
-            Is.EqualTo("regular_dir/encrypted"));
-
-        Assert.That(
-            string.Join(";",
-                (await session.GetEncryptedFilesRecursively("regular_dir", true)).Select(item => item.Path)),
-            Is.EqualTo("regular_dir/.hidden_encrypted;regular_dir/encrypted"));
-
-        Assert.That(
-            string.Join(";", (await session.GetEncryptedFilesRecursively(".hidden_dir")).Select(item => item.Path)),
-            Is.EqualTo(".hidden_dir/encrypted"));
-
-        Assert.That(
-            string.Join(";",
-                (await session.GetEncryptedFilesRecursively(".hidden_dir", true)).Select(item => item.Path)),
-            Is.EqualTo(".hidden_dir/.hidden_encrypted;.hidden_dir/encrypted"));
     }
 
     [Test]
@@ -135,8 +46,7 @@ public sealed class Session_Tests
 
         var sut =
             CreateSessionContext(
-                contentCipher: cipher,
-                fs: await Shared.FileLayout1(Shared.GetMockFs()),
+                new Repository(await Shared.FileLayout1(Shared.GetMockFs()), new ZeroCipher(), cipher, "."),
                 view: view.Object);
 
         var session = sut.Session;

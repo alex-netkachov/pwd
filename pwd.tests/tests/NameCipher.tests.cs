@@ -3,6 +3,17 @@ namespace pwd.tests;
 public sealed class NameCipher_Tests
 {
     [Test]
+    public async Task the_cipher_encrypts_the_message_correctly()
+    {
+        var (password, text, _) = Shared.NameEncryptionTestData();
+        var cipher = new NameCipher(password);
+        var encrypted = await cipher.EncryptAsync(text);
+        // to update NameEncryptionTestData uncomment the following line and update the method:
+        // Console.WriteLine(Convert.ToHexString(encrypted));
+        Assert.That(await cipher.IsEncryptedAsync(encrypted));
+    }
+
+    [Test]
     public async Task the_cipher_decrypts_the_message_correctly()
     {
         var (password, text, encrypted) = Shared.NameEncryptionTestData();

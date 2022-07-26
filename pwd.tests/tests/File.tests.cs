@@ -1,4 +1,3 @@
-using System.IO.Abstractions;
 using Moq;
 using File = pwd.contexts.File;
 
@@ -9,19 +8,16 @@ public class File_Tests
     private static (
         File File,
         IContext Context,
-        IFileSystem FileSystem,
-        ICipher ContentCipher,
-        ICipher NameCipher,
+        IRepository repository,
         IClipboard Clipboard,
         IView View,
-        string Path)
+        string Name)
         CreateFileContext(
             string path = "",
+            string name = "",
             string content = "",
             IContext? context = null,
-            ICipher? contentCipher = null,
-            ICipher? nameCipher = null,
-            IFileSystem? fs = null,
+            IRepository? repository = null,
             IClipboard? clipboard = null,
             IView? view = null)
     {
@@ -30,30 +26,31 @@ public class File_Tests
                 ? Path.GetFileName(Path.GetTempFileName())
                 : path;
 
+        name =
+            string.IsNullOrEmpty(path)
+                ? Path.GetFileName(path)
+                : name;
+
         context ??= Mock.Of<IContext>();
-        contentCipher ??= Mock.Of<ICipher>();
-        nameCipher ??= Mock.Of<ICipher>();
-        fs ??= Mock.Of<IFileSystem>();
+        repository ??= Mock.Of<IRepository>();
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
 
-        return (new File(fs, contentCipher, nameCipher, clipboard, view, path, content),
+        return (new File(repository, clipboard, view, name, content),
             context,
-            fs,
-            contentCipher,
-            nameCipher,
+            repository,
             clipboard,
             view,
-            path);
+            name);
     }
 
     [Test]
-    public async Task saving_creates_a_file()
+    public async Task saving_writes_a_file()
     {
-        var fs = Shared.GetMockFs();
-        var sut = CreateFileContext(fs: fs);
+        var repository = new Mock<IRepository>();
+        var sut = CreateFileContext(repository: repository.Object);
         await sut.File.Process(Mock.Of<IState>(), ".save");
-        Assert.That(fs.File.Exists(sut.Path));
+        repository.Verify(m => m.WriteEncryptedAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
     
     [Test]
@@ -88,9 +85,10 @@ public class File_Tests
     {
         var fs = Shared.GetMockFs();
         await fs.File.WriteAllBytesAsync("test1", Array.Empty<byte>());
-        var sut = CreateFileContext(fs: fs, nameCipher: new ZeroCipher(), path: "test1");
+        var repository = new Repository(fs, new ZeroCipher(), new ZeroCipher(), ".");
+        var sut = CreateFileContext(repository: repository, name: "test1");
         await sut.File.Process(Mock.Of<IState>(), ".rename test2");
         Assert.That(fs.File.Exists("test2"));
-        Assert.That(!fs.File.Exists(sut.Path));
+        Assert.That(!fs.File.Exists(sut.Name));
     }
 }

@@ -111,13 +111,39 @@ public sealed class NameCipher
     public bool IsEncrypted(
         Stream stream)
     {
-        return TryDecrypt(stream) != null;
+        try
+        {
+            // the data is an encrypted name when it is base64 AES-encrypted 16-byte size blocks with 8 bytes salt, 
+            // i.e. bytes(base64(concat(salt, join(aes_blocks))))
+            using var reader = new StreamReader(stream, leaveOpen: true);
+            var encryptedFileName = reader.ReadToEnd();
+            var encryptedBase64Name = Restore(encryptedFileName);
+            var encryptedName = Convert.FromBase64String(encryptedBase64Name);
+            return 0 == (encryptedName.Length - 8) % 16;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task<bool> IsEncryptedAsync(
         Stream stream)
     {
-        return await TryDecryptAsync(stream) != null;
+        try
+        {
+            // the data is an encrypted name when it is base64 AES-encrypted 16-byte size blocks with 8 bytes salt, 
+            // i.e. bytes(base64(concat(salt, join(aes_blocks))))
+            using var reader = new StreamReader(stream, leaveOpen: true);
+            var encryptedFileName = await reader.ReadToEndAsync();
+            var encryptedBase64Name = Restore(encryptedFileName);
+            var encryptedName = Convert.FromBase64String(encryptedBase64Name);
+            return 0 == (encryptedName.Length - 8) % 16;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public int Encrypt(
@@ -160,7 +186,7 @@ public sealed class NameCipher
         using var aes = CipherShared.CreateAes(_password, salt);
         using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
         await using var cryptoStream = new CryptoStream(dataStream, encryptor, CryptoStreamMode.Write, true);
-        var data = Encoding.UTF8.GetBytes($":{text}");
+        var data = Encoding.UTF8.GetBytes(text);
         await cryptoStream.WriteAsync(data);
         await cryptoStream.FlushFinalBlockAsync();
 
@@ -173,24 +199,6 @@ public sealed class NameCipher
     }
 
     public string DecryptString(
-        Stream stream)
-    {
-        var text = TryDecrypt(stream);
-        if (text == null)
-            throw new FormatException("The data stream is not encrypted name.");
-        return text;
-    }
-
-    public async Task<string> DecryptStringAsync(
-        Stream stream)
-    {
-        var text = await TryDecryptAsync(stream);
-        if (text == null)
-            throw new FormatException("The data stream is not encrypted name.");
-        return text;
-    }
-
-    private string? TryDecrypt(
         Stream stream)
     {
         try
@@ -220,11 +228,11 @@ public sealed class NameCipher
         }
         catch
         {
-            return default;
+            throw new FormatException("The data stream is not encrypted name.");
         }
     }
 
-    private async Task<string?> TryDecryptAsync(
+    public async Task<string> DecryptStringAsync(
         Stream stream)
     {
         try
@@ -254,7 +262,7 @@ public sealed class NameCipher
         }
         catch
         {
-            return default;
+            throw new FormatException("The data stream is not encrypted name.");
         }
     }
 

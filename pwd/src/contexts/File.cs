@@ -1,9 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Abstractions;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
@@ -13,37 +11,27 @@ namespace pwd.contexts;
 public sealed class File
     : IContext
 {
-    private readonly IFileSystem _fs;
-    private readonly ICipher _contentCipher;
-    private readonly ICipher _nameCipher;
+    private readonly IRepository _repository;
     private readonly IClipboard _clipboard;
     private readonly IView _view;
 
-    private string _path;
+    private Name _name;
     private string _content;
     private bool _modified;
 
-    private Lazy<string> _name;
-
     public File(
-        IFileSystem fs,
-        ICipher contentCipher,
-        ICipher nameCipher,
+        IRepository repository,
         IClipboard clipboard,
         IView view,
-        string path,
+        Name name,
         string content)
     {
-        _fs = fs;
-        _contentCipher = contentCipher;
-        _nameCipher = nameCipher; 
+        _repository = repository;
         _clipboard = clipboard;
         _view = view;
-        _path = path;
+        _name = name;
         _content = content;
         _modified = false;
-
-        _name = new Lazy<string>(GetName);
     }
 
     public async Task Process(
@@ -56,7 +44,7 @@ public sealed class File
                 state.Up();
                 break;
             case (_, "archive", _):
-                Archive(state);
+                await Archive(state);
                 break;
             case (_, "cc", var name):
                 CopyField(name);
@@ -77,7 +65,7 @@ public sealed class File
                 Unobscured();
                 break;
             case (_, "rename", var name):
-                await Rename(name);
+                await Rename(new Name(name));
                 break;
             case (_, "rm", _):
                 Delete(state);
@@ -95,7 +83,7 @@ public sealed class File
 
     public string Prompt()
     {
-        return $"{(_modified ? "*" : "")}{_name.Value}";
+        return $"{(_modified ? "*" : "")}{_name}";
     }
 
     public string[] GetInputSuggestions(
@@ -147,64 +135,35 @@ public sealed class File
             .ToArray();
     }
 
-    private string GetName()
-    {
-        var name = _fs.Path.GetFileName(_path);
-        try
-        {
-            var data = Encoding.UTF8.GetBytes(name);
-            return _nameCipher.IsEncrypted(data)
-                ? _nameCipher.DecryptString(data)
-                : name;
-        }
-        catch
-        {
-            return name;
-        }
-    } 
-
-    private void Archive(
+    private async Task Archive(
         IState state)
     {
-        var name = _fs.Path.GetFileName(_path);
-        var folder = _fs.Path.GetDirectoryName(_path);
-        _fs.File.Move(_path, Path.Combine(folder, ".archive", name));
+        await _repository.Archive(_name);
         state.Up();
     }
 
     private async Task Save()
     {
-        await Write(_fs, _path, _content);
+        await _repository.WriteEncryptedAsync(_name, _content);
         _modified = false;
     }
 
     private async Task Rename(
-        string name)
+        Name name)
     {
-        var originalPath = _path;
-
-        var encryptedName = Encoding.UTF8.GetString(await _nameCipher.EncryptAsync(name));
-
-        var path = _fs.Path.Combine(_fs.Path.GetDirectoryName(originalPath), encryptedName);
-        
-        await Write(_fs, path, _content);
-
-        _modified = false;
-        _name = new Lazy<string>(GetName);
-        _path = path;
-
-        try
+        if (_modified)
         {
-            _fs.File.Delete(originalPath);
+            if (_view.Confirm("The content is not saved. Save it and rename the file?"))
+                await _repository.WriteEncryptedAsync(_name, _content);
+            else
+            {
+                _view.WriteLine("Cancelled.");
+                return;
+            }
         }
-        catch (FileNotFoundException)
-        {
-            _view.WriteLine("The file did not exist.");
-        }
-        catch (Exception e)
-        {
-            _view.WriteLine(e.Message);
-        }
+
+        await _repository.RenameAsync(_name, name);
+        _name = name;
     }
 
     private void Update(
@@ -252,10 +211,10 @@ public sealed class File
     private void Delete(
         IState state)
     {
-        if (!_view.Confirm($"Delete '{_name.Value}'?"))
+        if (!_view.Confirm($"Delete '{_name}'?"))
             return;
         
-        _fs.File.Delete(_path);
+        _repository.Delete(_name);
         state.Up();
     }
 
@@ -272,11 +231,11 @@ public sealed class File
             return;
         }
 
-        var path = await ExportToTempFile(_fs, _content);
+        var path = await _repository.ExportToTempFile(_content);
         
         try
         {
-            var startInfo = new ProcessStartInfo(editor, path);
+            var startInfo = new ProcessStartInfo(editor, path.Value);
             var process = System.Diagnostics.Process.Start(startInfo);
             if (process == null)
             {
@@ -285,7 +244,7 @@ public sealed class File
             }
 
             await process.WaitForExitAsync();
-            var content = await _fs.File.ReadAllTextAsync(path);
+            var content = await _repository.ReadTextAsync(path);
             if (content == _content || !_view.Confirm("Update the content?"))
                 return;
             Update(content);
@@ -293,7 +252,7 @@ public sealed class File
         }
         finally
         {
-            _fs.File.Delete(path);
+            _repository.Delete(path);
         }
     }
 
@@ -305,29 +264,5 @@ public sealed class File
             _clipboard.Clear();
         else
             _clipboard.Put(value, TimeSpan.FromSeconds(5));
-    }
-    
-    private static async Task<string> ExportToTempFile(
-        IFileSystem fs,
-        string content)
-    {
-        var path = fs.Path.GetTempFileName();
-        await fs.File.WriteAllTextAsync(path, content);
-        return path;
-    }
-
-    private async Task Write(
-        IFileSystem fs,
-        string path,
-        string text)
-    {
-        using var stream = new MemoryStream();
-        await _contentCipher.EncryptAsync(text, stream);
-
-        var folder = fs.Path.GetDirectoryName(path);
-        if (folder != "")
-            fs.Directory.CreateDirectory(folder);
-
-        await fs.File.WriteAllBytesAsync(path, stream.ToArray());
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -13,22 +12,16 @@ namespace pwd.contexts;
 public sealed class Session
     : IContext
 {
-    private readonly ICipher _contentCipher;
-    private readonly ICipher _nameCipher;
-    private readonly IFileSystem _fs;
+    private readonly IRepository _repository;
     private readonly IClipboard _clipboard;
     private readonly IView _view;
 
     public Session(
-        ICipher contentCipher,
-        ICipher nameCipher,
-        IFileSystem fs,
+        IRepository repository,
         IClipboard clipboard,
         IView view)
     {
-        _contentCipher = contentCipher;
-        _nameCipher = nameCipher;
-        _fs = fs;
+        _repository = repository;
         _clipboard = clipboard;
         _view = view;
     }
@@ -40,7 +33,7 @@ public sealed class Session
         switch (Shared.ParseCommand(input))
         {
             case (_, "add", var path):
-                await Add(state, path);
+                await Add(state, new Name(path));
                 break;
             case (_, "check", _):
                 await Check();
@@ -56,12 +49,12 @@ public sealed class Session
                     break;
 
                 var items =
-                    (await GetEncryptedFilesRecursively())
-                    .Where(item => item.Name.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                    (await _repository.GetEncryptedFilesRecursively())
+                    .Where(item => item.Name.Value.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 var match =
-                    items.FirstOrDefault(item => string.Equals(item.Name, input, StringComparison.OrdinalIgnoreCase));
+                    items.FirstOrDefault(item => string.Equals(item.Name.Value, input, StringComparison.OrdinalIgnoreCase));
 
                 var chosen =
                     match == default
@@ -71,7 +64,7 @@ public sealed class Session
                 if (chosen == null)
                     _view.WriteLine(string.Join("\n", items.Select(item => item.Name).OrderBy(item => item)));
                 else
-                    await Open(state, chosen);
+                    await Open(state, chosen.Value);
                 break;
         }
     }
@@ -89,9 +82,9 @@ public sealed class Session
         {
             var p = input.LastIndexOf('/');
             var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-            return GetItems(folder == "" ? "." : folder).Result
-                .Where(item => item.Name.StartsWith(input))
-                .Select(item => item.Name)
+            return _repository.GetItems(new Path(folder == "" ? "." : folder)).Result
+                .Where(item => item.Value.StartsWith(input))
+                .Select(item => item.Value)
                 .ToArray();
         }
 
@@ -109,79 +102,31 @@ public sealed class Session
             .ToArray();
     }
 
-    public async Task<IEnumerable<(string Path, string Name)>> GetItems(
-        string? path = null)
-    {
-        var items = GetFiles(_fs, path ?? ".", (false, true, false));
-        var result = new List<(string, string)>();
-        foreach (var item in items)
-            if (_fs.Directory.Exists(item) || await IsFileEncrypted(item, _contentCipher))
-            {
-                var bytes = Encoding.UTF8.GetBytes(_fs.Path.GetFileName(item));
-                var name =
-                    await _nameCipher.IsEncryptedAsync(bytes)
-                        ? await _nameCipher.DecryptStringAsync(bytes)
-                        : item;
-                result.Add((item, name));
-            }
-
-        return result;
-    }
-
-    public async Task<IEnumerable<(string Path, string Name)>> GetEncryptedFilesRecursively(
-        string? path = null,
-        bool includeHidden = false)
-    {
-        var files = GetFiles(_fs, path ?? ".", (true, false, includeHidden));
-        var result = new List<(string, string)>();
-        foreach (var file in files)
-            if (await IsFileEncrypted(file, _contentCipher))
-            {
-                var fileName = _fs.Path.GetFileName(file);
-                var data = Encoding.UTF8.GetBytes(fileName);
-                using var testStream = new MemoryStream(data);
-                var encrypted = await _nameCipher.IsEncryptedAsync(testStream);
-                if (encrypted)
-                {
-                    using var nameStream = new MemoryStream(data);
-                    var name = await _nameCipher.DecryptStringAsync(nameStream);
-                    result.Add((file, name));
-                }
-                else
-                    result.Add((file, fileName));
-            }
-        return result;
-    }
-
-    private async Task<bool> IsFileEncrypted(
-        string path,
-        ICipher cipher)
-    {
-        await using var stream = _fs.File.OpenRead(path);
-        return await cipher.IsEncryptedAsync(stream);
-    }
-
-    private Task<string> Read(
-        string path)
-    {
-        return _contentCipher.DecryptStringAsync(_fs.File.OpenRead(path));
-    }
-
     private async Task Open(
         IState state,
-        string path)
+        string location)
     {
-        if (!_fs.File.Exists(path) || !await IsFileEncrypted(path, _contentCipher))
+        var path = new Path(location);
+        var name = await _repository.GetName(path);
+        name ??= new Name(location);
+
+        if (!await _repository.IsFileEncrypted(name))
             return;
 
-        var file = new File(_fs, _contentCipher, _nameCipher, _clipboard, _view, path, await Read(path));
+        var file =
+            new File(
+                _repository,
+                _clipboard,
+                _view,
+                name,
+                await _repository.ReadAsync(name));
         file.Print();
         state.Down(file);
     }
 
     public async Task Check()
     {
-        var files = (await GetEncryptedFilesRecursively(includeHidden: true)).ToList();
+        var files = (await _repository.GetEncryptedFilesRecursively(includeHidden: true)).ToList();
         var wrongPassword = new List<string>();
         var notYaml = new List<string>();
         await Task.WhenAll(files.Select(async file =>
@@ -189,8 +134,7 @@ public sealed class Session
             string? content;
             try
             {
-                await using var stream = _fs.File.OpenRead(file.Path);
-                content = await _contentCipher.DecryptStringAsync(stream);
+                content = await _repository.ReadTextAsync(file.Path);
                 if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
                     content = default;
             }
@@ -201,12 +145,12 @@ public sealed class Session
 
             if (content == default)
             {
-                wrongPassword.Add(file.Name);
+                wrongPassword.Add(file.Name.Value);
                 _view.Write("*");
             }
             else if (Shared.CheckYaml(content) != null)
             {
-                notYaml.Add(file.Name);
+                notYaml.Add(file.Name.Value);
                 _view.Write("+");
             }
             else
@@ -238,7 +182,7 @@ public sealed class Session
         var template = await reader.ReadToEndAsync();
         var script = string.Join(",\n  ",
             Directory.GetFiles(".")
-                .Select(file => (Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
+                .Select(file => (System.IO.Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
                 .Where(item =>
                 {
                     if (item.Item2.Length < 16) return false;
@@ -256,57 +200,14 @@ public sealed class Session
 
     private async Task Add(
         IState state,
-        string name)
+        Name name)
     {
         var content = new StringBuilder();
         for (string? line; "" != (line = Console.ReadLine());)
             content.AppendLine((line ?? "").Replace("***", new Password().Next()));
 
-        var encryptedName = Encoding.UTF8.GetString(await _nameCipher.EncryptAsync(name));
-        await using var stream = _fs.File.Open(encryptedName, FileMode.Create, FileAccess.Write);
-        await _contentCipher.EncryptAsync(content.ToString(), stream);
-        await Open(state, name);
-    }
+        await _repository.WriteEncryptedAsync(name, content.ToString());
 
-    private static IEnumerable<string> GetFiles(
-        IFileSystem fs,
-        string path,
-        (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default)
-    {
-        string JoinPath(
-            string path1,
-            string path2)
-        {
-            return path1 == "."
-                ? path2
-                : $"{path1}/{path2}";
-        }
-
-        bool IsDotted(
-            IFileSystemInfo info)
-        {
-            var name = info.Name;
-            return name.StartsWith('.') || name.StartsWith('_');
-        }
-
-        return fs.Directory.Exists(path)
-            ? fs.DirectoryInfo.FromDirectoryName(path)
-                .EnumerateFileSystemInfos()
-                .OrderBy(info => info.Name)
-                .SelectMany(info => info switch
-                {
-                    IFileInfo file when !IsDotted(file) || options.IncludeDottedFilesAndFolders =>
-                        new[] {JoinPath(path, file.Name)},
-                    IDirectoryInfo dir when !IsDotted(dir) || options.IncludeDottedFilesAndFolders =>
-                        (options.Recursively
-                            ? GetFiles(fs, JoinPath(path, dir.Name), options)
-                            : Array.Empty<string>())
-                        .Concat(
-                            options.IncludeFolders
-                                ? new[] {JoinPath(path, dir.Name)}
-                                : Array.Empty<string>()),
-                    _ => Array.Empty<string>()
-                })
-            : Enumerable.Empty<string>();
+        await Open(state, name.Value);
     }
 }
