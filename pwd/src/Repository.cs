@@ -4,61 +4,117 @@ using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using static pwd.Repository;
 
 namespace pwd;
 
-public record Name(string Value);
+public interface IRepositoryItem
+{
+    /// <summary>Plaintext name.</summary>
+    public string Name { get; }
 
-public record Path(string Value);
+    /// <summary>Plaintext path.</summary>
+    public string Path { get; }
+
+    /// <summary>Encrypted name.</summary>
+    public string EncryptedName { get; }
+    
+    /// <summary>Encrypted filenames path.</summary>
+    public string EncryptedPath { get; }
+    
+    /// <summary>Whether the item is a folder or a file. Null when the item does not exist.</summary>
+    public bool? IsFolder { get; }
+    
+    /// <summary>Whether the corresponding file exists.</summary>
+    public bool Exists { get; }
+}
 
 public interface IRepository
 {
-    Task Archive(
-        Name name);
+    /// <summary>Moves the specified file into the ".archive" folder.</summary>
+    /// <remarks>".archive" is a dotted folder so it will not be suggested or listed.</remarks>
+    void Archive(
+        string path);
 
+    /// <summary>Deletes the file in the repository.</summary>
     void Delete(
-        Name name);
-    
-    void Delete(
-        Path path);
+        string path);
 
-    Task<Path> ExportToTempFile(
-        string content);
-
-    Task<IEnumerable<(Path Path, Name Name)>> GetEncryptedFilesRecursively(
-        Path? path = null,
-        bool includeHidden = false);
-
-    IEnumerable<Path> GetFiles(
-        Path path,
+    /// <summary>Enumerates all encrypted files in a folder.</summary>
+    IEnumerable<IRepositoryItem> List(
+        string path,
         (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default);
 
-    Task<IEnumerable<Path>> GetItems(
-        Path? path = null);
-
-    public Task<Name?> GetName(
-        Path path);
-
-    Task<bool> IsFileEncrypted(
-        Path path);
-
+    /// <summary>Reads from the encrypted file.</summary>
     Task<string> ReadAsync(
-        Name name);
+        string path);
+    
+    /// <summary>Renames (moves) the encrypted file.</summary>
+    void Rename(
+        string path,
+        string newPath);
 
-    Task<string> ReadAsync(
-        Path path);
-
-    Task<string> ReadTextAsync(
-        Path path);
-
-    Task RenameAsync(
-        Name name,
-        Name newName);
-
-    Task WriteEncryptedAsync(
-        Name name,
+    /// <summary>Encrypts and writes the text into the file.</summary>
+    Task WriteAsync(
+        string path,
         string text);
+}
+
+public sealed class RepositoryItem
+    : IRepositoryItem
+{
+    private RepositoryItem(
+        string name,
+        string encryptedName,
+        IRepositoryItem? item = null)
+    {
+        Name = name;
+        Path = PathCombine(item?.Path, name);
+        EncryptedName = encryptedName;
+        EncryptedPath = PathCombine(item?.EncryptedPath, encryptedName);
+    }
+    
+    public string Name { get; set; }
+    public string Path { get; set; }
+    public string EncryptedName { get; set; }
+    public string EncryptedPath { get; set; }
+    public bool? IsFolder { get; set; }
+    public bool Exists { get; set; }
+    public List<RepositoryItem> Items { get; } = new();
+
+    public RepositoryItem? Get(
+        string name)
+    {
+        return Items.FirstOrDefault(item => item.Name.Equals(name, StringComparison.Ordinal));
+    }
+    
+    public RepositoryItem Create(
+        string name,
+        string encryptedName)
+    {
+        return new RepositoryItem(name, encryptedName, this);
+    }
+
+    public static RepositoryItem Root()
+    {
+        return new("", "")
+        {
+            IsFolder = true,
+            Exists = true
+        };
+    }
+
+    public void UpdatePaths()
+    {
+        foreach (var item in Items)
+        {
+            item.Path = PathCombine(Path, item.Name);
+            item.EncryptedPath = PathCombine(EncryptedPath, item.EncryptedName);
+            item.UpdatePaths();
+        }
+    }
 }
 
 public sealed class Repository
@@ -70,6 +126,10 @@ public sealed class Repository
     private readonly ICipher _contentCipher;
     private readonly string _path;
 
+    private readonly RepositoryItem _root;
+
+    private TaskCompletionSource? _initialising;
+
     public Repository(
         IFileSystem fs,
         ICipher nameCipher,
@@ -80,51 +140,166 @@ public sealed class Repository
         _nameCipher = nameCipher;
         _contentCipher = contentCipher;
         _path = path;
+
+        _root = RepositoryItem.Root();
     }
 
     public void Dispose()
     {
     }
-    
-    public async Task Archive(
-        string name)
+
+    public Task Initialise()
     {
-        throw new NotImplementedException();
+        var initialising = new TaskCompletionSource();
+        if (null != Interlocked.CompareExchange(ref _initialising, initialising, null))
+            return _initialising.Task;
+        Task.Run(async () =>
+        {
+            _root.Items.Clear();
+
+            // for now: one level only, no folders
+            var files = EnumerateFilesystemItems(_path, (false, false, true));
+            foreach (var file in files)
+            {
+                if (!await IsFileEncrypted(_fs.Path.Combine(_path, file)))
+                    continue;
+                var name = await _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(_fs.Path.GetFileName(file)));
+                var item = _root.Create(name, file);
+                item.Exists = true;
+                item.IsFolder = _fs.Directory.Exists(_fs.Path.Combine(_path, item.EncryptedPath));
+                _root.Items.Add(item);
+            }
+
+            _initialising.SetResult();
+        });
+        return _initialising.Task;
+    }
+    
+    public void Archive(
+        string path)
+    {
+        Rename(path, PathCombine(".archive", path));
     }
 
     public void Delete(
         string path)
     {
-        _fs.File.Delete(path);
+        var (items, item) = Tail(PathItems(path));
+        var (_, container) = Tail(items);
+        if (!item.Exists || item.IsFolder == false)
+            return;
+        container.Items.Remove(item);
+        _fs.File.Delete(_fs.Path.Combine(_path, item.EncryptedPath));
     }
-    
-    public async Task<string> ExportToTempFile(
-        string content)
-    {
-        var path = _fs.Path.GetTempFileName();
-        await _fs.File.WriteAllTextAsync(path, content);
-        return path;
-    }
-    
-    public IEnumerable<string> GetFiles(
+
+    public IEnumerable<IRepositoryItem> List(
         string path,
         (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default)
     {
-        string JoinPath(
-            string path1,
-            string path2)
-        {
-            return path1 == "."
-                ? path2
-                : $"{path1}/{path2}";
-        }
+        bool IsDotted(IRepositoryItem info) =>
+            info.Name[0] is '.' or '_';
 
-        bool IsDotted(
-            IFileSystemInfo info)
+        var names =
+            string.IsNullOrEmpty(path) || path == "."
+                ? Enumerable.Empty<string>()
+                : path.Split('/');
+
+        var item = _root;
+        foreach (var name in names)
         {
-            var name = info.Name;
-            return name.StartsWith('.') || name.StartsWith('_');
+            item = item.Get(name);
+            if (item == null)
+                return Enumerable.Empty<IRepositoryItem>();
         }
+        
+        return item.Items
+            .OrderBy(value => value.IsFolder)
+            .ThenBy(value => value.Name)
+            .SelectMany(value => value switch
+            {
+                {IsFolder: false} when !IsDotted(value) || options.IncludeDottedFilesAndFolders =>
+                    new[] {value},
+                {IsFolder: true} when !IsDotted(value) || options.IncludeDottedFilesAndFolders =>
+                    (options.Recursively
+                        ? List(PathCombine(path, value.Name), options)
+                        : Array.Empty<IRepositoryItem>())
+                    .Concat(
+                        options.IncludeFolders
+                            ? new[] {value}
+                            : Array.Empty<IRepositoryItem>()),
+                _ => Array.Empty<IRepositoryItem>()
+            });
+    }
+
+    public async Task<string> ReadAsync(
+        string path)
+    {
+        var (_, file) = Tail(PathItems(path));
+        if (!file.Exists)
+            throw new("The file does not exist.");
+        await using var stream = _fs.File.OpenRead(file.EncryptedPath);
+        return await _contentCipher.DecryptStringAsync(stream);
+    }
+    
+    public void Rename(
+        string path,
+        string newPath)
+    {
+        var (pathItems, pathItem) = Tail(PathItems(path));
+        if (!pathItem.Exists)
+            throw new("The item does not exist.");
+        var pathItemContainer = pathItems[^1];
+
+        var (newPathItems, newPathItem) = Tail(PathItems(newPath));
+        if (newPathItem.Exists)
+            throw new("The item already exists.");
+
+        var newPathItemContainer = CreateFolders(newPathItems);
+
+        if (pathItem.IsFolder == true)
+            _fs.Directory.Move(
+                _fs.Path.Combine(_path, pathItem.EncryptedPath), 
+                _fs.Path.Combine(_path, newPathItem.EncryptedPath));
+        else
+            _fs.File.Move(
+                _fs.Path.Combine(_path, pathItem.EncryptedPath), 
+                _fs.Path.Combine(_path, newPathItem.EncryptedPath));
+
+        pathItemContainer.Items.Remove(pathItem);
+        if (pathItem.Name != newPathItem.Name)
+        {
+            pathItem.Name = newPathItem.Name;
+            pathItem.EncryptedName = newPathItem.EncryptedName;
+        }
+        newPathItemContainer.Items.Add(pathItem);
+        newPathItemContainer.UpdatePaths();
+    }
+
+    public async Task WriteAsync(
+        string path,
+        string text)
+    {
+        var (folders, file) = Tail(PathItems(path));
+        if (file.Exists)
+            throw new("Cannot overwrite an existing file.");
+        
+        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(file.EncryptedPath));
+        var folder = CreateFolders(folders);
+
+        using var stream = new MemoryStream();
+        await _contentCipher.EncryptAsync(text, stream);
+
+        await _fs.File.WriteAllBytesAsync(file.EncryptedPath, stream.ToArray());
+
+        CreateFile(folder, file.Name, file.EncryptedName);
+    }
+
+    private IEnumerable<string> EnumerateFilesystemItems(
+        string path,
+        (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default)
+    {
+        bool IsDotted(IFileSystemInfo info) =>
+            info.Name[0] is '.' or '_';
 
         return _fs.Directory.Exists(path)
             ? _fs.DirectoryInfo.FromDirectoryName(path)
@@ -133,113 +308,129 @@ public sealed class Repository
                 .SelectMany(info => info switch
                 {
                     IFileInfo file when !IsDotted(file) || options.IncludeDottedFilesAndFolders =>
-                        new[] {JoinPath(path, file.Name)},
+                        new[] {file.Name},
                     IDirectoryInfo dir when !IsDotted(dir) || options.IncludeDottedFilesAndFolders =>
                         (options.Recursively
-                            ? GetFiles(JoinPath(path, dir.Name), options)
+                            ? EnumerateFilesystemItems(PathCombine(path, dir.Name), options)
+                                .Select(item => PathCombine(dir.Name, item))
                             : Array.Empty<string>())
                         .Concat(
                             options.IncludeFolders
-                                ? new[] {JoinPath(path, dir.Name)}
+                                ? new[] {dir.Name}
                                 : Array.Empty<string>()),
                     _ => Array.Empty<string>()
                 })
             : Enumerable.Empty<string>();
     }
-    
-    public Task<string> Read(
-        string path)
+
+    private RepositoryItem CreateFolders(
+        IReadOnlyList<RepositoryItem> items)
     {
-        return _contentCipher.DecryptStringAsync(_fs.File.OpenRead(path));
+        var container = items[0];
+        foreach (var item in items.Skip(0))
+        {
+            if (item.Exists)
+                continue;
+            if (item.IsFolder == true)
+            {
+                _fs.Directory.CreateDirectory(_fs.Path.Combine(_path, item.EncryptedPath));
+                item.Exists = true;
+            }
+            container.Items.Add(item);
+            container = item;
+        }
+        return container;
     }
 
-    public async Task<string> ReadAllTextAsync(
-        string path)
-    {
-        return await _fs.File.ReadAllTextAsync(path);
-    }
-    
-    public async Task Rename(
+    private static RepositoryItem CreateFile(
+        RepositoryItem folder,
         string name,
-        string newName)
+        string encryptedName)
     {
-        var originalPath = _fs.Path.Combine(_path, name);
-
-        var encryptedName = Encoding.UTF8.GetString(await _nameCipher.EncryptAsync(newName));
-
-        var path = _fs.Path.Combine(_fs.Path.GetDirectoryName(originalPath), encryptedName);
-
-        _fs.File.Move(originalPath, path);
+        var item = folder.Create(name, encryptedName);
+        folder.Items.Add(item);
+        return item;
     }
     
-    public async Task Write(
-        string path,
-        string text)
-    {
-        using var stream = new MemoryStream();
-        await _contentCipher.EncryptAsync(text, stream);
-
-        var folder = _fs.Path.GetDirectoryName(path);
-        if (folder != "")
-            _fs.Directory.CreateDirectory(folder);
-
-        await _fs.File.WriteAllBytesAsync(path, stream.ToArray());
-    }
-
-    public Task<string> GetName(
-        string path)
-    {
-        return _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(_fs.Path.GetFileName(path)));
-    }
-
-    public async Task<bool> IsFileEncrypted(
+    private async Task<bool> IsFileEncrypted(
         string path)
     {
         await using var stream = _fs.File.OpenRead(path);
         return await _contentCipher.IsEncryptedAsync(stream);
     }
-    
-    public async Task<IEnumerable<(string Path, string Name)>> GetItems(
-        string? path = null)
+
+    private IReadOnlyList<RepositoryItem> PathItems(
+        string path,
+        bool? isFolder = null)
     {
-        var items = GetFiles(path ?? ".", (false, true, false));
-        var result = new List<(string, string)>();
-        foreach (var item in items)
-            if (_fs.Directory.Exists(item) || await IsFileEncrypted(item))
+        var names = ParsePath(path);
+
+        var list = new List<RepositoryItem>(names.Count);
+
+        var item = _root;
+
+        list.Add(item);
+        
+        foreach (var name in names)
+        {
+            if (!item.Exists)
+                item.IsFolder = true;
+
+            var next = item.Get(name);
+            if (next == null)
             {
-                var bytes = Encoding.UTF8.GetBytes(_fs.Path.GetFileName(item));
-                var name =
-                    await _nameCipher.IsEncryptedAsync(bytes)
-                        ? await _nameCipher.DecryptStringAsync(bytes)
-                        : item;
-                result.Add((item, name));
+                var encryptedName =
+                    Encoding.UTF8.GetString(_nameCipher.Encrypt(name));
+
+                next = item.Create(name, encryptedName);
             }
 
-        return result;
+            item = next;
+            list.Add(item);
+        }
+
+        if (isFolder != null)
+            item.IsFolder = isFolder;
+
+        return list;
     }
 
-    public async Task<IEnumerable<(string Path, string Name)>> GetEncryptedFilesRecursively(
-        string? path = null,
-        bool includeHidden = false)
+    private IReadOnlyList<string> ParsePath(
+        string path)
     {
-        var files = GetFiles(path ?? ".", (true, false, includeHidden));
-        var result = new List<(string, string)>();
-        foreach (var file in files)
-            if (await IsFileEncrypted(file))
-            {
-                var fileName = _fs.Path.GetFileName(file);
-                var data = Encoding.UTF8.GetBytes(fileName);
-                using var testStream = new MemoryStream(data);
-                var encrypted = await _nameCipher.IsEncryptedAsync(testStream);
-                if (encrypted)
-                {
-                    using var nameStream = new MemoryStream(data);
-                    var name = await _nameCipher.DecryptStringAsync(nameStream);
-                    result.Add((file, name));
-                }
-                else
-                    result.Add((file, fileName));
-            }
-        return result;
+        if (string.IsNullOrEmpty(path))
+            throw new ArgumentException("Invalid path.", nameof(path));
+
+        var items =
+            path.Split(
+                _fs.Path.DirectorySeparatorChar,
+                _fs.Path.AltDirectorySeparatorChar);
+        
+        var invalidNameChars = _fs.Path.GetInvalidFileNameChars();
+
+        foreach (var item in items)
+        {
+            if (string.IsNullOrEmpty(item) || item.IndexOfAny(invalidNameChars) != -1)
+                throw new ArgumentException("Invalid path.", nameof(path));
+        }
+
+        return items;
+    }
+    
+    public static string PathCombine(
+        string? path1,
+        string? path2)
+    {
+        return (string.IsNullOrEmpty(path1) || path1 == "."
+            ? path2
+            : string.IsNullOrEmpty(path2) || path2 == "."
+                ? path1
+                : $"{path1}/{path2}") ?? "";
+    }
+
+    private static (IReadOnlyList<T> Body, T Tail) Tail<T>(
+        IReadOnlyList<T> list)
+    {
+        return (list.Take(list.Count - 1).ToList(), list[^1]);
     }
 }

@@ -1,7 +1,18 @@
-namespace pwd.tests;
+namespace pwd.tests.ciphers;
 
 public sealed class ContentCipher_Tests
 {
+    [Test]
+    public async Task the_cipher_encrypts_the_message_correctly()
+    {
+        var (password, text, _) = Shared.ContentEncryptionTestData();
+        var cipher = new ContentCipher(password);
+        var encrypted = await cipher.EncryptAsync(text);
+        // to update NameEncryptionTestData uncomment the following line and update the method:
+        // Console.WriteLine(Convert.ToHexString(encrypted));
+        Assert.That(await cipher.IsEncryptedAsync(encrypted));
+    }
+
     [Test]
     public async Task the_cipher_decrypts_the_message_correctly()
     {

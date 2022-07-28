@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Abstractions;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -11,21 +12,24 @@ namespace pwd.contexts;
 public sealed class File
     : IContext
 {
+    private readonly IFileSystem _fs;
     private readonly IRepository _repository;
     private readonly IClipboard _clipboard;
     private readonly IView _view;
 
-    private Name _name;
+    private string _name;
     private string _content;
     private bool _modified;
 
     public File(
+        IFileSystem fs,
         IRepository repository,
         IClipboard clipboard,
         IView view,
-        Name name,
+        string name,
         string content)
     {
+        _fs = fs;
         _repository = repository;
         _clipboard = clipboard;
         _view = view;
@@ -44,7 +48,7 @@ public sealed class File
                 state.Up();
                 break;
             case (_, "archive", _):
-                await Archive(state);
+                Archive(state);
                 break;
             case (_, "cc", var name):
                 CopyField(name);
@@ -65,7 +69,7 @@ public sealed class File
                 Unobscured();
                 break;
             case (_, "rename", var name):
-                await Rename(new Name(name));
+                await Rename(name);
                 break;
             case (_, "rm", _):
                 Delete(state);
@@ -135,26 +139,26 @@ public sealed class File
             .ToArray();
     }
 
-    private async Task Archive(
+    private void Archive(
         IState state)
     {
-        await _repository.Archive(_name);
+        _repository.Archive(_name);
         state.Up();
     }
 
     private async Task Save()
     {
-        await _repository.WriteEncryptedAsync(_name, _content);
+        await _repository.WriteAsync(_name, _content);
         _modified = false;
     }
 
     private async Task Rename(
-        Name name)
+        string name)
     {
         if (_modified)
         {
             if (_view.Confirm("The content is not saved. Save it and rename the file?"))
-                await _repository.WriteEncryptedAsync(_name, _content);
+                await _repository.WriteAsync(_name, _content);
             else
             {
                 _view.WriteLine("Cancelled.");
@@ -162,7 +166,7 @@ public sealed class File
             }
         }
 
-        await _repository.RenameAsync(_name, name);
+        _repository.Rename(_name, name);
         _name = name;
     }
 
@@ -231,11 +235,12 @@ public sealed class File
             return;
         }
 
-        var path = await _repository.ExportToTempFile(_content);
+        var path = _fs.Path.GetTempFileName();
+        await _fs.File.WriteAllTextAsync(path, _content);
         
         try
         {
-            var startInfo = new ProcessStartInfo(editor, path.Value);
+            var startInfo = new ProcessStartInfo(editor, path);
             var process = System.Diagnostics.Process.Start(startInfo);
             if (process == null)
             {
@@ -244,7 +249,7 @@ public sealed class File
             }
 
             await process.WaitForExitAsync();
-            var content = await _repository.ReadTextAsync(path);
+            var content = await _fs.File.ReadAllTextAsync(path);
             if (content == _content || !_view.Confirm("Update the content?"))
                 return;
             Update(content);
@@ -252,7 +257,7 @@ public sealed class File
         }
         finally
         {
-            _repository.Delete(path);
+            _fs.File.Delete(path);
         }
     }
 

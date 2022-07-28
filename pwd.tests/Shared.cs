@@ -82,7 +82,8 @@ public static class Shared
         var fs = await FileLayout1(GetMockFs());
         var view = new View();
         var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
-        var session = new Session(repository, Mock.Of<Clipboard>(), view);
+        await repository.Initialise();
+        var session = new Session(fs, repository, Mock.Of<Clipboard>(), view);
         var state = new State(session);
         var handler = new AutoCompletionHandler(state);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
@@ -188,5 +189,51 @@ public sealed class ZeroCipher
     {
         using var reader = new StreamReader(stream);
         return await reader.ReadToEndAsync();
+    }
+}
+
+public sealed class BufferedView
+    : IView
+{
+    private readonly StringBuilder _output = new();
+
+    public void WriteLine(
+        string text)
+    {
+        _output.AppendLine(text);
+    }
+
+    public void Write(
+        string text)
+    {
+        _output.Append(text);
+    }
+
+    public bool Confirm(
+        string question)
+    {
+        return true;
+    }
+
+    public string Read(
+        string prompt)
+    {
+        return "";
+    }
+
+    public string ReadPassword(
+        string prompt)
+    {
+        return "";
+    }
+
+    public void Clear()
+    {
+        _output.Clear();
+    }
+
+    public override string ToString()
+    {
+        return _output.ToString();
     }
 }

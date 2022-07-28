@@ -1,4 +1,4 @@
-namespace pwd.tests;
+namespace pwd.tests.ciphers;
 
 public sealed class NameCipher_Tests
 {

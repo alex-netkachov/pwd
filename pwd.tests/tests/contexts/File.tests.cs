@@ -1,14 +1,16 @@
+using System.IO.Abstractions;
 using Moq;
 using File = pwd.contexts.File;
 
-namespace pwd.tests;
+namespace pwd.tests.contexts;
 
 public class File_Tests
 {
     private static (
         File File,
         IContext Context,
-        IRepository repository,
+        IFileSystem FileSystem,
+        IRepository Repository,
         IClipboard Clipboard,
         IView View,
         string Name)
@@ -17,6 +19,7 @@ public class File_Tests
             string name = "",
             string content = "",
             IContext? context = null,
+            IFileSystem? fs = null,
             IRepository? repository = null,
             IClipboard? clipboard = null,
             IView? view = null)
@@ -32,12 +35,14 @@ public class File_Tests
                 : name;
 
         context ??= Mock.Of<IContext>();
+        fs ??= Mock.Of<IFileSystem>();
         repository ??= Mock.Of<IRepository>();
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
 
-        return (new File(repository, clipboard, view, name, content),
+        return (new File(fs, repository, clipboard, view, name, content),
             context,
+            fs,
             repository,
             clipboard,
             view,
@@ -50,7 +55,7 @@ public class File_Tests
         var repository = new Mock<IRepository>();
         var sut = CreateFileContext(repository: repository.Object);
         await sut.File.Process(Mock.Of<IState>(), ".save");
-        repository.Verify(m => m.WriteEncryptedAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        repository.Verify(m => m.WriteAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
     
     [Test]
@@ -86,6 +91,7 @@ public class File_Tests
         var fs = Shared.GetMockFs();
         await fs.File.WriteAllBytesAsync("test1", Array.Empty<byte>());
         var repository = new Repository(fs, new ZeroCipher(), new ZeroCipher(), ".");
+        await repository.Initialise();
         var sut = CreateFileContext(repository: repository, name: "test1");
         await sut.File.Process(Mock.Of<IState>(), ".rename test2");
         Assert.That(fs.File.Exists("test2"));

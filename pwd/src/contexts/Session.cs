@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -12,15 +13,18 @@ namespace pwd.contexts;
 public sealed class Session
     : IContext
 {
+    private readonly IFileSystem _fs;
     private readonly IRepository _repository;
     private readonly IClipboard _clipboard;
     private readonly IView _view;
 
     public Session(
+        IFileSystem fs,
         IRepository repository,
         IClipboard clipboard,
         IView view)
     {
+        _fs = fs;
         _repository = repository;
         _clipboard = clipboard;
         _view = view;
@@ -33,7 +37,7 @@ public sealed class Session
         switch (Shared.ParseCommand(input))
         {
             case (_, "add", var path):
-                await Add(state, new Name(path));
+                await Add(state, path);
                 break;
             case (_, "check", _):
                 await Check();
@@ -49,12 +53,12 @@ public sealed class Session
                     break;
 
                 var items =
-                    (await _repository.GetEncryptedFilesRecursively())
-                    .Where(item => item.Name.Value.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                    (_repository.List("."))
+                    .Where(item => item.Path.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 var match =
-                    items.FirstOrDefault(item => string.Equals(item.Name.Value, input, StringComparison.OrdinalIgnoreCase));
+                    items.FirstOrDefault(item => string.Equals(item.Path, input, StringComparison.OrdinalIgnoreCase));
 
                 var chosen =
                     match == default
@@ -62,9 +66,9 @@ public sealed class Session
                         : match.Path;
 
                 if (chosen == null)
-                    _view.WriteLine(string.Join("\n", items.Select(item => item.Name).OrderBy(item => item)));
+                    _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
                 else
-                    await Open(state, chosen.Value);
+                    await Open(state, chosen);
                 break;
         }
     }
@@ -82,9 +86,9 @@ public sealed class Session
         {
             var p = input.LastIndexOf('/');
             var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-            return _repository.GetItems(new Path(folder == "" ? "." : folder)).Result
-                .Where(item => item.Value.StartsWith(input))
-                .Select(item => item.Value)
+            return _repository.List(folder == "" ? "." : folder)
+                .Where(item => item.Path.StartsWith(input))
+                .Select(item => item.Path)
                 .ToArray();
         }
 
@@ -104,17 +108,11 @@ public sealed class Session
 
     private async Task Open(
         IState state,
-        string location)
+        string name)
     {
-        var path = new Path(location);
-        var name = await _repository.GetName(path);
-        name ??= new Name(location);
-
-        if (!await _repository.IsFileEncrypted(name))
-            return;
-
         var file =
             new File(
+                _fs,
                 _repository,
                 _clipboard,
                 _view,
@@ -126,7 +124,10 @@ public sealed class Session
 
     public async Task Check()
     {
-        var files = (await _repository.GetEncryptedFilesRecursively(includeHidden: true)).ToList();
+        var files = _repository.List(".", (true, false, true)).ToList();
+
+        _view.WriteLine($"checking {files.Count} file{files.Count switch {1 => "", _ => "s"}}");
+        
         var wrongPassword = new List<string>();
         var notYaml = new List<string>();
         await Task.WhenAll(files.Select(async file =>
@@ -134,7 +135,7 @@ public sealed class Session
             string? content;
             try
             {
-                content = await _repository.ReadTextAsync(file.Path);
+                content = await _repository.ReadAsync(file.Path);
                 if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
                     content = default;
             }
@@ -145,12 +146,12 @@ public sealed class Session
 
             if (content == default)
             {
-                wrongPassword.Add(file.Name.Value);
+                wrongPassword.Add(file.Path);
                 _view.Write("*");
             }
             else if (Shared.CheckYaml(content) != null)
             {
-                notYaml.Add(file.Name.Value);
+                notYaml.Add(file.Path);
                 _view.Write("+");
             }
             else
@@ -200,14 +201,14 @@ public sealed class Session
 
     private async Task Add(
         IState state,
-        Name name)
+        string name)
     {
         var content = new StringBuilder();
         for (string? line; "" != (line = Console.ReadLine());)
             content.AppendLine((line ?? "").Replace("***", new Password().Next()));
 
-        await _repository.WriteEncryptedAsync(name, content.ToString());
+        await _repository.WriteAsync(name, content.ToString());
 
-        await Open(state, name.Value);
+        await Open(state, name);
     }
 }
