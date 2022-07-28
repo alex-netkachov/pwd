@@ -39,9 +39,6 @@ public sealed class Session
             case (_, "add", var path):
                 await Add(state, path);
                 break;
-            case (_, "check", _):
-                await Check();
-                break;
             case (_, "export", _):
                 await Export();
                 break;
@@ -96,7 +93,6 @@ public sealed class Session
             {
                 ".add",
                 ".archive",
-                ".check",
                 ".clear",
                 ".export",
                 ".pwd",
@@ -120,58 +116,6 @@ public sealed class Session
                 await _repository.ReadAsync(name));
         file.Print();
         state.Down(file);
-    }
-
-    public async Task Check()
-    {
-        var files = _repository.List(".", (true, false, true)).ToList();
-
-        _view.WriteLine($"checking {files.Count} file{files.Count switch {1 => "", _ => "s"}}");
-        
-        var wrongPassword = new List<string>();
-        var notYaml = new List<string>();
-        await Task.WhenAll(files.Select(async file =>
-        {
-            string? content;
-            try
-            {
-                content = await _repository.ReadAsync(file.Path);
-                if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
-                    content = default;
-            }
-            catch
-            {
-                content = default;
-            }
-
-            if (content == default)
-            {
-                wrongPassword.Add(file.Path);
-                _view.Write("*");
-            }
-            else if (Shared.CheckYaml(content) != null)
-            {
-                notYaml.Add(file.Path);
-                _view.Write("+");
-            }
-            else
-            {
-                _view.Write(".");
-            }
-        }));
-
-        if (files.Any())
-            _view.WriteLine("");
-
-        if (wrongPassword.Count > 0)
-        {
-            var more = wrongPassword.Count > 3 ? ", ..." : "";
-            var failuresText = string.Join(", ", wrongPassword.Take(Math.Min(3, wrongPassword.Count)));
-            throw new Exception($"Integrity check failed for: {failuresText}{more}");
-        }
-
-        if (notYaml.Count > 0)
-            _view.WriteLine($"YAML check failed for: {string.Join(", ", notYaml)}");
     }
 
     private static async Task Export()

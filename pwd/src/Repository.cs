@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.contexts;
 using static pwd.Repository;
 
 namespace pwd;
@@ -148,7 +149,8 @@ public sealed class Repository
     {
     }
 
-    public Task Initialise()
+    public Task Initialise(
+        Action<string, string?, string?, string?>? loading = null)
     {
         var initialising = new TaskCompletionSource();
         if (null != Interlocked.CompareExchange(ref _initialising, initialising, null))
@@ -159,15 +161,38 @@ public sealed class Repository
 
             // for now: one level only, no folders
             var files = EnumerateFilesystemItems(_path, (false, false, true));
+            var invalidFileNameChars = _fs.Path.GetInvalidFileNameChars();
             foreach (var file in files)
             {
                 if (!await IsFileEncrypted(_fs.Path.Combine(_path, file)))
                     continue;
+                
                 var name = await _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(_fs.Path.GetFileName(file)));
+                if (name.IndexOfAny(invalidFileNameChars) != -1)
+                {
+                    loading?.Invoke(file, null, "Invalid password.", null);
+                    continue;
+                }
+
                 var item = _root.Create(name, file);
                 item.Exists = true;
                 item.IsFolder = _fs.Directory.Exists(_fs.Path.Combine(_path, item.EncryptedPath));
                 _root.Items.Add(item);
+                
+                var content = await ReadAsync(item.Path);
+                if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
+                {
+                    loading?.Invoke(file, null, "Invalid password.", null);
+                    continue;
+                }
+
+                if (Shared.CheckYaml(content) != null)
+                {
+                    loading?.Invoke(file, name, null, "Yaml formatting error.");
+                    continue;
+                }
+
+                loading?.Invoke(file, name, null, null);
             }
 
             _initialising.SetResult();

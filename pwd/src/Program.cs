@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Abstractions;
 using System.Linq;
@@ -35,11 +36,37 @@ public static class Program
 
         var session = new Session(fs, repository, clipboard, view);
 
-        await repository.Initialise();
-        
         try
         {
-            await session.Check();
+            var decryptErrors = new List<string>();
+            var yamlErrors = new List<string>();
+            await repository.Initialise((file, name, decryptError, yamlError) =>
+            {
+                if (decryptError != null)
+                {
+                    view.Write("*");
+                    decryptErrors.Add(file);
+                }
+                else if (yamlError != null)
+                {
+                    view.Write("+");
+                    yamlErrors.Add(name ?? file);
+                }
+                else
+                    view.Write(".");
+            });
+
+            view.WriteLine("");
+
+            if (decryptErrors.Count > 0)
+            {
+                var more = decryptErrors.Count > 3 ? ", ..." : "";
+                var failuresText = string.Join(", ", decryptErrors.Take(Math.Min(3, decryptErrors.Count)));
+                view.WriteLine($"Integrity check failed for: {failuresText}{more}");
+            }
+
+            if (yamlErrors.Count > 0)
+                view.WriteLine($"YAML check failed for: {string.Join(", ", yamlErrors)}");
         }
         catch (Exception e)
         {
