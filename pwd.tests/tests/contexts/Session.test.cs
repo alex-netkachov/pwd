@@ -52,7 +52,7 @@ public sealed class Session_Tests
 
         var view = new BufferedView();
 
-        var repository = new Repository(await Shared.FileLayout1(Shared.GetMockFs()), new ZeroCipher(), cipher, ".");
+        var repository = new Repository(Shared.FileLayout1(Shared.GetMockFs()), new ZeroCipher(), cipher, ".");
         await repository.Initialise();
 
         var sut = CreateSessionContext(repository: repository, view: view);

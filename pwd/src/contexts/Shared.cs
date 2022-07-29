@@ -31,7 +31,7 @@ public static class Shared
     {
         var match = Regex.Match(input, @"^\.(\w+)(?: +(.+))?$");
         return match.Success
-            ? ("", match.Groups[1].Value, match.Groups[2].Value)
+            ? ("", match.Groups[1].Value.ToLowerInvariant(), match.Groups[2].Value)
             : (input, "", "");
     }
     

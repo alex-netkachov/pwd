@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
@@ -10,8 +9,9 @@ using PasswordGenerator;
 
 namespace pwd.contexts;
 
+/// <summary>Repository working session context.</summary>
 public sealed class Session
-    : IContext
+    : Context
 {
     private readonly IFileSystem _fs;
     private readonly IRepository _repository;
@@ -30,7 +30,7 @@ public sealed class Session
         _view = view;
     }
 
-    public async Task Process(
+    public override async Task Process(
         IState state,
         string input)
     {
@@ -49,33 +49,44 @@ public sealed class Session
                 if (await Shared.Process(input, _view))
                     break;
 
-                var items =
-                    (_repository.List("."))
-                    .Where(item => item.Path.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                if (input == "")
+                {
+                    // show all files if there is no user input 
+                    var items =
+                        _repository.List(".", (false, false, false))
+                            .Where(item => item.Path.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
 
-                var match =
-                    items.FirstOrDefault(item => string.Equals(item.Path, input, StringComparison.OrdinalIgnoreCase));
-
-                var chosen =
-                    match == default
-                        ? items.Count == 1 && input != "" ? items[0].Path : default
-                        : match.Path;
-
-                if (chosen == null)
                     _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
+                }
                 else
-                    await Open(state, chosen);
+                {
+                    // show files and folders
+                    var items =
+                        _repository.List(".", (false, true, false))
+                            .Where(item => item.Path.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+
+                    var match =
+                        items.FirstOrDefault(
+                            item => string.Equals(item.Path, input, StringComparison.OrdinalIgnoreCase));
+
+                    var chosen =
+                        match == default
+                            ? items.Count == 1 && input != "" ? items[0].Path : default
+                            : match.Path;
+
+                    if (chosen == null)
+                        _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
+                    else
+                        await Open(state, chosen);
+                }
+
                 break;
         }
     }
     
-    public string Prompt()
-    {
-        return "";
-    }
-
-    public string[] GetInputSuggestions(
+    public override string[] GetInputSuggestions(
         string input,
         int index)
     {
@@ -114,7 +125,6 @@ public sealed class Session
                 _view,
                 name,
                 await _repository.ReadAsync(name));
-        file.Print();
         state.Down(file);
     }
 
@@ -127,7 +137,7 @@ public sealed class Session
         var template = await reader.ReadToEndAsync();
         var script = string.Join(",\n  ",
             Directory.GetFiles(".")
-                .Select(file => (System.IO.Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
+                .Select(file => (Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
                 .Where(item =>
                 {
                     if (item.Item2.Length < 16) return false;

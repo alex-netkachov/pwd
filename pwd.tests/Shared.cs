@@ -44,20 +44,9 @@ public static class Shared
         return fs;
     }
 
-    public static async Task<IFileSystem> FileLayout1(IFileSystem fs)
+    public static IFileSystem FileLayout1(IFileSystem fs)
     {
-        var (pwd, text, _) = ContentEncryptionTestData();
-        var cipher = new ContentCipher(pwd);
-
-        async Task EncryptWrite(
-            string path,
-            ICipher cipher1,
-            string text1)
-        {
-            using var stream = new MemoryStream();
-            await cipher1.EncryptAsync(text1, stream);
-            await fs.File.WriteAllBytesAsync(path, stream.ToArray());
-        }
+        var (_, text, encrypted) = ContentEncryptionTestData();
 
         fs.File.WriteAllText("file", text);
         fs.File.WriteAllText(".hidden", text);
@@ -67,19 +56,19 @@ public static class Shared
         fs.Directory.CreateDirectory(".hidden_dir");
         fs.File.WriteAllText(".hidden_dir/file", text);
         fs.File.WriteAllText(".hidden_dir/.hidden", text);
-        await EncryptWrite("encrypted", cipher, text);
-        await EncryptWrite(".hidden_encrypted", cipher, text);
-        await EncryptWrite("regular_dir/encrypted", cipher, text);
-        await EncryptWrite("regular_dir/.hidden_encrypted", cipher, text);
-        await EncryptWrite(".hidden_dir/encrypted", cipher, text);
-        await EncryptWrite(".hidden_dir/.hidden_encrypted", cipher, text);
+        fs.File.WriteAllBytes("encrypted", encrypted);
+        fs.File.WriteAllBytes(".hidden_encrypted", encrypted);
+        fs.File.WriteAllBytes("regular_dir/encrypted", encrypted);
+        fs.File.WriteAllBytes("regular_dir/.hidden_encrypted", encrypted);
+        fs.File.WriteAllBytes(".hidden_dir/encrypted", encrypted);
+        fs.File.WriteAllBytes(".hidden_dir/.hidden_encrypted", encrypted);
         return fs;
     }
 
     private static async Task Test_AutoCompletionHandler()
     {
         var (pwd, _, _) = ContentEncryptionTestData();
-        var fs = await FileLayout1(GetMockFs());
+        var fs = FileLayout1(GetMockFs());
         var view = new View();
         var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
         await repository.Initialise();
@@ -147,6 +136,8 @@ public static class Shared
 public sealed class ZeroCipher
     : ICipher
 {
+    public static ICipher Instance = new ZeroCipher();
+
     public bool IsEncrypted(
         Stream stream)
     {

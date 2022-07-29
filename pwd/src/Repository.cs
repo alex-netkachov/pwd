@@ -7,7 +7,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.contexts;
-using static pwd.Repository;
 
 namespace pwd;
 
@@ -72,15 +71,15 @@ public sealed class RepositoryItem
         IRepositoryItem? item = null)
     {
         Name = name;
-        Path = PathCombine(item?.Path, name);
+        Path = Repository.PathCombine(item?.Path, name);
         EncryptedName = encryptedName;
-        EncryptedPath = PathCombine(item?.EncryptedPath, encryptedName);
+        EncryptedPath = Repository.PathCombine(item?.EncryptedPath, encryptedName);
     }
     
     public string Name { get; set; }
-    public string Path { get; set; }
+    public string Path { get; private set; }
     public string EncryptedName { get; set; }
-    public string EncryptedPath { get; set; }
+    public string EncryptedPath { get; private set; }
     public bool? IsFolder { get; set; }
     public bool Exists { get; set; }
     public List<RepositoryItem> Items { get; } = new();
@@ -88,7 +87,7 @@ public sealed class RepositoryItem
     public RepositoryItem? Get(
         string name)
     {
-        return Items.FirstOrDefault(item => item.Name.Equals(name, StringComparison.Ordinal));
+        return Items.FirstOrDefault(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
     
     public RepositoryItem Create(
@@ -111,8 +110,8 @@ public sealed class RepositoryItem
     {
         foreach (var item in Items)
         {
-            item.Path = PathCombine(Path, item.Name);
-            item.EncryptedPath = PathCombine(EncryptedPath, item.EncryptedName);
+            item.Path = Repository.PathCombine(Path, item.Name);
+            item.EncryptedPath = Repository.PathCombine(EncryptedPath, item.EncryptedName);
             item.UpdatePaths();
         }
     }
@@ -149,54 +148,144 @@ public sealed class Repository
     {
     }
 
+    /// <summary>Initialises the internal cache of the repository by iterating over the filesystem items in
+    /// the repository's folder.</summary>
     public Task Initialise(
         Action<string, string?, string?, string?>? loading = null)
     {
+        if (_initialising != null)
+            return _initialising.Task;
+
         var initialising = new TaskCompletionSource();
+
         if (null != Interlocked.CompareExchange(ref _initialising, initialising, null))
             return _initialising.Task;
+
         Task.Run(async () =>
         {
-            _root.Items.Clear();
-
-            // for now: one level only, no folders
-            var files = EnumerateFilesystemItems(_path, (false, false, true));
             var invalidFileNameChars = _fs.Path.GetInvalidFileNameChars();
-            foreach (var file in files)
+
+            // items is a list of relative paths of all the files in folders in the repository's folder
+            var items =
+                EnumerateFilesystemItems(
+                        _path,
+                        (Recursively: true,
+                            IncludeFolders: true,
+                            IncludeDottedFilesAndFolders: true))
+                    .ToList();
+
+            foreach (var item in items)
             {
-                if (!await IsFileEncrypted(_fs.Path.Combine(_path, file)))
-                    continue;
+                var itemPath = _fs.Path.Combine(_path, item);
+
+                var isFolder = _fs.Directory.Exists(itemPath);
                 
-                var name = await _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(_fs.Path.GetFileName(file)));
-                if (name.IndexOfAny(invalidFileNameChars) != -1)
-                {
-                    loading?.Invoke(file, null, "Invalid password.", null);
-                    continue;
-                }
-
-                var item = _root.Create(name, file);
-                item.Exists = true;
-                item.IsFolder = _fs.Directory.Exists(_fs.Path.Combine(_path, item.EncryptedPath));
-                _root.Items.Add(item);
+                var names = item.Split('/');
                 
-                var content = await ReadAsync(item.Path);
-                if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
+                var folders = isFolder ? names : names.Take(names.Length - 1).ToArray();
+                var name = isFolder ? "" : names[^1];
+                
+                // create folders in the internal cache
+                var repositoryItem = _root;
+                foreach (var folder in folders)
                 {
-                    loading?.Invoke(file, null, "Invalid password.", null);
+                    var next =
+                        repositoryItem.Items
+                            .FirstOrDefault(value => value.EncryptedName.Equals(folder, StringComparison.Ordinal));
+
+                    // the folder is already in the cache
+                    if (next != null)
+                    {
+                        repositoryItem = next;
+                        continue;
+                    }
+
+                    // the folder is not in the cache, create it if it is encrypted
+                    var folderNameBytes = Encoding.UTF8.GetBytes(folder);
+                    if (!await _nameCipher.IsEncryptedAsync(folderNameBytes))
+                    {
+                        repositoryItem = null;
+                        break;
+                    }
+
+                    var folderName = await _nameCipher.DecryptStringAsync(folderNameBytes);
+                    if (folderName.IndexOfAny(invalidFileNameChars) != -1)
+                    {
+                        repositoryItem = null;
+                        break;
+                    }
+
+                    next = repositoryItem.Create(folderName, folder);
+                    next.IsFolder = true;
+                    next.Exists = true;
+                    repositoryItem.Items.Add(next);
+                    repositoryItem = next;
+                }
+
+                if (repositoryItem == null)
+                {
+                    loading?.Invoke(item, null, "Invalid password.", null);
                     continue;
                 }
 
-                if (Shared.CheckYaml(content) != null)
+                // if the last part of the path is a file
+                if (!isFolder)
                 {
-                    loading?.Invoke(file, name, null, "Yaml formatting error.");
-                    continue;
-                }
+                    if (!await _nameCipher.IsEncryptedAsync(Encoding.UTF8.GetBytes(name)))
+                        continue;
 
-                loading?.Invoke(file, name, null, null);
+                    try
+                    {
+                        await using var stream = _fs.File.OpenRead(itemPath);
+                        if (!await _contentCipher.IsEncryptedAsync(stream))
+                        {
+                            loading?.Invoke(item, null, "Cannot decrypt a file.", null);
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        loading?.Invoke(item, null, "Cannot decrypt a file.", null);
+                        continue;
+                    }
+
+                    string content;
+                    try
+                    {
+                        await using var stream = _fs.File.OpenRead(itemPath);
+                        content = await _contentCipher.DecryptStringAsync(stream);
+                    }
+                    catch
+                    {
+                        loading?.Invoke(item, null, "Cannot decrypt a file.", null);
+                        continue;
+                    }
+
+                    if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
+                    {
+                        loading?.Invoke(item, null, "Invalid password.", null);
+                        continue;
+                    }
+
+                    var fileName = await _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(name));
+                    var fileItem = repositoryItem.Create(fileName, name);
+                    fileItem.IsFolder = false;
+                    fileItem.Exists = true;
+                    repositoryItem.Items.Add(fileItem);
+                    
+                    if (Shared.CheckYaml(content) != null)
+                    {
+                        loading?.Invoke(item, fileName, null, "Yaml formatting error.");
+                        continue;
+                    }
+
+                    loading?.Invoke(item, fileName, null, null);
+                }
             }
 
             _initialising.SetResult();
         });
+
         return _initialising.Task;
     }
     
@@ -221,9 +310,6 @@ public sealed class Repository
         string path,
         (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default)
     {
-        bool IsDotted(IRepositoryItem info) =>
-            info.Name[0] is '.' or '_';
-
         var names =
             string.IsNullOrEmpty(path) || path == "."
                 ? Enumerable.Empty<string>()
@@ -236,17 +322,24 @@ public sealed class Repository
             if (item == null)
                 return Enumerable.Empty<IRepositoryItem>();
         }
-        
+
+        return List(item, options);
+    }
+    
+    private static IEnumerable<IRepositoryItem> List(
+        RepositoryItem item,
+        (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default)
+    {
         return item.Items
             .OrderBy(value => value.IsFolder)
             .ThenBy(value => value.Name)
             .SelectMany(value => value switch
             {
-                {IsFolder: false} when !IsDotted(value) || options.IncludeDottedFilesAndFolders =>
+                {IsFolder: false} when value.Name[0] is not ('.' or '_') || options.IncludeDottedFilesAndFolders =>
                     new[] {value},
-                {IsFolder: true} when !IsDotted(value) || options.IncludeDottedFilesAndFolders =>
+                {IsFolder: true} when value.Name[0] is not ('.' or '_') || options.IncludeDottedFilesAndFolders =>
                     (options.Recursively
-                        ? List(PathCombine(path, value.Name), options)
+                        ? List(value, options)
                         : Array.Empty<IRepositoryItem>())
                     .Concat(
                         options.IncludeFolders
@@ -367,23 +460,15 @@ public sealed class Repository
         return container;
     }
 
-    private static RepositoryItem CreateFile(
+    private static void CreateFile(
         RepositoryItem folder,
         string name,
         string encryptedName)
     {
         var item = folder.Create(name, encryptedName);
         folder.Items.Add(item);
-        return item;
     }
     
-    private async Task<bool> IsFileEncrypted(
-        string path)
-    {
-        await using var stream = _fs.File.OpenRead(path);
-        return await _contentCipher.IsEncryptedAsync(stream);
-    }
-
     private IReadOnlyList<RepositoryItem> PathItems(
         string path,
         bool? isFolder = null)

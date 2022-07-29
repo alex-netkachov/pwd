@@ -36,5 +36,6 @@ public class State
         IContext context)
     {
         _stack.Push(context);
+        context.Open();
     }
 }

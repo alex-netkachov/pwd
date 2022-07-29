@@ -9,8 +9,9 @@ using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts;
 
+/// <summary>Encrypted file context.</summary>
 public sealed class File
-    : IContext
+    : Context
 {
     private readonly IFileSystem _fs;
     private readonly IRepository _repository;
@@ -38,7 +39,7 @@ public sealed class File
         _modified = false;
     }
 
-    public async Task Process(
+    public override async Task Process(
         IState state,
         string input)
     {
@@ -85,12 +86,18 @@ public sealed class File
         }
     }
 
-    public string Prompt()
+    public override Task Open()
+    {
+        Print();
+        return Task.CompletedTask;
+    }
+
+    public override string Prompt()
     {
         return $"{(_modified ? "*" : "")}{_name}";
     }
 
-    public string[] GetInputSuggestions(
+    public override string[] GetInputSuggestions(
         string input,
         int index)
     {
@@ -114,7 +121,7 @@ public sealed class File
             return mappingNode
                 .Children
                 .Select(item => item.Key.ToString())
-                .Where(item => item.StartsWith(prefix, StringComparison.Ordinal))
+                .Where(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .Select(item => $".cc {item}")
                 .ToArray();
         }
@@ -135,7 +142,7 @@ public sealed class File
                 ".save",
                 ".unobscured"
             }
-            .Where(item => item.StartsWith(input))
+            .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
             .ToArray();
     }
 
