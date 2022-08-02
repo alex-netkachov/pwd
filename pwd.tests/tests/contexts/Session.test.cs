@@ -1,5 +1,4 @@
 using System.IO.Abstractions;
-using System.Text;
 using Moq;
 using pwd.contexts;
 
@@ -11,22 +10,26 @@ public sealed class Session_Tests
         Session Session,
         IFileSystem FileSystem,
         IRepository Repository,
+        IExporter Exporter,
         IClipboard Clipboard,
         IView View)
         CreateSessionContext(
             IFileSystem? fs = null,
             IRepository? repository = null,
+            IExporter? exporter = null,
             IClipboard? clipboard = null,
             IView? view = null)
     {
         fs ??= Mock.Of<IFileSystem>();
         repository ??= Mock.Of<IRepository>();
+        exporter ??= Mock.Of<IExporter>();
         clipboard ??= Mock.Of<IClipboard>();
         view ??= Mock.Of<IView>();
 
-        return (new Session(fs, repository, clipboard, view),
+        return (new Session(fs, exporter, repository, clipboard, view),
             fs,
             repository,
+            exporter,
             clipboard,
             view);
     }

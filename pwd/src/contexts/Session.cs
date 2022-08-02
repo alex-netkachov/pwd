@@ -1,8 +1,6 @@
 using System;
-using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using PasswordGenerator;
@@ -14,17 +12,20 @@ public sealed class Session
     : Context
 {
     private readonly IFileSystem _fs;
+    private readonly IExporter _exporter;
     private readonly IRepository _repository;
     private readonly IClipboard _clipboard;
     private readonly IView _view;
 
     public Session(
         IFileSystem fs,
+        IExporter exporter, 
         IRepository repository,
         IClipboard clipboard,
         IView view)
     {
         _fs = fs;
+        _exporter = exporter;
         _repository = repository;
         _clipboard = clipboard;
         _view = view;
@@ -39,8 +40,8 @@ public sealed class Session
             case (_, "add", var path):
                 await Add(state, path);
                 break;
-            case (_, "export", _):
-                await Export();
+            case (_, "export", var path):
+                await Export(path);
                 break;
             case (_, "open", var path):
                 await Open(state, path);
@@ -128,29 +129,13 @@ public sealed class Session
         state.Down(file);
     }
 
-    private static async Task Export()
+    private async Task Export(
+        string path)
     {
-        await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.template.html");
-        if (stream == null)
-            return;
-        using var reader = new StreamReader(stream);
-        var template = await reader.ReadToEndAsync();
-        var script = string.Join(",\n  ",
-            Directory.GetFiles(".")
-                .Select(file => (Path.GetFileName(file), System.IO.File.ReadAllBytes(file)))
-                .Where(item =>
-                {
-                    if (item.Item2.Length < 16) return false;
-                    var prefix = new byte[8];
-                    Array.Copy(item.Item2, 0, prefix, 0, prefix.Length);
-                    var text = Encoding.ASCII.GetString(prefix);
-                    return text == "Salted__";
-                })
-                .OrderBy(item => item.Item1)
-                .Select(item => (item.Item1, string.Join("", item.Item2.Select(value => value.ToString("x2")))))
-                .Select(item => $"'{item.Item1}' : '{item.Item2}'"));
-        var content = template.Replace("const files = { };", $"const files = {{\n  {script}\n}};");
-        await System.IO.File.WriteAllTextAsync("_index.html", content);
+        await _exporter.Export(
+            string.IsNullOrEmpty(path)
+                ? "_index.html"
+                : path);
     }
 
     private async Task Add(

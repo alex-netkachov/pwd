@@ -96,4 +96,22 @@ public sealed class Repository_Tests
         var items = repository.List(".", (true, false, false)).ToList();
         Assert.That(string.Join(";", items.Select(item => item.Path)), Is.EqualTo("test1;test2;f/test1;f/test2"));
     }
+
+    [Test]
+    public async Task writing_creates_a_file()
+    {
+        var fs = Shared.GetMockFs();
+        var repository = new Repository(fs, ZeroCipher.Instance, ZeroCipher.Instance, ".");
+        await repository.Initialise();
+        
+        // writing a file creates a new one
+        await repository.WriteAsync("test", "test");
+        Assert.That(fs.Directory.EnumerateFiles(".").Count(), Is.EqualTo(1));
+        Assert.That(repository.List(".").Count(), Is.EqualTo(1));
+        
+        // overwriting a file does not create a new one
+        await repository.WriteAsync("test", "test");
+        Assert.That(fs.Directory.EnumerateFiles(".").Count(), Is.EqualTo(1));
+        Assert.That(repository.List(".").Count(), Is.EqualTo(1));
+    }
 }

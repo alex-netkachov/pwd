@@ -23,18 +23,18 @@ public static class Program
 
         var path = fs.Path.GetFullPath(".");
 
-        var repository =
-            new Repository(
-                fs,
-                new NameCipher(password),
-                new ContentCipher(password),
-                path);
+        var nameCipher = new NameCipher(password);
+        var contentCipher = new ContentCipher(password);
+
+        var repository = new Repository(fs, nameCipher, contentCipher, path);
         
         view.WriteLine($"repository.path = {path}");
 
-        var clipboard = new Clipboard();
+        var exporter = new Exporter(contentCipher, repository, fs);
 
-        var session = new Session(fs, repository, clipboard, view);
+        var clipboard = new Clipboard();
+        
+        var session = new Session(fs, exporter, repository, clipboard, view);
 
         try
         {

@@ -397,11 +397,11 @@ public sealed class Repository
         string path,
         string text)
     {
-        var (folders, file) = Tail(PathItems(path));
-        if (file.Exists)
-            throw new("Cannot overwrite an existing file.");
-        
-        _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(file.EncryptedPath));
+        var (folders, file) = Tail(PathItems(path, false));
+
+        if (folders.Count > 1)
+            _fs.Directory.CreateDirectory(_fs.Path.GetDirectoryName(file.EncryptedPath));
+
         var folder = CreateFolders(folders);
 
         using var stream = new MemoryStream();
@@ -409,7 +409,11 @@ public sealed class Repository
 
         await _fs.File.WriteAllBytesAsync(file.EncryptedPath, stream.ToArray());
 
-        CreateFile(folder, file.Name, file.EncryptedName);
+        if (!file.Exists)
+        {
+            file.Exists = true;
+            folder.Items.Add(file);
+        }
     }
 
     private IEnumerable<string> EnumerateFilesystemItems(
@@ -458,15 +462,6 @@ public sealed class Repository
             container = item;
         }
         return container;
-    }
-
-    private static void CreateFile(
-        RepositoryItem folder,
-        string name,
-        string encryptedName)
-    {
-        var item = folder.Create(name, encryptedName);
-        folder.Items.Add(item);
     }
     
     private IReadOnlyList<RepositoryItem> PathItems(

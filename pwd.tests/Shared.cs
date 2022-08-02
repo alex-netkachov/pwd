@@ -72,7 +72,7 @@ public static class Shared
         var view = new View();
         var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
         await repository.Initialise();
-        var session = new Session(fs, repository, Mock.Of<Clipboard>(), view);
+        var session = new Session(fs, Mock.Of<IExporter>(), repository, Mock.Of<Clipboard>(), view);
         var state = new State(session);
         var handler = new AutoCompletionHandler(state);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
