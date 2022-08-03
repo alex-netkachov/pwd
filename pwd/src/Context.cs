@@ -5,43 +5,47 @@ namespace pwd;
 
 public interface IContext
 {
-    Task Process(
-        IState state,
-        string input);
-    
-    string Prompt();
+   Task Process(
+      string input);
 
-    Task Open();
+   string Prompt();
 
-    string[] GetInputSuggestions(
-        string input,
-        int index);
+   Task Open();
+
+   string[] GetInputSuggestions(
+      string input,
+      int index);
 }
 
 public abstract class Context
-    : IContext
+   : IContext
 {
-    public virtual Task Process(
-        IState state,
-        string input)
-    {
-        return Task.CompletedTask;
-    }
+   public virtual Task Process(
+      string input)
+   {
+      return Task.CompletedTask;
+   }
 
-    public virtual string Prompt()
-    {
-        return "";
-    }
+   public virtual string Prompt()
+   {
+      return "";
+   }
 
-    public virtual Task Open()
-    {
-        return Task.CompletedTask;
-    }
+   public virtual Task Open()
+   {
+      return Task.CompletedTask;
+   }
 
-    public virtual string[] GetInputSuggestions(
-        string input,
-        int index)
-    {
-        return Array.Empty<string>();
-    }
+   public virtual string[] GetInputSuggestions(
+      string input,
+      int index)
+   {
+      return Array.Empty<string>();
+   }
+}
+
+public sealed class NullContext
+   : Context
+{
+   public static IContext Instance { get; } = new NullContext();
 }

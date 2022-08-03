@@ -5,172 +5,170 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Session = pwd.contexts.Session;
+using pwd.contexts;
 
-[assembly:InternalsVisibleTo("pwd.tests")]
+[assembly: InternalsVisibleTo("pwd.tests")]
 
 namespace pwd;
 
 public static class Program
 {
-    internal static async Task Run(
-        IFileSystem fs,
-        IView view,
-        Action<IState> init,
-        Action<IFileSystem, IView> done)
-    {
-        var password = view.ReadPassword("Password: ");
+   internal static async Task Run(
+      IFileSystem fs,
+      IView view,
+      IClipboard clipboard,
+      IState state)
+   {
+      // read the password and initialise ciphers 
+      var password = view.ReadPassword("Password: ");
+      var nameCipher = new NameCipher(password);
+      var contentCipher = new ContentCipher(password);
 
-        var path = fs.Path.GetFullPath(".");
+      // open the repository from the current working folder
+      var path = fs.Path.GetFullPath(".");
+      view.WriteLine($"path = {path}");
+      using var repository = new Repository(fs, nameCipher, contentCipher, path);
 
-        var nameCipher = new NameCipher(password);
-        var contentCipher = new ContentCipher(password);
+      var exporter = new Exporter(contentCipher, repository, fs);
 
-        var repository = new Repository(fs, nameCipher, contentCipher, path);
-        
-        view.WriteLine($"repository.path = {path}");
+      File FileFactory(string name, string content)
+      {
+         return new(clipboard, fs, repository, state, view, name, content);
+      }
 
-        var exporter = new Exporter(contentCipher, repository, fs);
+      var session = new Session(exporter, repository, state, view, FileFactory);
 
-        var clipboard = new Clipboard();
-        
-        var session = new Session(fs, exporter, repository, clipboard, view);
+      state.Open(session);
 
-        try
-        {
-            var decryptErrors = new List<string>();
-            var yamlErrors = new List<string>();
-            await repository.Initialise((file, name, decryptError, yamlError) =>
+      try
+      {
+         var decryptErrors = new List<string>();
+         var yamlErrors = new List<string>();
+         await repository.Initialise((file, name, decryptError, yamlError) =>
+         {
+            if (decryptError != null)
             {
-                if (decryptError != null)
-                {
-                    view.Write("*");
-                    decryptErrors.Add(file);
-                }
-                else if (yamlError != null)
-                {
-                    view.Write("+");
-                    yamlErrors.Add(name ?? file);
-                }
-                else
-                    view.Write(".");
-            });
-
-            view.WriteLine("");
-
-            if (decryptErrors.Count > 0)
-            {
-                var more = decryptErrors.Count > 3 ? ", ..." : "";
-                var failuresText = string.Join(", ", decryptErrors.Take(Math.Min(3, decryptErrors.Count)));
-                view.WriteLine($"Integrity check failed for: {failuresText}{more}");
+               view.Write("*");
+               decryptErrors.Add(file);
             }
+            else if (yamlError != null)
+            {
+               view.Write("+");
+               yamlErrors.Add(name ?? file);
+            }
+            else
+            {
+               view.Write(".");
+            }
+         });
 
-            if (yamlErrors.Count > 0)
-                view.WriteLine($"YAML check failed for: {string.Join(", ", yamlErrors)}");
-        }
-        catch (Exception e)
-        {
-            await Console.Error.WriteLineAsync(e.ToString());
+         view.WriteLine("");
+
+         if (decryptErrors.Count > 0)
+         {
+            var more = decryptErrors.Count > 3 ? ", ..." : "";
+            var failuresText = string.Join(", ", decryptErrors.Take(Math.Min(3, decryptErrors.Count)));
+            view.WriteLine($"Integrity check failed for: {failuresText}{more}");
+         }
+
+         if (yamlErrors.Count > 0)
+            view.WriteLine($"YAML check failed for: {string.Join(", ", yamlErrors)}");
+      }
+      catch (Exception e)
+      {
+         await Console.Error.WriteLineAsync(e.ToString());
+         return;
+      }
+
+      var files = repository.List(".", (true, false, true)).ToList();
+      view.WriteLine($"repository contains {files.Count} file{files.Count switch {1 => "", _ => "s"}}");
+
+      if (files.Count == 0)
+      {
+         var confirmPassword =
+            view.ReadPassword("It seems that you are creating a new repository. Please confirm password: ");
+         if (confirmPassword != password)
+         {
+            await Console.Error.WriteLineAsync("passwords do not match");
             return;
-        }
+         }
+      }
 
-        var files = repository.List(".", (true, false, true)).ToList();
-        view.WriteLine($"repository contains {files.Count} file{files.Count switch {1 => "", _ => "s"}}");
+      while (true)
+      {
+         var input = view.Read($"{state.Context.Prompt()}> ").Trim();
 
-        if (files.Count == 0)
-        {
-            var confirmPassword =
-                view.ReadPassword("It seems that you are creating a new repository. Please confirm password: ");
-            if (confirmPassword != password)
+         if (input == ".quit")
+            break;
+
+         try
+         {
+            await state.Context.Process(input);
+         }
+         catch (Exception e)
+         {
+            await Console.Error.WriteLineAsync(e.Message);
+         }
+      }
+   }
+
+   public static async Task Main(
+      string[] args)
+   {
+      var fs = new FileSystem();
+      using var clipboard = new Clipboard();
+      var state = new State(NullContext.Instance);
+      var view = new View(state);
+
+      await Run(
+         fs,
+         view,
+         clipboard,
+         state);
+
+      view.Clear();
+      if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") ||
+           fs.Directory.Exists("../../.git")) &&
+          view.Confirm("Update the repository?"))
+      {
+         var tempQualifier = new[] {"add *", "commit -m update", "push"}
+            .Select(_ =>
             {
-                await Console.Error.WriteLineAsync("passwords do not match");
-                return;
-            }
-        }
+               try
+               {
+                  Process.Start(new ProcessStartInfo("git", _))?.WaitForExit();
+                  return default;
+               }
+               catch (Exception e)
+               {
+                  return e;
+               }
+            })
+            .FirstOrDefault(e => e != null);
 
-        var state = new State(session);
-
-        init(state);
-
-        while (true)
-        {
-            var input = view.Read($"{state.Context.Prompt()}> ").Trim();
-            
-            if (input == ".quit")
-                break;
-            
-            try
-            {
-                await state.Context.Process(state, input);
-            }
-            catch (Exception e)
-            {
-                await Console.Error.WriteLineAsync(e.Message);
-            }
-        }
-
-        clipboard.Dispose();
-
-        done(fs, view);
-    }
-
-    public static async Task Main(
-        string[] args)
-    {
-        await Run(
-            new FileSystem(),
-            new View(),
-            state =>
-            {
-                ReadLine.HistoryEnabled = true;
-                ReadLine.AutoCompletionHandler = new AutoCompletionHandler(state);
-            },
-            (fs, view) =>
-            {
-                view.Clear();
-                if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") ||
-                     fs.Directory.Exists("../../.git")) &&
-                    view.Confirm("Update the repository?"))
-                {
-                    var tempQualifier = new[] {"add *", "commit -m update", "push"}
-                        .Select(_ =>
-                        {
-                            try
-                            {
-                                Process.Start(new ProcessStartInfo("git", _))?.WaitForExit();
-                                return default;
-                            }
-                            catch (Exception e)
-                            {
-                                return e;
-                            }
-                        })
-                        .FirstOrDefault(e => e != null);
-
-                    if (tempQualifier != null)
-                        Console.Error.WriteLine(tempQualifier);
-                }
-            });
-    }
+         if (tempQualifier != null)
+            Console.Error.WriteLine(tempQualifier);
+      }
+   }
 }
 
 public class AutoCompletionHandler
-    : IAutoCompleteHandler
+   : IAutoCompleteHandler
 {
-    private readonly IState _state;
+   private readonly IState _state;
 
-    public AutoCompletionHandler(
-        IState state)
-    {
-        _state = state;
-    }
+   public AutoCompletionHandler(
+      IState state)
+   {
+      _state = state;
+   }
 
-    public char[] Separators { get; set; } = Array.Empty<char>();
+   public char[] Separators { get; set; } = Array.Empty<char>();
 
-    public string[] GetSuggestions(
-        string text,
-        int index)
-    {
-        return _state.Context.GetInputSuggestions(text, index);
-    }
+   public string[] GetSuggestions(
+      string text,
+      int index)
+   {
+      return _state.Context.GetInputSuggestions(text, index);
+   }
 }

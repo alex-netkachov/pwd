@@ -4,60 +4,67 @@ namespace pwd;
 
 public interface IView
 {
-    void WriteLine(
-        string text);
+   void WriteLine(
+      string text);
 
-    void Write(
-        string text);
+   void Write(
+      string text);
 
-    bool Confirm(
-        string question);
+   bool Confirm(
+      string question);
 
-    string Read(
-        string prompt);
+   string Read(
+      string prompt);
 
-    string ReadPassword(
-        string prompt);
+   string ReadPassword(
+      string prompt);
 
-    void Clear();
+   void Clear();
 }
 
 public sealed class View
-    : IView
+   : IView
 {
-    public void WriteLine(
-        string text)
-    {
-        Console.WriteLine(text);
-    }
+   public View(
+      IState state)
+   {
+      ReadLine.HistoryEnabled = true;
+      ReadLine.AutoCompletionHandler = new AutoCompletionHandler(state);
+   }
 
-    public void Write(
-        string text)
-    {
-        Console.Write(text);
-    }
+   public void WriteLine(
+      string text)
+   {
+      Console.WriteLine(text);
+   }
 
-    public bool Confirm(
-        string question)
-    {
-        Console.Write($"{question} (y/N) ");
-        return Console.ReadLine()?.ToUpperInvariant() == "Y";
-    }
+   public void Write(
+      string text)
+   {
+      Console.Write(text);
+   }
 
-    public string Read(
-        string prompt)
-    {
-        return ReadLine.Read(prompt);
-    }
+   public bool Confirm(
+      string question)
+   {
+      Console.Write($"{question} (y/N) ");
+      return Console.ReadLine()?.ToUpperInvariant() == "Y";
+   }
 
-    public string ReadPassword(
-        string prompt)
-    {
-        return ReadLine.ReadPassword(prompt);
-    }
+   public string Read(
+      string prompt)
+   {
+      return ReadLine.Read(prompt);
+   }
 
-    public void Clear()
-    {
-        Console.Clear();
-    }
+   public string ReadPassword(
+      string prompt)
+   {
+      return ReadLine.ReadPassword(prompt);
+   }
+
+   public void Clear()
+   {
+      Console.Clear();
+   }
 }

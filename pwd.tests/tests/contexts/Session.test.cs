@@ -1,37 +1,25 @@
-using System.IO.Abstractions;
 using Moq;
 using pwd.contexts;
+using File = pwd.contexts.File;
 
 namespace pwd.tests.contexts;
 
 public sealed class Session_Tests
 {
-    private static (
-        Session Session,
-        IFileSystem FileSystem,
-        IRepository Repository,
-        IExporter Exporter,
-        IClipboard Clipboard,
-        IView View)
+    private static Session
         CreateSessionContext(
-            IFileSystem? fs = null,
             IRepository? repository = null,
             IExporter? exporter = null,
-            IClipboard? clipboard = null,
-            IView? view = null)
+            IView? view = null,
+            IState? state = null,
+            File.Factory? fileFactory = null)
     {
-        fs ??= Mock.Of<IFileSystem>();
-        repository ??= Mock.Of<IRepository>();
-        exporter ??= Mock.Of<IExporter>();
-        clipboard ??= Mock.Of<IClipboard>();
-        view ??= Mock.Of<IView>();
-
-        return (new Session(fs, exporter, repository, clipboard, view),
-            fs,
-            repository,
-            exporter,
-            clipboard,
-            view);
+        return new Session(
+            exporter ?? Mock.Of<IExporter>(),
+            repository ?? Mock.Of<IRepository>(),
+            state ?? Mock.Of<IState>(),
+            view ?? Mock.Of<IView>(),
+            fileFactory ?? (File.Factory) ((_, _) => Mock.Of<pwd.contexts.IFile>()));
     }
 
     [Test]
@@ -46,24 +34,28 @@ public sealed class Session_Tests
     [TestCase("regular_dir/.hidden_encrypted")]
     [TestCase(".hidden_dir/encrypted")]
     [TestCase(".hidden_dir/.hidden_encrypted")]
+    [Category("Integration")]
     public async Task open_file(
         string file)
     {
         var (pwd, text, _) = Shared.ContentEncryptionTestData();
 
         var cipher = new ContentCipher(pwd);
-
         var view = new BufferedView();
-
-        var repository = new Repository(Shared.FileLayout1(Shared.GetMockFs()), new ZeroCipher(), cipher, ".");
+        var fs = Shared.FileLayout1(Shared.GetMockFs());
+        var state = new State(NullContext.Instance);
+        var repository = new Repository(fs, new ZeroCipher(), cipher, ".");
         await repository.Initialise();
 
-        var sut = CreateSessionContext(repository: repository, view: view);
+        var session =
+            CreateSessionContext(
+                repository: repository,
+                view: view,
+                state: state,
+                fileFactory: (name, content) =>
+                    new File(Mock.Of<IClipboard>(), fs, repository, state, view, name, content));
 
-        var session = sut.Session;
-
-        var state = new State(session);
-        await session.Process(state, $".open {file}");
+        await session.Process($".open {file}");
         Assert.That(view.ToString().Trim(), Is.EqualTo(text));
     }
 }

@@ -69,10 +69,16 @@ public static class Shared
     {
         var (pwd, _, _) = ContentEncryptionTestData();
         var fs = FileLayout1(GetMockFs());
-        var view = new View();
+        var view = new View(Mock.Of<IState>());
         var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
         await repository.Initialise();
-        var session = new Session(fs, Mock.Of<IExporter>(), repository, Mock.Of<Clipboard>(), view);
+        var session =
+            new Session(
+                Mock.Of<IExporter>(),
+                repository,
+                Mock.Of<IState>(),
+                view,
+                (nameof, content) => Mock.Of<pwd.contexts.IFile>());
         var state = new State(session);
         var handler = new AutoCompletionHandler(state);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
@@ -89,7 +95,6 @@ public static class Shared
     {
         var (pwd, _, _) = ContentEncryptionTestData();
         var fs = GetMockFs();
-        var session = default(Session);
 
         var testData = new MemoryStream();
         await new ContentCipher(pwd).EncryptAsync("user: user\npassword: password\n", testData);
@@ -123,7 +128,8 @@ public static class Shared
         view.Setup(m => m.ReadPassword(It.IsAny<string>())).Returns(read);
         var stdout = Console.Out;
         Console.SetOut(new StringWriter(stdoutBuilder));
-        await Program.Run(fs, view.Object, s => session = (Session) s.Context, (_, _) => { });
+        var state = new State(NullContext.Instance);
+        await Program.Run(fs, view.Object, Mock.Of<IClipboard>(), state);
         Console.SetOut(stdout);
         var expected = string.Join("\n", "Password: secret",
             "It seems that you are creating a new repository. Please confirm password: secret", ">", "> test",
