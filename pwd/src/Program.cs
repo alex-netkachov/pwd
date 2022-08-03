@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using pwd.contexts;
+using IFile=pwd.contexts.IFile;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
 
@@ -31,12 +32,17 @@ public static class Program
 
       var exporter = new Exporter(contentCipher, repository, fs);
 
-      File FileFactory(string name, string content)
+      IFile FileFactory(string name, string content)
       {
-         return new(clipboard, fs, repository, state, view, name, content);
+         return new File(clipboard, fs, repository, state, view, name, content);
       }
 
-      var session = new Session(exporter, repository, state, view, FileFactory);
+      INewFile NewFileFactory(string name)
+      {
+         return new NewFile(repository, state, view, name);
+      }
+
+      var session = new Session(exporter, repository, state, view, FileFactory, NewFileFactory);
 
       state.Open(session);
 

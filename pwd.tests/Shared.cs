@@ -2,7 +2,11 @@ using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.Text;
 using Moq;
+using pwd.contexts;
 using Session = pwd.contexts.Session;
+using File = pwd.contexts.File;
+using IFile = pwd.contexts.File;
+
 
 // ReSharper disable UnusedMember.Local because the tests are called through reflection
 
@@ -33,6 +37,46 @@ public static class Shared
             "only you can protect what is yours",
             Convert.FromHexString(
                 "475349596B69396453506F675378444A525F73396D6D636E616D6A746A3734616E4D43793255324B6A464B48345F335234477859675452326C446E726778352B694E654A573375474F63737E"));
+    }
+
+    public static File CreateFileContext(
+        string path = "",
+        string name = "",
+        string content = "",
+        IFileSystem? fs = null,
+        IRepository? repository = null,
+        IClipboard? clipboard = null,
+        IView? view = null,
+        IState? state = null)
+    {
+        path = string.IsNullOrEmpty(path) ? Path.GetFileName(Path.GetTempFileName()) : path;
+        name = string.IsNullOrEmpty(path) ? Path.GetFileName(path) : name;
+
+        return new File(
+            clipboard ?? Mock.Of<IClipboard>(),
+            fs ?? Mock.Of<IFileSystem>(),
+            repository ?? Mock.Of<IRepository>(),
+            state ?? Mock.Of<IState>(),
+            view ?? Mock.Of<IView>(),
+            name,
+            content);
+    }
+
+    public static Session CreateSessionContext(
+        IRepository? repository = null,
+        IExporter? exporter = null,
+        IView? view = null,
+        IState? state = null,
+        File.Factory? fileFactory = null,
+        NewFile.Factory? newFileFactory = null)
+    {
+        return new Session(
+            exporter ?? Mock.Of<IExporter>(),
+            repository ?? Mock.Of<IRepository>(),
+            state ?? Mock.Of<IState>(),
+            view ?? Mock.Of<IView>(),
+            fileFactory ?? (File.Factory) ((_, _) => Mock.Of<IFile>()),
+            newFileFactory ?? (NewFile.Factory) (_ => Mock.Of<INewFile>()));
     }
 
     public static IFileSystem GetMockFs()
@@ -72,13 +116,7 @@ public static class Shared
         var view = new View(Mock.Of<IState>());
         var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
         await repository.Initialise();
-        var session =
-            new Session(
-                Mock.Of<IExporter>(),
-                repository,
-                Mock.Of<IState>(),
-                view,
-                (nameof, content) => Mock.Of<pwd.contexts.IFile>());
+        var session = CreateSessionContext(repository: repository, view: view);
         var state = new State(session);
         var handler = new AutoCompletionHandler(state);
         Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");

@@ -1,8 +1,6 @@
 using System;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using PasswordGenerator;
 
 namespace pwd.contexts;
 
@@ -11,23 +9,26 @@ public sealed class Session
    : Context
 {
    private readonly IExporter _exporter;
-   private readonly File.Factory _fileFactory;
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
+   private readonly File.Factory _fileFactory;
+   private readonly NewFile.Factory _newFileFactory;
 
    public Session(
       IExporter exporter,
       IRepository repository,
       IState state,
       IView view,
-      File.Factory fileFactory)
+      File.Factory fileFactory,
+      NewFile.Factory newFileFactory)
    {
       _exporter = exporter;
       _repository = repository;
       _state = state;
       _view = view;
       _fileFactory = fileFactory;
+      _newFileFactory = newFileFactory;
    }
 
    public override async Task Process(
@@ -134,12 +135,7 @@ public sealed class Session
    private async Task Add(
       string name)
    {
-      var content = new StringBuilder();
-      for (string? line; "" != (line = Console.ReadLine());)
-         content.AppendLine((line ?? "").Replace("***", new Password().Next()));
-
-      await _repository.WriteAsync(name, content.ToString());
-
+      _state.Open(_newFileFactory(name));
       await Open(name);
    }
 }

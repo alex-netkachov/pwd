@@ -1,31 +1,14 @@
 using Moq;
-using pwd.contexts;
 using File = pwd.contexts.File;
 
 namespace pwd.tests.contexts;
 
 public sealed class Session_Tests
 {
-    private static Session
-        CreateSessionContext(
-            IRepository? repository = null,
-            IExporter? exporter = null,
-            IView? view = null,
-            IState? state = null,
-            File.Factory? fileFactory = null)
-    {
-        return new Session(
-            exporter ?? Mock.Of<IExporter>(),
-            repository ?? Mock.Of<IRepository>(),
-            state ?? Mock.Of<IState>(),
-            view ?? Mock.Of<IView>(),
-            fileFactory ?? (File.Factory) ((_, _) => Mock.Of<pwd.contexts.IFile>()));
-    }
-
     [Test]
     public void construct_session()
     {
-        CreateSessionContext();
+        Shared.CreateSessionContext();
     }
 
     [TestCase("encrypted")]
@@ -48,7 +31,7 @@ public sealed class Session_Tests
         await repository.Initialise();
 
         var session =
-            CreateSessionContext(
+            Shared.CreateSessionContext(
                 repository: repository,
                 view: view,
                 state: state,
