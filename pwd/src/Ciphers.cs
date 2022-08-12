@@ -97,8 +97,13 @@ public static class CipherExtensions
    }
 }
 
-public sealed class NameCipher
+public interface INameCipher
    : ICipher
+{
+}
+
+public sealed class NameCipher
+   : INameCipher
 {
    private readonly string _password;
 
@@ -279,8 +284,13 @@ public sealed class NameCipher
    }
 }
 
-public sealed class ContentCipher
+public interface IContentCipher
    : ICipher
+{
+}
+
+public sealed class ContentCipher
+   : IContentCipher
 {
    /// <summary>"Salted__" encoded in ASCII (UTF8).</summary>
    private static readonly byte[] Salted = {0x53, 0x61, 0x6c, 0x74, 0x65, 0x64, 0x5f, 0x5f};

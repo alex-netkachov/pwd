@@ -4,24 +4,30 @@ using System.Threading.Tasks;
 
 namespace pwd.contexts;
 
+public interface ISession
+   : IContext
+{
+}
+
 /// <summary>Repository working session context.</summary>
 public sealed class Session
-   : Context
+   : AbstractContext,
+      ISession
 {
    private readonly IExporter _exporter;
+   private readonly IFileFactory _fileFactory;
+   private readonly INewFileFactory _newFileFactory;
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
-   private readonly File.Factory _fileFactory;
-   private readonly NewFile.Factory _newFileFactory;
 
    public Session(
       IExporter exporter,
       IRepository repository,
       IState state,
       IView view,
-      File.Factory fileFactory,
-      NewFile.Factory newFileFactory)
+      IFileFactory fileFactory,
+      INewFileFactory newFileFactory)
    {
       _exporter = exporter;
       _repository = repository;
@@ -119,7 +125,7 @@ public sealed class Session
       string name)
    {
       var content = await _repository.ReadAsync(name);
-      var file = _fileFactory(name, content);
+      var file = _fileFactory.Create(name, content);
       _state.Open(file);
    }
 
@@ -135,7 +141,7 @@ public sealed class Session
    private async Task Add(
       string name)
    {
-      _state.Open(_newFileFactory(name));
+      _state.Open(_newFileFactory.Create(name));
       await Open(name);
    }
 }

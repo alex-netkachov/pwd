@@ -14,15 +14,18 @@ public interface IFile
 {
 }
 
-/// <summary>Encrypted file context.</summary>
-public sealed class File
-   : Context,
-      IFile
+public interface IFileFactory
 {
-   public delegate IFile Factory(
+   IFile Create(
       string name,
       string content);
+}
 
+/// <summary>Encrypted file context.</summary>
+public sealed class File
+   : AbstractContext,
+      IFile
+{
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
    private readonly IRepository _repository;
@@ -291,5 +294,43 @@ public sealed class File
          _clipboard.Clear();
       else
          _clipboard.Put(value, TimeSpan.FromSeconds(5));
+   }
+}
+
+public sealed class FileFactory
+   : IFileFactory
+{
+   private readonly IClipboard _clipboard;
+   private readonly IFileSystem _fs;
+   private readonly IRepository _repository;
+   private readonly IState _state;
+   private readonly IView _view;
+
+   public FileFactory(
+      IClipboard clipboard,
+      IFileSystem fs,
+      IRepository repository,
+      IState state,
+      IView view)
+   {
+      _clipboard = clipboard;
+      _fs = fs;
+      _repository = repository;
+      _state = state;
+      _view = view;
+   }
+
+   public IFile Create(
+      string name,
+      string content)
+   {
+      return new File(
+         _clipboard,
+         _fs,
+         _repository,
+         _state,
+         _view,
+         name,
+         content);
    }
 }

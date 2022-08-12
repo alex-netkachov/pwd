@@ -17,7 +17,7 @@ public interface IContext
       int index);
 }
 
-public abstract class Context
+public abstract class AbstractContext
    : IContext
 {
    public virtual Task Process(
@@ -45,7 +45,7 @@ public abstract class Context
 }
 
 public sealed class NullContext
-   : Context
+   : AbstractContext
 {
    public static IContext Instance { get; } = new NullContext();
 }

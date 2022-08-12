@@ -63,7 +63,7 @@
                 $('#pwd').hide();
                 $('#files').show();
                 $('#file').hide();
-                
+
                 const files = JSON.parse(await decrypt(data, pwd));
 
                 function showFilesList(filter) {
@@ -127,7 +127,7 @@
             const iv = bits.slice(32, 48);
             return {key, iv};
         }
-        
+
         async function encrypt(data, pwd) {
             const salt = new Uint8Array(8);
             crypto.getRandomValues(salt);
@@ -147,7 +147,7 @@
             }, key, bytes.slice(salted.length + 8));
             return decoder.decode(decrypted);
         }
-        
+
         async function testData() {
             const list = {};
             for (let i = 0; i < 50; i++)

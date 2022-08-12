@@ -11,18 +11,22 @@ public interface INewFile
 {
 }
 
+public interface INewFileFactory
+{
+   INewFile Create(
+      string name);
+}
+
 public sealed class NewFile
-   : Context,
+   : AbstractContext,
       INewFile
 {
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
-   private readonly string _name;
-   private readonly StringBuilder _content;
 
-   public delegate INewFile Factory(
-      string name);
+   private readonly StringBuilder _content;
+   private readonly string _name;
 
    public NewFile(
       IRepository repository,
@@ -60,7 +64,7 @@ public sealed class NewFile
             break;
       }
    }
-   
+
    public override string[] GetInputSuggestions(
       string input,
       int index)
@@ -73,5 +77,33 @@ public sealed class NewFile
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
          .ToArray();
+   }
+}
+
+public sealed class NewFileFactory
+   : INewFileFactory
+{
+   private readonly IRepository _repository;
+   private readonly IState _state;
+   private readonly IView _view;
+
+   public NewFileFactory(
+      IRepository repository,
+      IState state,
+      IView view)
+   {
+      _state = state;
+      _repository = repository;
+      _view = view;
+   }
+
+   public INewFile Create(
+      string name)
+   {
+      return new NewFile(
+         _repository,
+         _state,
+         _view,
+         name);
    }
 }

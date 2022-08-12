@@ -5,8 +5,9 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using pwd.contexts;
-using IFile=pwd.contexts.IFile;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
 
@@ -22,35 +23,66 @@ public static class Program
    {
       // read the password and initialise ciphers 
       var password = view.ReadPassword("Password: ");
-      var nameCipher = new NameCipher(password);
-      var contentCipher = new ContentCipher(password);
 
       // open the repository from the current working folder
       var path = fs.Path.GetFullPath(".");
-      view.WriteLine($"path = {path}");
-      using var repository = new Repository(fs, nameCipher, contentCipher, path);
 
-      var exporter = new Exporter(contentCipher, repository, fs);
+      var builder = Host.CreateDefaultBuilder();
+      builder.ConfigureServices(
+         services =>
+         {
+            services
+               .AddSingleton(fs)
+               .AddSingleton(view)
+               .AddSingleton(clipboard)
+               .AddSingleton(state)
+               .AddSingleton<IRepository, Repository>(
+                  provider => new(
+                     provider.GetRequiredService<IFileSystem>(),
+                     provider.GetRequiredService<INameCipher>(),
+                     provider.GetRequiredService<IContentCipher>(),
+                     path))
+               .AddSingleton<IExporter>(
+                  provider => new Exporter(
+                     provider.GetRequiredService<IContentCipher>(),
+                     provider.GetRequiredService<IRepository>(),
+                     provider.GetRequiredService<IFileSystem>()))
+               .AddSingleton<INameCipher>(_ => new NameCipher(password))
+               .AddSingleton<IContentCipher>(_ => new ContentCipher(password))
+               .AddTransient<ISession, Session>(
+                  provider => new(
+                     provider.GetRequiredService<IExporter>(),
+                     provider.GetRequiredService<IRepository>(),
+                     provider.GetRequiredService<IState>(),
+                     provider.GetRequiredService<IView>(),
+                     provider.GetRequiredService<IFileFactory>(),
+                     provider.GetRequiredService<INewFileFactory>()))
+               .AddSingleton<IFileFactory, FileFactory>(
+                  provider => new(
+                     provider.GetRequiredService<IClipboard>(),
+                     provider.GetRequiredService<IFileSystem>(),
+                     provider.GetRequiredService<IRepository>(),
+                     provider.GetRequiredService<IState>(),
+                     provider.GetRequiredService<IView>()))
+               .AddSingleton<INewFileFactory, NewFileFactory>(
+                  provider => new(
+                     provider.GetRequiredService<IRepository>(),
+                     provider.GetRequiredService<IState>(),
+                     provider.GetRequiredService<IView>()));
+         });
 
-      IFile FileFactory(string name, string content)
-      {
-         return new File(clipboard, fs, repository, state, view, name, content);
-      }
+      using var host = builder.Build();
 
-      INewFile NewFileFactory(string name)
-      {
-         return new NewFile(repository, state, view, name);
-      }
-
-      var session = new Session(exporter, repository, state, view, FileFactory, NewFileFactory);
-
+      var session = host.Services.GetRequiredService<ISession>();
       state.Open(session);
+
+      var repository = host.Services.GetRequiredService<IRepository>();
 
       try
       {
          var decryptErrors = new List<string>();
          var yamlErrors = new List<string>();
-         await repository.Initialise((file, name, decryptError, yamlError) =>
+         await ((Repository)repository).Initialise((file, name, decryptError, yamlError) =>
          {
             if (decryptError != null)
             {
