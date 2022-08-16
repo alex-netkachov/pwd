@@ -22,7 +22,12 @@
 
     <ItemGroup>
         <None Remove="template.html" />
-        <EmbeddedResource Include="template.html" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Include="res\template.html" />
+      <None Remove="res\context_file_help.txt" />
+      <EmbeddedResource Include="res\context_file_help.txt" />
     </ItemGroup>
 
 </Project>

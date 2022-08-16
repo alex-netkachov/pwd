@@ -4,6 +4,7 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using pwd.ciphers;
 
 namespace pwd;
 
@@ -16,12 +17,12 @@ public interface IExporter
 public sealed class Exporter
    : IExporter
 {
-   private readonly ICipher _contentCipher;
+   private readonly IContentCipher _contentCipher;
    private readonly IFileSystem _fs;
    private readonly IRepository _repository;
 
    public Exporter(
-      ICipher contentCipher,
+      IContentCipher contentCipher,
       IRepository repository,
       IFileSystem fs)
    {
@@ -33,7 +34,7 @@ public sealed class Exporter
    public async Task Export(
       string path)
    {
-      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.template.html");
+      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.template.html");
       if (stream == null)
          return;
       using var reader = new StreamReader(stream);

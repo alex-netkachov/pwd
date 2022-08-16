@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using pwd.ciphers;
 using pwd.contexts;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
@@ -18,7 +19,6 @@ public static class Program
    internal static async Task Run(
       IFileSystem fs,
       IView view,
-      IClipboard clipboard,
       IState state)
    {
       // read the password and initialise ciphers 
@@ -34,7 +34,7 @@ public static class Program
             services
                .AddSingleton(fs)
                .AddSingleton(view)
-               .AddSingleton(clipboard)
+               .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton(state)
                .AddSingleton<IRepository, Repository>(
                   provider => new(
@@ -42,33 +42,12 @@ public static class Program
                      provider.GetRequiredService<INameCipher>(),
                      provider.GetRequiredService<IContentCipher>(),
                      path))
-               .AddSingleton<IExporter>(
-                  provider => new Exporter(
-                     provider.GetRequiredService<IContentCipher>(),
-                     provider.GetRequiredService<IRepository>(),
-                     provider.GetRequiredService<IFileSystem>()))
+               .AddSingleton<IExporter, Exporter>()
                .AddSingleton<INameCipher>(_ => new NameCipher(password))
                .AddSingleton<IContentCipher>(_ => new ContentCipher(password))
-               .AddTransient<ISession, Session>(
-                  provider => new(
-                     provider.GetRequiredService<IExporter>(),
-                     provider.GetRequiredService<IRepository>(),
-                     provider.GetRequiredService<IState>(),
-                     provider.GetRequiredService<IView>(),
-                     provider.GetRequiredService<IFileFactory>(),
-                     provider.GetRequiredService<INewFileFactory>()))
-               .AddSingleton<IFileFactory, FileFactory>(
-                  provider => new(
-                     provider.GetRequiredService<IClipboard>(),
-                     provider.GetRequiredService<IFileSystem>(),
-                     provider.GetRequiredService<IRepository>(),
-                     provider.GetRequiredService<IState>(),
-                     provider.GetRequiredService<IView>()))
-               .AddSingleton<INewFileFactory, NewFileFactory>(
-                  provider => new(
-                     provider.GetRequiredService<IRepository>(),
-                     provider.GetRequiredService<IState>(),
-                     provider.GetRequiredService<IView>()));
+               .AddTransient<ISession, Session>()
+               .AddSingleton<IFileFactory, FileFactory>()
+               .AddSingleton<INewFileFactory, NewFileFactory>();
          });
 
       using var host = builder.Build();
@@ -154,14 +133,12 @@ public static class Program
       string[] args)
    {
       var fs = new FileSystem();
-      using var clipboard = new Clipboard();
       var state = new State(NullContext.Instance);
       var view = new View(state);
 
       await Run(
          fs,
          view,
-         clipboard,
          state);
 
       view.Clear();

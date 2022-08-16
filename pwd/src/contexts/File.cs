@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
@@ -82,8 +83,8 @@ public sealed class File
          case (_, "edit", var editor):
             await Edit(editor);
             break;
-         case (_, "unobscured", _):
-            Unobscured();
+         case (_, "help", _):
+            await Help();
             break;
          case (_, "rename", var name):
             await Rename(name);
@@ -93,6 +94,9 @@ public sealed class File
             break;
          case (_, "save", _):
             await Save();
+            break;
+         case (_, "unobscured", _):
+            Unobscured();
             break;
          default:
             if (await Shared.Process(input, _view))
@@ -207,7 +211,7 @@ public sealed class File
          _view.WriteLine(msg);
    }
 
-   public void Print()
+   private void Print()
    {
       var obscured =
          Regex.Replace(
@@ -294,6 +298,16 @@ public sealed class File
          _clipboard.Clear();
       else
          _clipboard.Put(value, TimeSpan.FromSeconds(5));
+   }
+
+   private async Task Help()
+   {
+      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.context_file_help.txt");
+      if (stream == null)
+         return;
+      using var reader = new StreamReader(stream);
+      var content = await reader.ReadToEndAsync();
+      _view.WriteLine(content.TrimEnd());
    }
 }
 

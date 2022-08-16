@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using pwd.ciphers;
 
 namespace pwd.tests;
 
@@ -50,7 +51,7 @@ public sealed class Openssl_Tests
       var decrypted = await cipher.DecryptStringAsync(stream);
       stream.Close();
       File.Delete(path);
-      Assert.That(text, Is.EqualTo(decrypted));
+      Assert.That(text, Is.EqualTo(decrypted.Item2));
    }
 
    [Test]

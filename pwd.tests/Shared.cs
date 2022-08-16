@@ -1,9 +1,12 @@
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Moq;
+using pwd.ciphers;
 using pwd.contexts;
-using IFile = pwd.contexts.File;
+using IFile = pwd.contexts.IFile;
 
 
 // ReSharper disable UnusedMember.Local because the tests are called through reflection
@@ -49,15 +52,20 @@ public static class Shared
    {
       path = string.IsNullOrEmpty(path) ? Path.GetFileName(Path.GetTempFileName()) : path;
       name = string.IsNullOrEmpty(path) ? Path.GetFileName(path) : name;
+      
+      var builder = Host.CreateDefaultBuilder();
+      builder.ConfigureServices(
+         services =>
+            services.AddSingleton(clipboard ?? Mock.Of<IClipboard>())
+               .AddSingleton(fs ?? Mock.Of<IFileSystem>())
+               .AddSingleton(repository ?? Mock.Of<IRepository>())
+               .AddSingleton(state ?? Mock.Of<IState>())
+               .AddSingleton(view ?? Mock.Of<IView>())
+               .AddSingleton<IFileFactory, FileFactory>());
 
-      return new IFile(
-         clipboard ?? Mock.Of<IClipboard>(),
-         fs ?? Mock.Of<IFileSystem>(),
-         repository ?? Mock.Of<IRepository>(),
-         state ?? Mock.Of<IState>(),
-         view ?? Mock.Of<IView>(),
-         name,
-         content);
+      using var host = builder.Build();
+
+      return host.Services.GetRequiredService<IFileFactory>().Create(name, content);
    }
 
    public static Session CreateSessionContext(
@@ -165,7 +173,7 @@ public static class Shared
       var stdout = Console.Out;
       Console.SetOut(new StringWriter(stdoutBuilder));
       var state = new State(NullContext.Instance);
-      await Program.Run(fs, view.Object, Mock.Of<IClipboard>(), state);
+      await Program.Run(fs, view.Object, state);
       Console.SetOut(stdout);
       var expected = string.Join("\n", "Password: secret",
          "It seems that you are creating a new repository. Please confirm password: secret", ">", "> test",
@@ -176,21 +184,10 @@ public static class Shared
 }
 
 public sealed class ZeroCipher
-   : ICipher
+   : INameCipher,
+      IContentCipher
 {
-   public static ICipher Instance = new ZeroCipher();
-
-   public bool IsEncrypted(
-      Stream stream)
-   {
-      return true;
-   }
-
-   public Task<bool> IsEncryptedAsync(
-      Stream stream)
-   {
-      return Task.FromResult(true);
-   }
+   public static readonly ZeroCipher Instance = new();
 
    public int Encrypt(
       string text,
@@ -210,18 +207,18 @@ public sealed class ZeroCipher
       return Task.FromResult(data.Length);
    }
 
-   public string DecryptString(
+   public (bool Success, string Text) DecryptString(
       Stream stream)
    {
       using var reader = new StreamReader(stream);
-      return reader.ReadToEnd();
+      return (true, reader.ReadToEnd());
    }
 
-   public async Task<string> DecryptStringAsync(
+   public async Task<(bool Success, string Text)> DecryptStringAsync(
       Stream stream)
    {
       using var reader = new StreamReader(stream);
-      return await reader.ReadToEndAsync();
+      return (true, await reader.ReadToEndAsync());
    }
 }
 

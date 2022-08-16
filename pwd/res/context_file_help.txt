@@ -1,0 +1,29 @@
+Available commands:
+..
+   go one level up
+.archive
+   move the current to the archive
+.cc field
+   copies value of the field into the clipboard
+.clear
+   clears the screen
+.ccu
+   shortcut for `.cc user`
+.ccp
+   shortcut for `.cc password`
+.check
+   verifies that the file is a valid YAML
+.edit [editor]
+   opens the current file in the editor
+.help
+   this help
+.pwd
+   generates passwords
+.rename name
+   renames the opened file
+.rm
+   removes the opened file
+.save
+   saves the opened file
+.unobscured
+   prints the file with passwords

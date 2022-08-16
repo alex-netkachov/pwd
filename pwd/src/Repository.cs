@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.ciphers;
 using pwd.contexts;
 
 namespace pwd;
@@ -122,9 +123,9 @@ public sealed class Repository
    : IRepository,
       IDisposable
 {
-   private readonly ICipher _contentCipher;
+   private readonly IContentCipher _contentCipher;
    private readonly IFileSystem _fs;
-   private readonly ICipher _nameCipher;
+   private readonly INameCipher _nameCipher;
    private readonly string _path;
 
    private readonly RepositoryItem _root;
@@ -133,8 +134,8 @@ public sealed class Repository
 
    public Repository(
       IFileSystem fs,
-      ICipher nameCipher,
-      ICipher contentCipher,
+      INameCipher nameCipher,
+      IContentCipher contentCipher,
       string path)
    {
       _fs = fs;
@@ -193,7 +194,7 @@ public sealed class Repository
       if (!file.Exists)
          throw new("The file does not exist.");
       await using var stream = _fs.File.OpenRead(file.EncryptedPath);
-      return await _contentCipher.DecryptStringAsync(stream);
+      return (await _contentCipher.DecryptStringAsync(stream)).Text;
    }
 
    public void Rename(
@@ -310,14 +311,8 @@ public sealed class Repository
 
                // the folder is not in the cache, create it if it is encrypted
                var folderNameBytes = Encoding.UTF8.GetBytes(folder);
-               if (!await _nameCipher.IsEncryptedAsync(folderNameBytes))
-               {
-                  repositoryItem = null;
-                  break;
-               }
-
-               var folderName = await _nameCipher.DecryptStringAsync(folderNameBytes);
-               if (folderName.IndexOfAny(invalidFileNameChars) != -1)
+               var (folderNameDecrypted, folderName) = await _nameCipher.DecryptStringAsync(folderNameBytes);
+               if (!folderNameDecrypted || folderName.IndexOfAny(invalidFileNameChars) != -1)
                {
                   repositoryItem = null;
                   break;
@@ -339,43 +334,29 @@ public sealed class Repository
             // if the last part of the path is a file
             if (!isFolder)
             {
-               if (!await _nameCipher.IsEncryptedAsync(Encoding.UTF8.GetBytes(name)))
+               var (fileNameDecrypted, fileName) = await _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(name));
+
+               if (!fileNameDecrypted || fileName.IndexOfAny(invalidFileNameChars) != -1)
                   continue;
 
+               var decrypted = false;
+               var content = "";
                try
                {
                   await using var stream = _fs.File.OpenRead(itemPath);
-                  if (!await _contentCipher.IsEncryptedAsync(stream))
-                  {
-                     loading?.Invoke(item, null, "Cannot decrypt a file.", null);
-                     continue;
-                  }
+                  (decrypted, content) = await _contentCipher.DecryptStringAsync(stream);
                }
                catch
+               {
+                  // ignore
+               }
+
+               if (!decrypted)
                {
                   loading?.Invoke(item, null, "Cannot decrypt a file.", null);
                   continue;
                }
 
-               string content;
-               try
-               {
-                  await using var stream = _fs.File.OpenRead(itemPath);
-                  content = await _contentCipher.DecryptStringAsync(stream);
-               }
-               catch
-               {
-                  loading?.Invoke(item, null, "Cannot decrypt a file.", null);
-                  continue;
-               }
-
-               if (content.Any(ch => char.IsControl(ch) && !char.IsWhiteSpace(ch)))
-               {
-                  loading?.Invoke(item, null, "Invalid password.", null);
-                  continue;
-               }
-
-               var fileName = await _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(name));
                var fileItem = repositoryItem.Create(fileName, name);
                fileItem.IsFolder = false;
                fileItem.Exists = true;

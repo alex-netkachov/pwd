@@ -23,21 +23,30 @@ public class File_Tests
    }
 
    [Test]
-   public void printing_outputs_the_content()
+   public async Task printing_outputs_the_content()
    {
       var view = new Mock<IView>();
-      var file = Shared.CreateFileContext(view: view.Object, content: "test");
-      file.Print();
+      var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "test");
+      await file.Process("");
       view.Verify(m => m.WriteLine("test"), Times.Once);
    }
 
    [Test]
-   public void printing_hides_passwords()
+   public async Task printing_hides_passwords()
    {
       var view = new Mock<IView>();
-      var file = Shared.CreateFileContext(view: view.Object, content: "password: secret");
-      file.Print();
+      var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "password: secret");
+      await file.Process("");
       view.Verify(m => m.WriteLine("password: ************"), Times.Once);
+   }
+   
+   [Test]
+   public async Task print_help()
+   {
+      var view = new Mock<IView>();
+      var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "password: secret");
+      await file.Process(".help");
+      view.Verify(m => m.WriteLine(It.IsRegex(@".help")), Times.Once);
    }
 
    [Test]
