@@ -304,7 +304,11 @@ public sealed class File
    {
       await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.context_file_help.txt");
       if (stream == null)
+      {
+         _view.WriteLine("help file is missing");         
          return;
+      }
+
       using var reader = new StreamReader(stream);
       var content = await reader.ReadToEndAsync();
       _view.WriteLine(content.TrimEnd());

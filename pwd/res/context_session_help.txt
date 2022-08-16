@@ -1,0 +1,13 @@
+Available commands:
+.add file
+   creates a new password file
+.export path
+   exports passwords as an html page
+.clear
+   clears the screen
+.help
+   this help
+.open path
+   open file by path
+.pwd
+   generates passwords

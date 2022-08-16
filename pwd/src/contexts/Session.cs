@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace pwd.contexts;
@@ -47,6 +49,9 @@ public sealed class Session
             break;
          case (_, "export", var path):
             await Export(path);
+            break;
+         case (_, "help", _):
+            await Help();
             break;
          case (_, "open", var path):
             await Open(path);
@@ -143,5 +148,19 @@ public sealed class Session
    {
       _state.Open(_newFileFactory.Create(name));
       await Open(name);
+   }
+
+   private async Task Help()
+   {
+      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.context_session_help.txt");
+      if (stream == null)
+      {
+         _view.WriteLine("help file is missing");         
+         return;
+      }
+
+      using var reader = new StreamReader(stream);
+      var content = await reader.ReadToEndAsync();
+      _view.WriteLine(content.TrimEnd());
    }
 }

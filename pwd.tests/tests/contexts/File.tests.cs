@@ -41,12 +41,12 @@ public class File_Tests
    }
    
    [Test]
-   public async Task print_help()
+   public async Task prints_help()
    {
       var view = new Mock<IView>();
       var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "password: secret");
       await file.Process(".help");
-      view.Verify(m => m.WriteLine(It.IsRegex(@".help")), Times.Once);
+      view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
    }
 
    [Test]

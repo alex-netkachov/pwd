@@ -42,4 +42,13 @@ public sealed class Session_Tests
       await session.Process($".open {file}");
       Assert.That(view.ToString().Trim(), Is.EqualTo(text));
    }
+   
+   [Test]
+   public async Task prints_help()
+   {
+      var view = new Mock<IView>();
+      var session = Shared.CreateSessionContext(view: view.Object);
+      await session.Process(".help");
+      view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
+   }
 }
