@@ -13,6 +13,12 @@ public interface IContentCipher
 {
 }
 
+public interface IContentCipherFactory
+{
+   IContentCipher Create(
+      string password);
+}
+
 public sealed class ContentCipher
    : IContentCipher
 {
@@ -99,5 +105,15 @@ public sealed class ContentCipher
       await using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read, true);
       var data = await cryptoStream.ReadAllBytesAsync();
       return (true, Encoding.UTF8.GetString(data));
+   }
+}
+
+public sealed class ContentCipherFactory
+   : IContentCipherFactory
+{
+   public IContentCipher Create(
+      string password)
+   {
+      return new ContentCipher(password);
    }
 }

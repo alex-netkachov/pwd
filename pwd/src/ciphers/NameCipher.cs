@@ -12,6 +12,12 @@ public interface INameCipher
 {
 }
 
+public interface INameCipherFactory
+{
+   INameCipher Create(
+      string password);
+}
+
 public sealed class NameCipher
    : INameCipher
 {
@@ -179,5 +185,15 @@ public sealed class NameCipher
       string fileName)
    {
       return fileName.Replace('_', '/').Replace('~', '=');
+   }
+}
+
+public sealed class NameCipherFactory
+   : INameCipherFactory
+{
+   public INameCipher Create(
+      string password)
+   {
+      return new NameCipher(password);
    }
 }

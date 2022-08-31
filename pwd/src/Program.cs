@@ -39,12 +39,16 @@ public static class Program
                .AddSingleton<IRepository, Repository>(
                   provider => new(
                      provider.GetRequiredService<IFileSystem>(),
-                     provider.GetRequiredService<INameCipher>(),
-                     provider.GetRequiredService<IContentCipher>(),
+                     provider.GetRequiredService<INameCipherFactory>().Create(password),
+                     provider.GetRequiredService<IContentCipherFactory>().Create(password),
                      path))
-               .AddSingleton<IExporter, Exporter>()
-               .AddSingleton<INameCipher>(_ => new NameCipher(password))
-               .AddSingleton<IContentCipher>(_ => new ContentCipher(password))
+               .AddSingleton<IExporter, Exporter>(
+                  provider => new(
+                     provider.GetRequiredService<IContentCipherFactory>().Create(password),
+                     provider.GetRequiredService<IRepository>(),
+                     provider.GetRequiredService<IFileSystem>()))
+               .AddSingleton<INameCipherFactory, NameCipherFactory>()
+               .AddSingleton<IContentCipherFactory, ContentCipherFactory>()
                .AddTransient<ISession, Session>()
                .AddSingleton<IFileFactory, FileFactory>()
                .AddSingleton<INewFileFactory, NewFileFactory>();

@@ -22,12 +22,12 @@ public interface ICipher
       Stream stream);
 
    /// <summary>Decrypts content of the stream into a string.</summary>
-   /// <remarks>Does not close the stream.</remarks>
+   /// <remarks>Does not close the stream. Fails when string encoding is not UTF-8.</remarks>
    (bool Success, string Text) DecryptString(
       Stream stream);
 
    /// <summary>Decrypts content of the stream into a string.</summary>
-   /// <remarks>Does not close the stream.</remarks>
+   /// <remarks>Does not close the stream. Fails when string encoding is not UTF-8.</remarks>
    Task<(bool Success, string Text)> DecryptStringAsync(
       Stream stream);
 }
