@@ -143,47 +143,16 @@ public static class Program
          fs.Directory.Exists("../.git") ||
          fs.Directory.Exists("../../.git");
 
-      async Task<(string, Exception?)> Exec(string exe, string arguments)
-      {
-         var processStartInfo =
-            new ProcessStartInfo(exe, arguments)
-            {
-               RedirectStandardOutput = true
-            };
-
-         Process? process;
-
-         try
-         {
-            process = Process.Start(processStartInfo);
-
-            if (process == null)
-               return ("", new($"Cannot run `{exe} {arguments}`"));
-         }
-         catch (Exception e)
-         {
-            return ("", e);
-         }
-
-         return (await process.StandardOutput.ReadToEndAsync(), null);
-      }
-
-      async Task ExecChain(params Func<Task<(string, Exception?)>>[] execs)
-      {
-         foreach (var item in execs)
-         {
-            var (output, exception) = await item();
-            view.WriteLine(exception != null ? exception.Message : output);
-            if (exception != null)
-               break;
-         }
-      }
-
       if (isGitRepository)
       {
-         var (output, exception) = await Exec("git", "remote update");
-         if (exception == null && output.Trim() != "Fetching origin") 
-            view.Write(output);
+         await Exec(logger, "git", "remote update");
+         var (status, _, e) = await Exec(logger, "git", "status");
+         if (e == null &&
+             status.Contains("Your branch is behind") &&
+             view.Confirm("Pull changes from the remote?", Choice.Accept))
+         {
+            await Exec(logger, "git", "pull");
+         }
       }
 
       await Run(
@@ -197,10 +166,64 @@ public static class Program
       if (isGitRepository && view.Confirm("Update the repository?", Choice.Accept))
       {
          await ExecChain(
-            () => Exec("git", "add *"),
-            () => Exec("git", "commit -m update"),
-            () => Exec("git", "push"));
+            () => Exec(logger, "git", "add *"),
+            () => Exec(logger, "git", "commit -m update"),
+            () => Exec(logger, "git", "push"));
       }
+   }
+   
+   private static async Task ExecChain(
+      params Func<Task<(string, string, Exception?)>>[] execs)
+   {
+      foreach (var item in execs)
+      {
+         var (_, _, exception) = await item();
+         if (exception != null)
+            break;
+      }
+   }
+
+   private static async Task<(string StdOut, string StdErr, Exception? Exception)> Exec(
+      ILogger logger,
+      string exe,
+      string arguments)
+   {
+      var processStartInfo =
+         new ProcessStartInfo(exe, arguments)
+         {
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            UseShellExecute = false,
+         };
+
+      logger.Info($"> {exe} {arguments}");
+
+      Process? process;
+
+      try
+      {
+         process = Process.Start(processStartInfo);
+
+         if (process == null)
+            throw new($"Cannot run `{exe} {arguments}`");
+      }
+      catch (Exception e)
+      {
+         logger.Error(e.Message);
+         return ("", "", e);
+      }
+
+      var stdout = await process.StandardOutput.ReadToEndAsync();
+      var stderr = await process.StandardError.ReadToEndAsync();
+
+      if (stdout != "")
+         logger.Info(stdout.TrimEnd());
+      if (stderr != "")
+         logger.Info(stderr.TrimEnd());
+
+      return (stdout, stderr, null);
    }
 }
 
