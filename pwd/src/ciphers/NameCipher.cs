@@ -15,16 +15,16 @@ public interface INameCipher
 public interface INameCipherFactory
 {
    INameCipher Create(
-      string password);
+      byte[] password);
 }
 
 public sealed class NameCipher
    : INameCipher
 {
-   private readonly string _password;
+   private readonly byte[] _password;
 
    public NameCipher(
-      string password)
+      byte[] password)
    {
       _password = password;
    }
@@ -192,7 +192,7 @@ public sealed class NameCipherFactory
    : INameCipherFactory
 {
    public INameCipher Create(
-      string password)
+      byte[] password)
    {
       return new NameCipher(password);
    }

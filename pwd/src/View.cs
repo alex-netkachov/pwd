@@ -1,42 +1,56 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace pwd;
 
-public enum Choice
+/// <summary>Answers to confirmations.</summary>
+public enum Answer
 {
-   Accept,
-   Reject
+   Yes,
+   No
 }
 
 public interface IView
 {
+   event EventHandler Interaction;
+
    void WriteLine(
       string text);
 
    void Write(
       string text);
 
+   /// <summary>Asks yes/no question.</summary>
    bool Confirm(
       string question,
-      Choice @default = Choice.Reject);
+      Answer @default = Answer.No);
 
+   /// <summary>Reads the input from the console.</summary>
    string Read(
       string prompt);
 
-   string ReadPassword(
+   /// <summary>Reads UTF8 input from the console without echoing to the output until Enter is pressed.</summary>
+   /// <remarks>Ctrl+U resets the input, Backspace removes the last character from the input, other control
+   /// keys (e.g. tab) are ignored.</remarks>
+   byte[] ReadPassword(
       string prompt);
 
+   /// <summary>Clears the console and its buffer, if possible.</summary>
    void Clear();
 }
 
 public sealed class View
    : IView
 {
+   public event EventHandler Interaction;
+
    public View(
       IState state)
    {
+      Interaction += (_, _) => { };
+
       ReadLine.HistoryEnabled = true;
       ReadLine.AutoCompletionHandler = new AutoCompletionHandler(state);
    }
@@ -55,22 +69,33 @@ public sealed class View
 
    public bool Confirm(
       string question,
-      Choice @default = Choice.Reject)
+      Answer @default = Answer.No)
    {
-      Console.Write($"{question} ({(@default == Choice.Accept ? "Y/n" : "y/N")}) ");
+      var yes = @default == Answer.Yes ? 'Y' : 'y';
+      var no = @default == Answer.No ? 'N' : 'n';
+
+      Console.Write($"{question} ({yes}/{no}) ");
+
       var input = Console.ReadLine()?.ToUpperInvariant();
-      return @default == Choice.Accept ? input != "N" : input == "Y";
+
+      Interaction.Invoke(this, EventArgs.Empty);
+
+      return @default == Answer.Yes ? input != "N" : input == "Y";
    }
 
    public string Read(
       string prompt)
    {
+      Interaction.Invoke(this, EventArgs.Empty);
+
       return ReadLine.Read(prompt);
    }
 
-   public string ReadPassword(
+   public byte[] ReadPassword(
       string prompt)
    {
+      Interaction.Invoke(this, EventArgs.Empty);
+
       Console.Write(prompt);
 
       var chars = new Stack<char>();
@@ -81,7 +106,7 @@ public sealed class View
          {
             case (false, ConsoleKey.Enter):
                Console.WriteLine();
-               return string.Join("", chars.Reverse());
+               return Encoding.UTF8.GetBytes(chars.Reverse().ToArray());
             case (false, ConsoleKey.Backspace):
                if (chars.Count > 0)
                   chars.Pop();
@@ -100,5 +125,9 @@ public sealed class View
    public void Clear()
    {
       Console.Clear();
+
+      // clears the console and buffer on xterm-compatible terminals
+      if (Environment.GetEnvironmentVariable("TERM")?.StartsWith("xterm") == true)
+         Console.Write("\x1b[3J");
    }
 }

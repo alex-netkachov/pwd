@@ -64,7 +64,7 @@ public static class CipherExtensions
 internal static class CipherShared
 {
    public static Aes CreateAes(
-      string password,
+      byte[] password,
       byte[] salt)
    {
       var aes = Aes.Create();

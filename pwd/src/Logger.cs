@@ -4,6 +4,9 @@ namespace pwd;
 
 public interface ILogger
 {
+   void Trace(
+      string message);
+
    void Info(
       string message);
 
@@ -14,6 +17,12 @@ public interface ILogger
 public sealed class ConsoleLogger
    : ILogger
 {
+   public void Trace(
+      string message)
+   {
+      Console.WriteLine(message);
+   }
+
    public void Info(
       string message)
    {

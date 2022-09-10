@@ -11,7 +11,9 @@ public static class Shared
 {
    public static Task<bool> Process(
       string input,
-      IView view)
+      IView view,
+      IState state,
+      ILock @lock)
    {
       switch (ParseCommand(input))
       {
@@ -20,6 +22,10 @@ public static class Shared
             return Task.FromResult(true);
          case (_, "clear", _):
             view.Clear();
+            return Task.FromResult(true);
+         case (_, "lock", _):
+            view.Clear();
+            state.Open(@lock);
             return Task.FromResult(true);
          default:
             return Task.FromResult(false);

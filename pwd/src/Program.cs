@@ -44,7 +44,8 @@ public static class Program
                .AddSingleton<IContentCipherFactory, ContentCipherFactory>()
                .AddSingleton<ISessionFactory, SessionFactory>()
                .AddSingleton<IFileFactory, FileFactory>()
-               .AddSingleton<INewFileFactory, NewFileFactory>();
+               .AddSingleton<INewFileFactory, NewFileFactory>()
+               .AddSingleton<ILockFactory, LockFactory>();
          });
 
       using var host = builder.Build();
@@ -55,7 +56,8 @@ public static class Program
       var nameCipher = services.GetRequiredService<INameCipherFactory>().Create(password);
       var repository = services.GetRequiredService<IRepositoryFactory>().Create(nameCipher, contentCipher, path);
       var exporter = services.GetRequiredService<IExporterFactory>().Create(contentCipher, repository);
-      var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter);
+      var @lock = services.GetRequiredService<ILockFactory>().Create(password);
+      var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter, @lock);
       state.Open(session);
 
       try
@@ -149,7 +151,7 @@ public static class Program
          var (status, _, e) = await Exec(logger, "git", "status");
          if (e == null &&
              status.Contains("Your branch is behind") &&
-             view.Confirm("Pull changes from the remote?", Choice.Accept))
+             view.Confirm("Pull changes from the remote?", Answer.Yes))
          {
             await Exec(logger, "git", "pull");
          }
@@ -163,7 +165,7 @@ public static class Program
 
       view.Clear();
 
-      if (isGitRepository && view.Confirm("Update the repository?", Choice.Accept))
+      if (isGitRepository && view.Confirm("Update the repository?", Answer.Yes))
       {
          await ExecChain(
             () => Exec(logger, "git", "add ."),

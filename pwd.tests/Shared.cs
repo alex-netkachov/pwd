@@ -22,19 +22,19 @@ public static class Shared
       if (!value) throw new(message);
    }
 
-   public static (string pwd, string text, byte[] encrypted) ContentEncryptionTestData()
+   public static (byte[] pwd, string text, byte[] encrypted) ContentEncryptionTestData()
    {
       return (
-         "secret",
+         Encoding.UTF8.GetBytes("secret"),
          "only you can protect what is yours",
          Convert.FromHexString(
             "53616C7465645F5FD2586E38D8F094E37022709B84AAD604AB513AA251223B2F49E2222A67C81DF3A2A772B33D8EEC32C83AB0FE7C46860575E695E2F7858D3A"));
    }
 
-   public static (string pwd, string text, byte[] encrypted) NameEncryptionTestData()
+   public static (byte[] pwd, string text, byte[] encrypted) NameEncryptionTestData()
    {
       return (
-         "secret",
+         Encoding.UTF8.GetBytes("secret"),
          "only you can protect what is yours",
          Convert.FromHexString(
             "475349596B69396453506F675378444A525F73396D6D636E616D6A746A3734616E4D43793255324B6A464B48345F335234477859675452326C446E726778352B694E654A573375474F63737E"));
@@ -48,7 +48,8 @@ public static class Shared
       IRepository? repository = null,
       IClipboard? clipboard = null,
       IView? view = null,
-      IState? state = null)
+      IState? state = null,
+      ILock? @lock = null)
    {
       path = string.IsNullOrEmpty(path) ? Path.GetFileName(Path.GetTempFileName()) : path;
       name = string.IsNullOrEmpty(path) ? Path.GetFileName(path) : name;
@@ -66,7 +67,13 @@ public static class Shared
 
       using var host = builder.Build();
 
-      return host.Services.GetRequiredService<IFileFactory>().Create(repository, name, content);
+      return host.Services
+         .GetRequiredService<IFileFactory>()
+         .Create(
+            repository,
+            @lock ?? Mock.Of<ILock>(),
+            name,
+            content);
    }
 
    public static Session CreateSessionContext(
@@ -75,7 +82,8 @@ public static class Shared
       IView? view = null,
       IState? state = null,
       IFileFactory? fileFactory = null,
-      INewFileFactory? newFileFactory = null)
+      INewFileFactory? newFileFactory = null,
+      ILock? @lock = null)
    {
       return new Session(
          exporter ?? Mock.Of<IExporter>(),
@@ -83,7 +91,8 @@ public static class Shared
          state ?? Mock.Of<IState>(),
          view ?? Mock.Of<IView>(),
          fileFactory ?? Mock.Of<IFileFactory>(),
-         newFileFactory ?? Mock.Of<INewFileFactory>());
+         newFileFactory ?? Mock.Of<INewFileFactory>(),
+         @lock ?? Mock.Of<ILock>());
    }
 
    public static IFileSystem GetMockFs()
@@ -146,8 +155,8 @@ public static class Shared
 
       IEnumerable<string> Input()
       {
-         yield return pwd;
-         yield return pwd;
+         yield return Encoding.UTF8.GetString(pwd);
+         yield return Encoding.UTF8.GetString(pwd);
          yield return "";
          fs.File.WriteAllBytes("test", testData.ToArray());
          yield return "test";
@@ -228,6 +237,8 @@ public sealed class BufferedView
 {
    private readonly StringBuilder _output = new();
 
+   public event EventHandler? Interaction;
+
    public void WriteLine(
       string text)
    {
@@ -242,7 +253,7 @@ public sealed class BufferedView
 
    public bool Confirm(
       string question,
-      Choice @default = Choice.Reject)
+      Answer @default = Answer.No)
    {
       return true;
    }
@@ -253,10 +264,10 @@ public sealed class BufferedView
       return "";
    }
 
-   public string ReadPassword(
+   public byte[] ReadPassword(
       string prompt)
    {
-      return "";
+      return Array.Empty<byte>();
    }
 
    public void Clear()

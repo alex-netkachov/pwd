@@ -15,7 +15,8 @@ public interface ISessionFactory
 {
    ISession Create(
       IRepository repository,
-      IExporter exporter);
+      IExporter exporter,
+      ILock @lock);
 }
 
 
@@ -27,6 +28,7 @@ public sealed class Session
    private readonly IExporter _exporter;
    private readonly IFileFactory _fileFactory;
    private readonly INewFileFactory _newFileFactory;
+   private readonly ILock _lock;
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
@@ -37,7 +39,8 @@ public sealed class Session
       IState state,
       IView view,
       IFileFactory fileFactory,
-      INewFileFactory newFileFactory)
+      INewFileFactory newFileFactory,
+      ILock @lock)
    {
       _exporter = exporter;
       _repository = repository;
@@ -45,11 +48,14 @@ public sealed class Session
       _view = view;
       _fileFactory = fileFactory;
       _newFileFactory = newFileFactory;
+      _lock = @lock;
    }
 
    public override async Task Process(
       string input)
    {
+      await base.Process(input);
+
       switch (Shared.ParseCommand(input))
       {
          case (_, "add", var path):
@@ -65,7 +71,7 @@ public sealed class Session
             await Open(path);
             break;
          default:
-            if (await Shared.Process(input, _view))
+            if (await Shared.Process(input, _view, _state, _lock))
                break;
 
             if (input == "")
@@ -127,6 +133,7 @@ public sealed class Session
             ".archive",
             ".clear",
             ".export",
+            ".lock",
             ".pwd",
             ".quit"
          }
@@ -138,7 +145,7 @@ public sealed class Session
       string name)
    {
       var content = await _repository.ReadAsync(name);
-      var file = _fileFactory.Create(_repository, name, content);
+      var file = _fileFactory.Create(_repository, _lock, name, content);
       _state.Open(file);
    }
 
@@ -195,7 +202,8 @@ public sealed class SessionFactory
 
    public ISession Create(
       IRepository repository,
-      IExporter exporter)
+      IExporter exporter,
+      ILock @lock)
    {
       return new Session(
          exporter,
@@ -203,6 +211,7 @@ public sealed class SessionFactory
          _state,
          _view,
          _fileFactory,
-         _newFileFactory);
+         _newFileFactory,
+         @lock);
    }
 }

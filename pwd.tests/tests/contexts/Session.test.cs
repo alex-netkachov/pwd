@@ -1,7 +1,6 @@
 using Moq;
 using pwd.ciphers;
 using pwd.contexts;
-using File = pwd.contexts.File;
 
 namespace pwd.tests.contexts;
 

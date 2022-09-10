@@ -19,6 +19,7 @@ public interface IFileFactory
 {
    IFile Create(
       IRepository repository,
+      ILock @lock,
       string name,
       string content);
 }
@@ -33,6 +34,7 @@ public sealed class File
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
+   private readonly ILock _lock;
    private string _content;
    private bool _modified;
    private string _name;
@@ -43,6 +45,7 @@ public sealed class File
       IRepository repository,
       IState state,
       IView view,
+      ILock @lock,
       string name,
       string content)
    {
@@ -51,6 +54,7 @@ public sealed class File
       _repository = repository;
       _state = state;
       _view = view;
+      _lock = @lock;
 
       _name = name;
       _content = content;
@@ -100,7 +104,7 @@ public sealed class File
             Unobscured();
             break;
          default:
-            if (await Shared.Process(input, _view))
+            if (await Shared.Process(input, _view, _state, _lock))
                return;
             Print();
             break;
@@ -156,6 +160,7 @@ public sealed class File
             ".check",
             ".clear",
             ".edit",
+            ".lock",
             ".pwd",
             ".quit",
             ".rename",
@@ -184,7 +189,7 @@ public sealed class File
    {
       if (_modified)
       {
-         if (_view.Confirm("The content is not saved. Save it and rename the file?", Choice.Accept))
+         if (_view.Confirm("The content is not saved. Save it and rename the file?", Answer.Yes))
          {
             await _repository.WriteAsync(_name, _content);
          }
@@ -281,7 +286,7 @@ public sealed class File
 
          await process.WaitForExitAsync();
          var content = await _fs.File.ReadAllTextAsync(path);
-         if (content == _content || !_view.Confirm("Update the content?", Choice.Accept))
+         if (content == _content || !_view.Confirm("Update the content?", Answer.Yes))
             return;
          Update(content);
          await Save();
@@ -339,6 +344,7 @@ public sealed class FileFactory
 
    public IFile Create(
       IRepository repository,
+      ILock @lock,
       string name,
       string content)
    {
@@ -348,6 +354,7 @@ public sealed class FileFactory
          repository,
          _state,
          _view,
+         @lock,
          name,
          content);
    }

@@ -17,6 +17,8 @@ Available commands:
    opens the current file in the editor
 .help
    this help
+.lock
+   locks the application
 .pwd
    generates passwords
 .rename name

@@ -42,8 +42,8 @@ public sealed class Repository_Tests
       // @ - encrypt name, ^ - encrypt content, * - encrypt name and content
       var fs = Shared.GetMockFs();
 
-      var nameCipher = new NameCipher("pwd$");
-      var contentCipher = new ContentCipher("pwd$");
+      var nameCipher = new NameCipher(Encoding.UTF8.GetBytes("pwd$"));
+      var contentCipher = new ContentCipher(Encoding.UTF8.GetBytes("pwd$"));
 
       var filePath =
          string.Join(
@@ -76,8 +76,8 @@ public sealed class Repository_Tests
    public async Task listing_repository_special_case1()
    {
       var fs = Shared.GetMockFs();
-      var nameCipher = new NameCipher("pwd$");
-      var contentCipher = new ContentCipher("pwd$");
+      var nameCipher = new NameCipher(Encoding.UTF8.GetBytes("pwd$"));
+      var contentCipher = new ContentCipher(Encoding.UTF8.GetBytes("pwd$"));
 
       var f = Encoding.UTF8.GetString(await nameCipher.EncryptAsync("f"));
       var test11 = Encoding.UTF8.GetString(await nameCipher.EncryptAsync("test1"));

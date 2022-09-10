@@ -29,8 +29,10 @@ public class State
 
    public void Back()
    {
-      if (_stack.Count > 1)
-         _stack.Pop();
+      if (_stack.Count < 1)
+         return;
+
+      _stack.Pop();
    }
 
    public void Open(
