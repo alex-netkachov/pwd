@@ -166,7 +166,7 @@ public static class Program
       if (isGitRepository && view.Confirm("Update the repository?", Choice.Accept))
       {
          await ExecChain(
-            () => Exec(logger, "git", "add *"),
+            () => Exec(logger, "git", "add ."),
             () => Exec(logger, "git", "commit -m update"),
             () => Exec(logger, "git", "push"));
       }
