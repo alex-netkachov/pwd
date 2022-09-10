@@ -14,6 +14,7 @@ public interface INewFile
 public interface INewFileFactory
 {
    INewFile Create(
+      IRepository repository,
       string name);
 }
 
@@ -83,25 +84,23 @@ public sealed class NewFile
 public sealed class NewFileFactory
    : INewFileFactory
 {
-   private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
 
    public NewFileFactory(
-      IRepository repository,
       IState state,
       IView view)
    {
       _state = state;
-      _repository = repository;
       _view = view;
    }
 
    public INewFile Create(
+      IRepository repository,
       string name)
    {
       return new NewFile(
-         _repository,
+         repository,
          _state,
          _view,
          name);

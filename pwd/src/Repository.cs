@@ -63,6 +63,14 @@ public interface IRepository
       string text);
 }
 
+public interface IRepositoryFactory
+{
+   IRepository Create(
+      INameCipher nameCipher,
+      IContentCipher contentCipher,
+      string path);
+}
+
 public sealed class RepositoryItem
    : IRepositoryItem
 {
@@ -160,9 +168,9 @@ public sealed class Repository
       string path)
    {
       var (items, item) = Tail(PathItems(path));
-      var (_, container) = Tail(items);
-      if (!item.Exists || item.IsFolder == false)
+      if (!item.Exists || item.IsFolder == true)
          return;
+      var (_, container) = Tail(items);
       container.Items.Remove(item);
       _fs.File.Delete(_fs.Path.Combine(_path, item.EncryptedPath));
    }
@@ -524,5 +532,29 @@ public sealed class Repository
       IReadOnlyList<T> list)
    {
       return (list.Take(list.Count - 1).ToList(), list[^1]);
+   }
+}
+
+public sealed class RepositoryFactory
+   : IRepositoryFactory
+{
+   private readonly IFileSystem _fs;
+
+   public RepositoryFactory(
+      IFileSystem fs)
+   {
+      _fs = fs;
+   }
+
+   public IRepository Create(
+      INameCipher nameCipher,
+      IContentCipher contentCipher,
+      string path)
+   {
+      return new Repository(
+         _fs,
+         nameCipher,
+         contentCipher,
+         path);
    }
 }

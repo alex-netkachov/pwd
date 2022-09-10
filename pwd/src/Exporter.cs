@@ -14,6 +14,13 @@ public interface IExporter
       string path);
 }
 
+public interface IExporterFactory
+{
+   IExporter Create(
+      IContentCipher contentCipher,
+      IRepository repository);
+}
+
 public sealed class Exporter
    : IExporter
 {
@@ -58,5 +65,27 @@ public sealed class Exporter
       var encrypted = Convert.ToHexString(await _contentCipher.EncryptAsync(script));
       var content = template.Replace("const data = await testData();", $"const data = '{encrypted}';");
       await _fs.File.WriteAllTextAsync(path, content);
+   }
+}
+
+public sealed class ExporterFactory
+   : IExporterFactory
+{
+   private readonly IFileSystem _fs;
+
+   public ExporterFactory(
+      IFileSystem fs)
+   {
+      _fs = fs;
+   }
+
+   public IExporter Create(
+      IContentCipher contentCipher,
+      IRepository repository)
+   {
+      return new Exporter(
+         contentCipher,
+         repository,
+         _fs);
    }
 }

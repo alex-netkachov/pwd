@@ -115,4 +115,22 @@ public sealed class Repository_Tests
       Assert.That(fs.Directory.EnumerateFiles(".").Count(), Is.EqualTo(1));
       Assert.That(repository.List(".").Count(), Is.EqualTo(1));
    }
+
+   [Test]
+   public async Task deleting_deletes_a_file()
+   {
+      var fs = Shared.GetMockFs();
+      var repository = new Repository(fs, ZeroCipher.Instance, ZeroCipher.Instance, ".");
+      await repository.Initialise();
+
+      // writing a file creates a new one
+      await repository.WriteAsync("test", "test");
+      Assert.That(fs.Directory.EnumerateFiles(".").Count(), Is.EqualTo(1));
+      Assert.That(repository.List(".").Count(), Is.EqualTo(1));
+      
+      // deleting a file removes it
+      repository.Delete("test");
+      Assert.That(fs.Directory.EnumerateFiles(".").Count(), Is.EqualTo(0));
+      Assert.That(repository.List(".").Count(), Is.EqualTo(0));
+   }
 }

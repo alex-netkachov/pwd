@@ -1,6 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace pwd;
+
+public enum Choice
+{
+   Accept,
+   Reject
+}
 
 public interface IView
 {
@@ -11,7 +19,8 @@ public interface IView
       string text);
 
    bool Confirm(
-      string question);
+      string question,
+      Choice @default = Choice.Reject);
 
    string Read(
       string prompt);
@@ -45,10 +54,12 @@ public sealed class View
    }
 
    public bool Confirm(
-      string question)
+      string question,
+      Choice @default = Choice.Reject)
    {
-      Console.Write($"{question} (y/N) ");
-      return Console.ReadLine()?.ToUpperInvariant() == "Y";
+      Console.Write($"{question} ({(@default == Choice.Accept ? "Y/n" : "y/N")}) ");
+      var input = Console.ReadLine()?.ToUpperInvariant();
+      return @default == Choice.Accept ? input != "N" : input == "Y";
    }
 
    public string Read(
@@ -60,7 +71,30 @@ public sealed class View
    public string ReadPassword(
       string prompt)
    {
-      return ReadLine.ReadPassword(prompt);
+      Console.Write(prompt);
+
+      var chars = new Stack<char>();
+      while (true)
+      {
+         var input = Console.ReadKey(true);
+         switch (input.Modifiers == ConsoleModifiers.Control, input.Key)
+         {
+            case (false, ConsoleKey.Enter):
+               Console.WriteLine();
+               return string.Join("", chars.Reverse());
+            case (false, ConsoleKey.Backspace):
+               if (chars.Count > 0)
+                  chars.Pop();
+               break;
+            case (true, ConsoleKey.U):
+               chars.Clear();
+               break;
+            default:
+               if (!char.IsControl(input.KeyChar))
+                  chars.Push(input.KeyChar);
+               break;
+         }
+      }
    }
 
    public void Clear()

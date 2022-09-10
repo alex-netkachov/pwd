@@ -52,20 +52,21 @@ public static class Shared
    {
       path = string.IsNullOrEmpty(path) ? Path.GetFileName(Path.GetTempFileName()) : path;
       name = string.IsNullOrEmpty(path) ? Path.GetFileName(path) : name;
+      repository ??= Mock.Of<IRepository>();
       
       var builder = Host.CreateDefaultBuilder();
       builder.ConfigureServices(
          services =>
             services.AddSingleton(clipboard ?? Mock.Of<IClipboard>())
                .AddSingleton(fs ?? Mock.Of<IFileSystem>())
-               .AddSingleton(repository ?? Mock.Of<IRepository>())
+               .AddSingleton(repository)
                .AddSingleton(state ?? Mock.Of<IState>())
                .AddSingleton(view ?? Mock.Of<IView>())
                .AddSingleton<IFileFactory, FileFactory>());
 
       using var host = builder.Build();
 
-      return host.Services.GetRequiredService<IFileFactory>().Create(name, content);
+      return host.Services.GetRequiredService<IFileFactory>().Create(repository, name, content);
    }
 
    public static Session CreateSessionContext(
@@ -173,7 +174,7 @@ public static class Shared
       var stdout = Console.Out;
       Console.SetOut(new StringWriter(stdoutBuilder));
       var state = new State(NullContext.Instance);
-      await Program.Run(fs, view.Object, state);
+      await Program.Run(Mock.Of<ILogger>(), fs, view.Object, state);
       Console.SetOut(stdout);
       var expected = string.Join("\n", "Password: secret",
          "It seems that you are creating a new repository. Please confirm password: secret", ">", "> test",
@@ -240,7 +241,8 @@ public sealed class BufferedView
    }
 
    public bool Confirm(
-      string question)
+      string question,
+      Choice @default = Choice.Reject)
    {
       return true;
    }

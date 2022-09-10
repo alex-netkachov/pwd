@@ -11,6 +11,14 @@ public interface ISession
 {
 }
 
+public interface ISessionFactory
+{
+   ISession Create(
+      IRepository repository,
+      IExporter exporter);
+}
+
+
 /// <summary>Repository working session context.</summary>
 public sealed class Session
    : AbstractContext,
@@ -130,7 +138,7 @@ public sealed class Session
       string name)
    {
       var content = await _repository.ReadAsync(name);
-      var file = _fileFactory.Create(name, content);
+      var file = _fileFactory.Create(_repository, name, content);
       _state.Open(file);
    }
 
@@ -146,7 +154,7 @@ public sealed class Session
    private async Task Add(
       string name)
    {
-      _state.Open(_newFileFactory.Create(name));
+      _state.Open(_newFileFactory.Create(_repository, name));
       await Open(name);
    }
 
@@ -162,5 +170,39 @@ public sealed class Session
       using var reader = new StreamReader(stream);
       var content = await reader.ReadToEndAsync();
       _view.WriteLine(content.TrimEnd());
+   }
+}
+
+public sealed class SessionFactory
+   : ISessionFactory
+{
+   private readonly IFileFactory _fileFactory;
+   private readonly INewFileFactory _newFileFactory;
+   private readonly IState _state;
+   private readonly IView _view;
+
+   public SessionFactory(
+      IState state,
+      IView view,
+      IFileFactory fileFactory,
+      INewFileFactory newFileFactory)
+   {
+      _state = state;
+      _view = view;
+      _fileFactory = fileFactory;
+      _newFileFactory = newFileFactory;
+   }
+
+   public ISession Create(
+      IRepository repository,
+      IExporter exporter)
+   {
+      return new Session(
+         exporter,
+         repository,
+         _state,
+         _view,
+         _fileFactory,
+         _newFileFactory);
    }
 }

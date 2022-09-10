@@ -21,11 +21,15 @@ public sealed class Clipboard
    : IClipboard,
       IDisposable
 {
+   private readonly ILogger _logger;
    private readonly Channel<string> _channel;
    private readonly Timer _cleaner;
 
-   public Clipboard()
+   public Clipboard(
+      ILogger logger)
    {
+      _logger = logger;
+
       _cleaner = new(_ => Clear());
 
       _channel = Channel.CreateUnbounded<string>();
@@ -59,7 +63,7 @@ public sealed class Clipboard
       _channel.Writer.Complete();
    }
 
-   private static void CopyText(
+   private void CopyText(
       string text)
    {
       Exception? Run(
@@ -91,6 +95,8 @@ public sealed class Clipboard
       if (Run("clip.exe") is not null &&
           Run("pbcopy") is not null &&
           Run("xsel") is not null)
-         Console.WriteLine("Cannot copy to the clipboard.");
+      {
+         _logger.Error("Cannot copy to the clipboard.");
+      }
    }
 }

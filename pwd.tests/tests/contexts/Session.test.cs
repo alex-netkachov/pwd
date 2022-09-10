@@ -37,7 +37,7 @@ public sealed class Session_Tests
             repository,
             view: view,
             state: state,
-            fileFactory: new FileFactory(Mock.Of<IClipboard>(), fs, repository, state, view));
+            fileFactory: new FileFactory(Mock.Of<IClipboard>(), fs, state, view));
 
       await session.Process($".open {file}");
       Assert.That(view.ToString().Trim(), Is.EqualTo(text));

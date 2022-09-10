@@ -18,6 +18,7 @@ public interface IFile
 public interface IFileFactory
 {
    IFile Create(
+      IRepository repository,
       string name,
       string content);
 }
@@ -183,7 +184,7 @@ public sealed class File
    {
       if (_modified)
       {
-         if (_view.Confirm("The content is not saved. Save it and rename the file?"))
+         if (_view.Confirm("The content is not saved. Save it and rename the file?", Choice.Accept))
          {
             await _repository.WriteAsync(_name, _content);
          }
@@ -248,6 +249,7 @@ public sealed class File
          return;
 
       _repository.Delete(_name);
+      _view.WriteLine($"'{_name}' has been deleted.");
       _state.Back();
    }
 
@@ -279,7 +281,7 @@ public sealed class File
 
          await process.WaitForExitAsync();
          var content = await _fs.File.ReadAllTextAsync(path);
-         if (content == _content || !_view.Confirm("Update the content?"))
+         if (content == _content || !_view.Confirm("Update the content?", Choice.Accept))
             return;
          Update(content);
          await Save();
@@ -320,32 +322,30 @@ public sealed class FileFactory
 {
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
-   private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
 
    public FileFactory(
       IClipboard clipboard,
       IFileSystem fs,
-      IRepository repository,
       IState state,
       IView view)
    {
       _clipboard = clipboard;
       _fs = fs;
-      _repository = repository;
       _state = state;
       _view = view;
    }
 
    public IFile Create(
+      IRepository repository,
       string name,
       string content)
    {
       return new File(
          _clipboard,
          _fs,
-         _repository,
+         repository,
          _state,
          _view,
          name,

@@ -17,6 +17,7 @@ namespace pwd;
 public static class Program
 {
    internal static async Task Run(
+      ILogger logger,
       IFileSystem fs,
       IView view,
       IState state)
@@ -32,40 +33,36 @@ public static class Program
          services =>
          {
             services
+               .AddSingleton(logger)
                .AddSingleton(fs)
                .AddSingleton(view)
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton(state)
-               .AddSingleton<IRepository, Repository>(
-                  provider => new(
-                     provider.GetRequiredService<IFileSystem>(),
-                     provider.GetRequiredService<INameCipherFactory>().Create(password),
-                     provider.GetRequiredService<IContentCipherFactory>().Create(password),
-                     path))
-               .AddSingleton<IExporter, Exporter>(
-                  provider => new(
-                     provider.GetRequiredService<IContentCipherFactory>().Create(password),
-                     provider.GetRequiredService<IRepository>(),
-                     provider.GetRequiredService<IFileSystem>()))
+               .AddSingleton<IRepositoryFactory, RepositoryFactory>()
+               .AddSingleton<IExporterFactory, ExporterFactory>()
                .AddSingleton<INameCipherFactory, NameCipherFactory>()
                .AddSingleton<IContentCipherFactory, ContentCipherFactory>()
-               .AddTransient<ISession, Session>()
+               .AddSingleton<ISessionFactory, SessionFactory>()
                .AddSingleton<IFileFactory, FileFactory>()
                .AddSingleton<INewFileFactory, NewFileFactory>();
          });
 
       using var host = builder.Build();
 
-      var session = host.Services.GetRequiredService<ISession>();
-      state.Open(session);
+      var services = host.Services;
 
-      var repository = host.Services.GetRequiredService<IRepository>();
+      var contentCipher = services.GetRequiredService<IContentCipherFactory>().Create(password);
+      var nameCipher = services.GetRequiredService<INameCipherFactory>().Create(password);
+      var repository = services.GetRequiredService<IRepositoryFactory>().Create(nameCipher, contentCipher, path);
+      var exporter = services.GetRequiredService<IExporterFactory>().Create(contentCipher, repository);
+      var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter);
+      state.Open(session);
 
       try
       {
          var decryptErrors = new List<string>();
          var yamlErrors = new List<string>();
-         await ((Repository)repository).Initialise((file, name, decryptError, yamlError) =>
+         await ((Repository) repository).Initialise((file, name, decryptError, yamlError) =>
          {
             if (decryptError != null)
             {
@@ -136,37 +133,73 @@ public static class Program
    public static async Task Main(
       string[] args)
    {
+      var logger = new ConsoleLogger();
       var fs = new FileSystem();
       var state = new State(NullContext.Instance);
       var view = new View(state);
 
+      var isGitRepository =
+         fs.Directory.Exists(".git") ||
+         fs.Directory.Exists("../.git") ||
+         fs.Directory.Exists("../../.git");
+
+      async Task<(string, Exception?)> Exec(string exe, string arguments)
+      {
+         var processStartInfo =
+            new ProcessStartInfo(exe, arguments)
+            {
+               RedirectStandardOutput = true
+            };
+
+         Process? process;
+
+         try
+         {
+            process = Process.Start(processStartInfo);
+
+            if (process == null)
+               return ("", new($"Cannot run `{exe} {arguments}`"));
+         }
+         catch (Exception e)
+         {
+            return ("", e);
+         }
+
+         return (await process.StandardOutput.ReadToEndAsync(), null);
+      }
+
+      async Task ExecChain(params Func<Task<(string, Exception?)>>[] execs)
+      {
+         foreach (var item in execs)
+         {
+            var (output, exception) = await item();
+            view.WriteLine(exception != null ? exception.Message : output);
+            if (exception != null)
+               break;
+         }
+      }
+
+      if (isGitRepository)
+      {
+         var (output, exception) = await Exec("git", "remote update");
+         if (exception == null && output.Trim() != "Fetching origin") 
+            view.Write(output);
+      }
+
       await Run(
+         logger,
          fs,
          view,
          state);
 
       view.Clear();
-      if ((fs.Directory.Exists(".git") || fs.Directory.Exists("../.git") ||
-           fs.Directory.Exists("../../.git")) &&
-          view.Confirm("Update the repository?"))
-      {
-         var tempQualifier = new[] {"add *", "commit -m update", "push"}
-            .Select(_ =>
-            {
-               try
-               {
-                  Process.Start(new ProcessStartInfo("git", _))?.WaitForExit();
-                  return default;
-               }
-               catch (Exception e)
-               {
-                  return e;
-               }
-            })
-            .FirstOrDefault(e => e != null);
 
-         if (tempQualifier != null)
-            Console.Error.WriteLine(tempQualifier);
+      if (isGitRepository && view.Confirm("Update the repository?", Choice.Accept))
+      {
+         await ExecChain(
+            () => Exec("git", "add *"),
+            () => Exec("git", "commit -m update"),
+            () => Exec("git", "push"));
       }
    }
 }
