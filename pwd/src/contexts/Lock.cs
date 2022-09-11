@@ -12,7 +12,7 @@ public interface ILock
 public interface ILockFactory
 {
    ILock Create(
-      byte[] password);
+      string password);
 }
 
 public sealed class Lock
@@ -22,13 +22,13 @@ public sealed class Lock
    private readonly IState _state;
    private readonly IView _view;
    private readonly Timer _locker;
-   private readonly byte[] _password;
+   private readonly string _password;
 
    public Lock(
       ILogger logger,
       IState state,
       IView view,
-      byte[] password)
+      string password)
    {
       _logger = logger;
       _state = state;
@@ -59,17 +59,8 @@ public sealed class Lock
       {
          _view.Clear();
 
-         var input = await _view.ReadPasswordAsync("Password: ");
-
-         var password = new byte[_password.Length];
-         Array.Fill<byte>(password, 0);
-         Array.Copy(input, password, input.Length);
-
-         var match = true;
-         for (var i = 0; i < password.Length; i++)
-            if (password[i] != _password[i])
-               match = false;
-         if (match)
+         var password = await _view.ReadPasswordAsync("Password: ");
+         if (password == _password)
             break;
       }
 
@@ -120,7 +111,7 @@ public sealed class LockFactory
    }
 
    public ILock Create(
-      byte[] password)
+      string password)
    {
       return new Lock(
          _logger,

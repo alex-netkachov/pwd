@@ -136,9 +136,9 @@ public static class Program
       string[] args)
    {
       var logger = new ConsoleLogger();
-      var fs = new FileSystem();
       var state = new State(NullContext.Instance);
       var view = new View(state);
+      var fs = new FileSystem();
 
       var isGitRepository =
          fs.Directory.Exists(".git") ||

@@ -1,4 +1,3 @@
-using System.Text;
 using pwd.ciphers;
 
 namespace pwd.tests.ciphers;
@@ -33,7 +32,7 @@ public sealed class ContentCipher_Tests
       char symbol,
       int length)
    {
-      var cipher = new ContentCipher(Encoding.UTF8.GetBytes("pa$$w0rd"));
+      var cipher = new ContentCipher("pa$$w0rd");
       var expected = new string(symbol, length);
       var stream = new MemoryStream();
       cipher.Encrypt(new string(symbol, length), stream);
@@ -61,7 +60,7 @@ public sealed class ContentCipher_Tests
    public void the_cipher_does_not_decrypt_unencrypted_stream(
       string data)
    {
-      var cipher = new ContentCipher(Encoding.UTF8.GetBytes("pa$$w0rd"));
+      var cipher = new ContentCipher("pa$$w0rd");
       using var stream = new MemoryStream(Convert.FromHexString(data));
       var (decrypted, _) = cipher.DecryptString(stream);
       Assert.That(decrypted, Is.False);

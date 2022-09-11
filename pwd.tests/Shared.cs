@@ -22,19 +22,19 @@ public static class Shared
       if (!value) throw new(message);
    }
 
-   public static (byte[] pwd, string text, byte[] encrypted) ContentEncryptionTestData()
+   public static (string pwd, string text, byte[] encrypted) ContentEncryptionTestData()
    {
       return (
-         Encoding.UTF8.GetBytes("secret"),
+         "secret",
          "only you can protect what is yours",
          Convert.FromHexString(
             "53616C7465645F5FD2586E38D8F094E37022709B84AAD604AB513AA251223B2F49E2222A67C81DF3A2A772B33D8EEC32C83AB0FE7C46860575E695E2F7858D3A"));
    }
 
-   public static (byte[] pwd, string text, byte[] encrypted) NameEncryptionTestData()
+   public static (string pwd, string text, byte[] encrypted) NameEncryptionTestData()
    {
       return (
-         Encoding.UTF8.GetBytes("secret"),
+         "secret",
          "only you can protect what is yours",
          Convert.FromHexString(
             "475349596B69396453506F675378444A525F73396D6D636E616D6A746A3734616E4D43793255324B6A464B48345F335234477859675452326C446E726778352B694E654A573375474F63737E"));
@@ -154,8 +154,8 @@ public static class Shared
       await new ContentCipher(pwd).EncryptAsync("user: user\npassword: password\n", testData);
 
       var view = new BufferedView(
-         Encoding.UTF8.GetString(pwd),
-         Encoding.UTF8.GetString(pwd),
+         pwd,
+         pwd,
          "",
          "test",
          "..",
@@ -263,7 +263,7 @@ public sealed class BufferedView
       return Task.FromResult("");
    }
 
-   public Task<byte[]> ReadPasswordAsync(
+   public Task<string> ReadPasswordAsync(
       string prompt,
       CancellationToken token = default)
    {
@@ -271,9 +271,9 @@ public sealed class BufferedView
       {
          var value = _input[_index];
          _index++;
-         return Task.FromResult(Encoding.UTF8.GetBytes(value));   
+         return Task.FromResult(value);   
       }
-      return Task.FromResult(Array.Empty<byte>());
+      return Task.FromResult("");
    }
 
    public void Clear()

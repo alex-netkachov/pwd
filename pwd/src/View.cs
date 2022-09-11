@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,7 +36,7 @@ public interface IView
    /// <summary>Reads UTF8 input from the console without echoing to the output until Enter is pressed.</summary>
    /// <remarks>Ctrl+U resets the input, Backspace removes the last character from the input, other control
    /// keys (e.g. tab) are ignored.</remarks>
-   Task<byte[]> ReadPasswordAsync(
+   Task<string> ReadPasswordAsync(
       string prompt,
       CancellationToken token = default);
 
@@ -78,11 +76,9 @@ public sealed class View
       var yes = @default == Answer.Yes ? 'Y' : 'y';
       var no = @default == Answer.No ? 'N' : 'n';
 
-      Console.Write($"{question} ({yes}/{no}) ");
-
-      var input = new string(await SimpleReadAsync(true, token)).ToUpperInvariant();
-
-      return @default == Answer.Yes ? input != "N" : input == "Y";
+      var input = await ReadLineAsync($"{question} ({yes}/{no}) ", true, token);
+      var answer = input.ToUpperInvariant();
+      return @default == Answer.Yes ? answer != "N" : answer == "Y";
    }
 
    public Task<string> ReadAsync(
@@ -96,12 +92,11 @@ public sealed class View
       }, token);
    }
 
-   public async Task<byte[]> ReadPasswordAsync(
+   public async Task<string> ReadPasswordAsync(
       string prompt,
       CancellationToken token = default)
    {
-      Console.Write(prompt);
-      return Encoding.UTF8.GetBytes(await SimpleReadAsync(false, token));
+      return await ReadLineAsync(prompt, false, token);
    }
 
    public void Clear()
@@ -113,51 +108,59 @@ public sealed class View
          Console.Write("\x1b[3J");
    }
    
-   private async Task<char[]> SimpleReadAsync(
+   /// <summary>Simple async reading from the console. Supports BS, Ctrl+U. Ignores control keys (e.g. tab).</summary>
+   private async Task<string> ReadLineAsync(
+      string prompt,
       bool echo,
       CancellationToken token = default)
    {
+      if (!string.IsNullOrEmpty(prompt))
+         Console.Write(prompt);
+
       return await Task.Run(() =>
       {
-         var chars = new Stack<char>();
+         var input = new StringBuilder();
          while (true)
          {
+            token.ThrowIfCancellationRequested();
+
             if (!Console.KeyAvailable)
             {
                Thread.Sleep(10);
                continue;
             }
 
-            if (token.IsCancellationRequested)
-               throw new TaskCanceledException();
-
             Interaction?.Invoke(this, EventArgs.Empty);
 
-            var input = Console.ReadKey(true);
-            switch (input.Modifiers == ConsoleModifiers.Control, input.Key)
+            var key = Console.ReadKey(true);
+            switch (key.Modifiers == ConsoleModifiers.Control, key.Key)
             {
                case (false, ConsoleKey.Enter):
                   Console.WriteLine();
-                  return chars.Reverse().ToArray();
+                  return input.ToString();
                case (false, ConsoleKey.Backspace):
-                  if (chars.Count > 0)
+                  if (input.Length > 0)
                   {
                      if (echo)
                         Console.Write("\b \b");
-                     chars.Pop();
+                     input.Remove(input.Length - 1, 1);
                   }
                   break;
                case (true, ConsoleKey.U):
                   if (echo)
-                     Console.Write(string.Join("", chars.Select(_ => "\b \b")));
-                  chars.Clear();
+                  {
+                     var back = new string('\b', input.Length);
+                     var space = new string(' ', input.Length);
+                     Console.Write($"{back}{space}{back}");
+                  }
+                  input.Clear();
                   break;
                default:
-                  if (!char.IsControl(input.KeyChar))
+                  if (!char.IsControl(key.KeyChar))
                   {
                      if (echo)
-                        Console.Write(input.KeyChar);
-                     chars.Push(input.KeyChar);
+                        Console.Write(key.KeyChar);
+                     input.Append(key.KeyChar);
                   }
                   break;
             }

@@ -16,7 +16,7 @@ public interface IContentCipher
 public interface IContentCipherFactory
 {
    IContentCipher Create(
-      byte[] password);
+      string password);
 }
 
 public sealed class ContentCipher
@@ -27,10 +27,10 @@ public sealed class ContentCipher
 
    private static readonly int SaltSize = 8;
 
-   private readonly byte[] _password;
+   private readonly string _password;
 
    public ContentCipher(
-      byte[] password)
+      string password)
    {
       _password = password;
    }
@@ -112,7 +112,7 @@ public sealed class ContentCipherFactory
    : IContentCipherFactory
 {
    public IContentCipher Create(
-      byte[] password)
+      string password)
    {
       return new ContentCipher(password);
    }
