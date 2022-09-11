@@ -51,7 +51,7 @@ public sealed class Lock
       return "";
    }
 
-   public Task Open()
+   public async Task Open()
    {
       _logger.Trace($"{nameof(Lock)}.{nameof(Open)}");
 
@@ -59,7 +59,7 @@ public sealed class Lock
       {
          _view.Clear();
 
-         var input = _view.ReadPassword("Password: ");
+         var input = await _view.ReadPasswordAsync("Password: ");
 
          var password = new byte[_password.Length];
          Array.Fill<byte>(password, 0);
@@ -76,8 +76,6 @@ public sealed class Lock
       _view.Clear();
 
       _state.Back();
-
-      return Task.CompletedTask;
    }
 
    public string[] GetInputSuggestions(

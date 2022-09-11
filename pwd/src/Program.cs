@@ -23,7 +23,7 @@ public static class Program
       IState state)
    {
       // read the password and initialise ciphers 
-      var password = view.ReadPassword("Password: ");
+      var password = await view.ReadPasswordAsync("Password: ");
 
       // open the repository from the current working folder
       var path = fs.Path.GetFullPath(".");
@@ -106,7 +106,7 @@ public static class Program
       if (files.Count == 0)
       {
          var confirmPassword =
-            view.ReadPassword("It seems that you are creating a new repository. Please confirm password: ");
+            await view.ReadPasswordAsync("It seems that you are creating a new repository. Please confirm password: ");
          if (confirmPassword != password)
          {
             await Console.Error.WriteLineAsync("passwords do not match");
@@ -116,7 +116,7 @@ public static class Program
 
       while (true)
       {
-         var input = view.Read($"{state.Context.Prompt()}> ").Trim();
+         var input = (await view.ReadAsync($"{state.Context.Prompt()}> ")).Trim();
 
          if (input == ".quit")
             break;
@@ -151,7 +151,7 @@ public static class Program
          var (status, _, e) = await Exec(logger, "git", "status");
          if (e == null &&
              status.Contains("Your branch is behind") &&
-             view.Confirm("Pull changes from the remote?", Answer.Yes))
+             await view.ConfirmAsync("Pull changes from the remote?", Answer.Yes))
          {
             await Exec(logger, "git", "pull");
          }
@@ -165,7 +165,7 @@ public static class Program
 
       view.Clear();
 
-      if (isGitRepository && view.Confirm("Update the repository?", Answer.Yes))
+      if (isGitRepository && await view.ConfirmAsync("Update the repository?", Answer.Yes))
       {
          await ExecChain(
             () => Exec(logger, "git", "add ."),

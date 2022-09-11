@@ -153,42 +153,25 @@ public static class Shared
       var testData = new MemoryStream();
       await new ContentCipher(pwd).EncryptAsync("user: user\npassword: password\n", testData);
 
-      IEnumerable<string> Input()
-      {
-         yield return Encoding.UTF8.GetString(pwd);
-         yield return Encoding.UTF8.GetString(pwd);
-         yield return "";
-         fs.File.WriteAllBytes("test", testData.ToArray());
-         yield return "test";
-         yield return "..";
-         yield return ".quit";
-      }
-
-      var messages = new List<string>();
-      var stdoutBuilder = new StringBuilder();
-      using var e = Input().GetEnumerator();
-      var read = (Func<string, string>) (text =>
-      {
-         e.MoveNext();
-         var output = stdoutBuilder.ToString();
-         if (output.Trim().Length > 0)
-            messages.Add(output);
-         stdoutBuilder.Clear();
-         messages.Add($"{text}{e.Current}");
-         return e.Current;
-      });
-      var view = new Mock<IView>();
-      view.Setup(m => m.Read(It.IsAny<string>())).Returns(read);
-      view.Setup(m => m.ReadPassword(It.IsAny<string>())).Returns(read);
-      var stdout = Console.Out;
-      Console.SetOut(new StringWriter(stdoutBuilder));
+      var view = new BufferedView(
+         Encoding.UTF8.GetString(pwd),
+         Encoding.UTF8.GetString(pwd),
+         "",
+         "test",
+         "..",
+         ".quit");
       var state = new State(NullContext.Instance);
-      await Program.Run(Mock.Of<ILogger>(), fs, view.Object, state);
-      Console.SetOut(stdout);
-      var expected = string.Join("\n", "Password: secret",
-         "It seems that you are creating a new repository. Please confirm password: secret", ">", "> test",
-         "user: user", "password: password", "test> ..", "> .quit");
-      var actual = string.Join("\n", messages.Select(line => line.Trim()).Where(line => !string.IsNullOrEmpty(line)));
+      await Program.Run(Mock.Of<ILogger>(), fs, view, state);
+      var expected = string.Join("\n",
+         "Password: secret",
+         "It seems that you are creating a new repository. Please confirm password: secret",
+         ">",
+         "> test",
+         "user: user",
+         "password: password",
+         "test> ..",
+         "> .quit");
+      var actual = view.ToString();
       Assert(expected == actual);
    }
 }
@@ -236,8 +219,16 @@ public sealed class BufferedView
    : IView
 {
    private readonly StringBuilder _output = new();
+   private readonly string[] _input;
+   private int _index;
 
    public event EventHandler? Interaction;
+
+   public BufferedView(
+      params string[] input)
+   {
+      _input = input;
+   }
 
    public void WriteLine(
       string text)
@@ -251,23 +242,38 @@ public sealed class BufferedView
       _output.Append(text);
    }
 
-   public bool Confirm(
+   public Task<bool> ConfirmAsync(
       string question,
-      Answer @default = Answer.No)
+      Answer @default = Answer.No,
+      CancellationToken token = default)
    {
-      return true;
+      return Task.FromResult(true);
    }
 
-   public string Read(
-      string prompt)
+   public Task<string> ReadAsync(
+      string prompt,
+      CancellationToken token = default)
    {
-      return "";
+      if (_index <= _input.Length)
+      {
+         var value = _input[_index];
+         _index++;
+         return Task.FromResult(value);   
+      }
+      return Task.FromResult("");
    }
 
-   public byte[] ReadPassword(
-      string prompt)
+   public Task<byte[]> ReadPasswordAsync(
+      string prompt,
+      CancellationToken token = default)
    {
-      return Array.Empty<byte>();
+      if (_index <= _input.Length)
+      {
+         var value = _input[_index];
+         _index++;
+         return Task.FromResult(Encoding.UTF8.GetBytes(value));   
+      }
+      return Task.FromResult(Array.Empty<byte>());
    }
 
    public void Clear()

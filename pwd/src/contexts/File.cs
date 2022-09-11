@@ -95,7 +95,7 @@ public sealed class File
             await Rename(name);
             break;
          case (_, "rm", _):
-            Delete();
+            await Delete();
             break;
          case (_, "save", _):
             await Save();
@@ -189,7 +189,7 @@ public sealed class File
    {
       if (_modified)
       {
-         if (_view.Confirm("The content is not saved. Save it and rename the file?", Answer.Yes))
+         if (await _view.ConfirmAsync("The content is not saved. Save it and rename the file?", Answer.Yes))
          {
             await _repository.WriteAsync(_name, _content);
          }
@@ -248,9 +248,9 @@ public sealed class File
       return (node.Value as YamlScalarNode)?.Value ?? "";
    }
 
-   private void Delete()
+   private async Task Delete()
    {
-      if (!_view.Confirm($"Delete '{_name}'?"))
+      if (!await _view.ConfirmAsync($"Delete '{_name}'?"))
          return;
 
       _repository.Delete(_name);
@@ -286,7 +286,7 @@ public sealed class File
 
          await process.WaitForExitAsync();
          var content = await _fs.File.ReadAllTextAsync(path);
-         if (content == _content || !_view.Confirm("Update the content?", Answer.Yes))
+         if (content == _content || !await _view.ConfirmAsync("Update the content?", Answer.Yes))
             return;
          Update(content);
          await Save();
