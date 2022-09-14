@@ -1,6 +1,6 @@
 # pwd
 
-`pwd` is a simple cross-platform console password manager, written in C#.
+`pwd` is a simple cross-platform console password manager, written in .NET6/C#.
 
 - It is tiny yet efficient as it only focused on helping you managing passwords.
 - No vendor-lock, use encrypted passwords with openssl and your text editor.
@@ -34,7 +34,7 @@
     variable `EDITOR` is not set, specify the editor's executable after the
     command as follows: `.edit notepad` or `.edit vim`. Save and exit when you
     finish. Confirm overwriting.
-15. Quit anytime by typing `.quit`.
+14. Quit anytime by typing `.quit`.
 
 ## Highlights
 
@@ -54,10 +54,11 @@ There are two ways to modify content of the encrypted file:
   and then encrypt `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2 > file`
   with openssl
 
-# Testing
+There is a set of shell scripts that help with listing, decrypting, and
+encrypting files with openssl in a way that is compatible with `pwd`.
 
-The tests are in the `pwd.test.cs`, and can be run with `dotnet run -- -t`
-or `./pwd -t`.
+When the passwords folder is a git repository, the tool helps updating
+the repository on startup and pushing changes after exiting from the tool.
 
 # List of Commands
 
@@ -85,28 +86,27 @@ Commands:
   folder begins with `.`, the directory reader will not display this folder in
   the list of encrypted files. Archived files are checked when the tool starts
   and can be opened with `.open`.
-- `.cc name` copies value of a `name: value` pair to clipboard. `clip.exe` is
-  used for Windows and WSL,
-  `pbcopy` is for mac, and `xsel` is for Linux. There are two shortcuts: `.ccu`
-  for `.cc user`
-  and `.ccp` for `.cc password`. The clipboard is cleared in 5 seconds after
-  copying.
+- `.cc name` copies value of a `name: value` pair to clipboard. There are two 
+  shortcuts: `.ccu` for `.cc user` and `.ccp` for `.cc password`. The clipboard 
+  is cleared in 5 seconds after copying.
 - `.clear` clears the console.
-- `.export [path]` writes the encrypted password files to a single HTML file.
+- `.export path` writes the encrypted password files to a single HTML file.
 
 Also see a list of readline commands: https://github.com/tonerdo/readline
 
-## Using on Android
+## Using on other devices
 
-### HTML Export
+Export your password files to HTML and open them with browser as follows:
 
-Export your password files to HTML and open them with Chrome browser as follows:
+1) Start pwd and use `.export path` command to write your passwords to an HTML
+   file.
+2) Copy this file to your phone, tablet, or laptop without `pwd`.
+3) Open the copied HTML file in a browser and follow the onscreen instruction.
 
-1) Start pwd and use `.export` command to write your passwords to an HTML file.
-2) Copy this file to your phone, either by commiting to the shared repository or
-   by copying it through Bluetooth, or by any other method.
-3) Open the copied HTML file in your Android's browser and follow the onscreen
-   instruction.
+## Technicalities
+
+While copying text to the clipboard `clip.exe` is used for Windows and WSL,
+`pbcopy` is for mac, and `xsel` is for Linux.
 
 ## Story of pwd
 
@@ -125,10 +125,9 @@ Over the years a few things happened:
 
 So I'd evaluated a lot and tried some of the tools that claimed to help me
 manage my passwords. Some of them really did actually and I've used these one
-for a while:
-truecrypt, Password Commander, KeePass, 1Password.
+for a while: truecrypt, Password Commander, KeePass, 1Password.
 
-Believe me, moving from one to another isn't fun. I wouldn't if I didn't have
+Believe me, moving from one to another isn't fun. I wouldn't if I did not have
 to. But what are the alternatives if the application is just discontinued, or
 your dream job requires you to change an operating system? You cannot really let
 your software make live decisions for you, don't you agree?
@@ -183,6 +182,3 @@ easily.
 
 This solution has been serving me well for several years already. As it is now a
 time-proven one, I'm happy to share it with you.
-
-If you like it, consider buying me a coffee
-https://www.buymeacoffee.com/alex.alexander. Thanks!

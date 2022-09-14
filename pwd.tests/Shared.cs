@@ -129,7 +129,7 @@ public static class Shared
    {
       var (pwd, _, _) = ContentEncryptionTestData();
       var fs = FileLayout1(GetMockFs());
-      var view = new View(Mock.Of<IState>());
+      var view = new View(Mock.Of<IState>(), Timeout.InfiniteTimeSpan);
       var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
       await repository.Initialise();
       var session = CreateSessionContext(repository, view: view);
@@ -222,7 +222,7 @@ public sealed class BufferedView
    private readonly string[] _input;
    private int _index;
 
-   public event EventHandler? Interaction;
+   public event EventHandler? Idle;
 
    public BufferedView(
       params string[] input)

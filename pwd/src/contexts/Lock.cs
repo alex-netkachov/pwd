@@ -35,9 +35,9 @@ public sealed class Lock
       _view = view;
       _password = password;
 
-      _view.Interaction += ViewOnInteraction;
+      _view.Idle += ViewOnIdle;
 
-      _locker = new Timer(_ => LockState());
+      _locker = new(_ => LockState());
    }
 
    public Task Process(
@@ -76,7 +76,7 @@ public sealed class Lock
       return Array.Empty<string>();
    }
    
-   private void ViewOnInteraction(
+   private void ViewOnIdle(
       object? sender,
       EventArgs e)
    {
@@ -84,7 +84,7 @@ public sealed class Lock
       // operation. Right now reading the password from Lock interferes with reading the command from Readline.
       // Therefore, Timeout.InfiniteTimeSpan in first argument, i.e. never locks.
       // Also, _state.Open will require locking/syncing to prevent racing. 
-      _locker.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+      // LockState();
    }
 
    private void LockState()

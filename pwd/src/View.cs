@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace pwd;
 
-/// <summary>Answers to confirmations.</summary>
+/// <summary>Answers to confirmation questions.</summary>
 public enum Answer
 {
    Yes,
@@ -14,7 +14,8 @@ public enum Answer
 
 public interface IView
 {
-   event EventHandler Interaction;
+   /// <summary>Notifies listeners about reaching the user interaction timeout.</summary>
+   event EventHandler Idle;
 
    void WriteLine(
       string text);
@@ -47,11 +48,19 @@ public interface IView
 public sealed class View
    : IView
 {
-   public event EventHandler? Interaction;
+   private readonly TimeSpan _interactionTimeout;
+   private readonly Timer _interactionTimeoutTimer;
+
+   public event EventHandler? Idle;
 
    public View(
-      IState state)
+      IState state,
+      TimeSpan interactionTimeout)
    {
+      _interactionTimeout = interactionTimeout;
+      _interactionTimeoutTimer = new(_ => Idle?.Invoke(this, EventArgs.Empty));
+      _interactionTimeoutTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
+
       ReadLine.HistoryEnabled = true;
       ReadLine.AutoCompletionHandler = new AutoCompletionHandler(state);
    }
@@ -87,7 +96,7 @@ public sealed class View
    {
       return Task.Run(() =>
       {
-         Interaction?.Invoke(this, EventArgs.Empty);
+         UpdateInteractionTimeoutTimer();
          return ReadLine.Read(prompt);
       }, token);
    }
@@ -126,11 +135,13 @@ public sealed class View
 
             if (!Console.KeyAvailable)
             {
+               // Delay between user pressing the key and processing this key by the app.
+               // Should be small enough so the user does not notice an input lag. 
                Thread.Sleep(10);
                continue;
             }
 
-            Interaction?.Invoke(this, EventArgs.Empty);
+            UpdateInteractionTimeoutTimer();
 
             var key = Console.ReadKey(true);
             switch (key.Modifiers == ConsoleModifiers.Control, key.Key)
@@ -166,5 +177,10 @@ public sealed class View
             }
          }
       }, token);
+   }
+
+   private void UpdateInteractionTimeoutTimer()
+   {
+      _interactionTimeoutTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
    }
 }

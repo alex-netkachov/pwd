@@ -137,7 +137,7 @@ public static class Program
    {
       var logger = new ConsoleLogger();
       var state = new State(NullContext.Instance);
-      var view = new View(state);
+      var view = new View(state, TimeSpan.FromMinutes(5));
       var fs = new FileSystem();
 
       var isGitRepository =

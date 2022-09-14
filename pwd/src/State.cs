@@ -21,7 +21,7 @@ public class State
    public State(
       IContext initial)
    {
-      _stack = new Stack<IContext>();
+      _stack = new();
       _stack.Push(initial);
    }
 
