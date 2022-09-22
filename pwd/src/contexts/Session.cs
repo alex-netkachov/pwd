@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using pwd.readline;
 
 namespace pwd.contexts;
 
@@ -23,7 +25,8 @@ public interface ISessionFactory
 /// <summary>Repository working session context.</summary>
 public sealed class Session
    : AbstractContext,
-      ISession
+      ISession,
+      ISuggestionsProvider
 {
    private readonly IExporter _exporter;
    private readonly IFileFactory _fileFactory;
@@ -113,21 +116,27 @@ public sealed class Session
       }
    }
 
-   public override string[] GetInputSuggestions(
-      string input,
-      int index)
+   public override async Task<string> ReadAsync()
+   {
+      return (await _view.ReadAsync(new("> "), this)).Trim();
+   }
+
+   public (int, IReadOnlyList<string>) Get(
+      string input)
    {
       if (!input.StartsWith('.'))
       {
          var p = input.LastIndexOf('/');
          var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-         return _repository.List(folder == "" ? "." : folder)
-            .Where(item => item.Path.StartsWith(input))
-            .Select(item => item.Path)
-            .ToArray();
+         return (
+            input.Length,
+            _repository.List(folder == "" ? "." : folder)
+               .Where(item => item.Path.StartsWith(input))
+               .Select(item => item.Path)
+               .ToArray());
       }
 
-      return new[]
+      return (input.Length, new[]
          {
             ".add",
             ".archive",
@@ -138,7 +147,7 @@ public sealed class Session
             ".quit"
          }
          .Where(item => item.StartsWith(input))
-         .ToArray();
+         .ToArray());
    }
 
    private async Task Open(

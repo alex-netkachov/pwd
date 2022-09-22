@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 
 namespace pwd.contexts;
@@ -8,13 +7,9 @@ public interface IContext
    Task Process(
       string input);
 
-   string Prompt();
+   Task<string> ReadAsync();
 
    Task Open();
-
-   string[] GetInputSuggestions(
-      string input,
-      int index);
 }
 
 public abstract class AbstractContext
@@ -26,21 +21,14 @@ public abstract class AbstractContext
       return Task.CompletedTask;
    }
 
-   public virtual string Prompt()
+   public virtual Task<string> ReadAsync()
    {
-      return "";
+      return Task.FromResult("");
    }
 
    public virtual Task Open()
    {
       return Task.CompletedTask;
-   }
-
-   public virtual string[] GetInputSuggestions(
-      string input,
-      int index)
-   {
-      return Array.Empty<string>();
    }
 }
 

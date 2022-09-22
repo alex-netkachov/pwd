@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using PasswordGenerator;
+using pwd.readline;
 
 namespace pwd.contexts;
 
@@ -20,7 +22,8 @@ public interface INewFileFactory
 
 public sealed class NewFile
    : AbstractContext,
-      INewFile
+      INewFile,
+      ISuggestionsProvider
 {
    private readonly IRepository _repository;
    private readonly IState _state;
@@ -40,12 +43,7 @@ public sealed class NewFile
       _view = view;
       _name = name;
 
-      _content = new StringBuilder();
-   }
-
-   public override string Prompt()
-   {
-      return "+";
+      _content = new();
    }
 
    public override async Task Process(
@@ -66,18 +64,22 @@ public sealed class NewFile
       }
    }
 
-   public override string[] GetInputSuggestions(
-      string input,
-      int index)
+   public override async Task<string> ReadAsync()
    {
-      return new[]
+      return (await _view.ReadAsync(new("+> "), this)).Trim();
+   }
+
+   public (int, IReadOnlyList<string>) Get(
+      string input)
+   {
+      return (input.Length, new[]
          {
             ".help",
             "user",
             "password"
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-         .ToArray();
+         .ToArray());
    }
 }
 

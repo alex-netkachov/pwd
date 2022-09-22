@@ -38,9 +38,6 @@
 
 ## Highlights
 
-The tool's prompt is a readline's input, so there are some
-shortcuts: https://github.com/tonerdo/readline
-
 Passwords are stored in files. When the tool starts, it checks the integrity of
 all encrypted files in the folder: it checks that they can be decrypted are
 valid YAML files. See more on YAML here:
@@ -59,6 +56,8 @@ encrypting files with openssl in a way that is compatible with `pwd`.
 
 When the passwords folder is a git repository, the tool helps updating
 the repository on startup and pushing changes after exiting from the tool.
+
+The tool provides autocomplete for commands and paths.
 
 # List of Commands
 

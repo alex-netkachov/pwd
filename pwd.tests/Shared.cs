@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using pwd.ciphers;
 using pwd.contexts;
+using pwd.readline;
 using IFile = pwd.contexts.IFile;
 
 
@@ -129,20 +130,18 @@ public static class Shared
    {
       var (pwd, _, _) = ContentEncryptionTestData();
       var fs = FileLayout1(GetMockFs());
-      var view = new View(Mock.Of<IState>(), Timeout.InfiniteTimeSpan);
+      var view = new View(Timeout.InfiniteTimeSpan);
       var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
       await repository.Initialise();
       var session = CreateSessionContext(repository, view: view);
-      var state = new State(session);
-      var handler = new AutoCompletionHandler(state);
-      Assert(string.Join(";", handler.GetSuggestions("../", 0)) == "../test");
-      Assert(string.Join(";", handler.GetSuggestions("", 0)) == "encrypted;regular_dir");
-      Assert(string.Join(";", handler.GetSuggestions("enc", 0)) == "encrypted");
-      Assert(string.Join(";", handler.GetSuggestions("encrypted", 0)) == "encrypted");
-      Assert(string.Join(";", handler.GetSuggestions("regular_dir", 0)) == "regular_dir");
-      Assert(string.Join(";", handler.GetSuggestions("regular_dir/", 0)) == "regular_dir/encrypted");
-      Assert(string.Join(";", handler.GetSuggestions("regular_dir/enc", 0)) == "regular_dir/encrypted");
-      Assert(string.Join(";", handler.GetSuggestions("regular_dir/encrypted", 0)) == "regular_dir/encrypted");
+      Assert(string.Join(";", session.Get("../")) == "../test");
+      Assert(string.Join(";", session.Get("")) == "encrypted;regular_dir");
+      Assert(string.Join(";", session.Get("enc")) == "encrypted");
+      Assert(string.Join(";", session.Get("encrypted")) == "encrypted");
+      Assert(string.Join(";", session.Get("regular_dir")) == "regular_dir");
+      Assert(string.Join(";", session.Get("regular_dir/")) == "regular_dir/encrypted");
+      Assert(string.Join(";", session.Get("regular_dir/enc")) == "regular_dir/encrypted");
+      Assert(string.Join(";", session.Get("regular_dir/encrypted")) == "regular_dir/encrypted");
    }
 
    private static async Task Test_Main1()
@@ -251,7 +250,8 @@ public sealed class BufferedView
    }
 
    public Task<string> ReadAsync(
-      string prompt,
+      string prompt = "",
+      ISuggestionsProvider? suggestionsProvider = null,
       CancellationToken token = default)
    {
       if (_index <= _input.Length)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using pwd.readline;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts;
@@ -27,7 +29,8 @@ public interface IFileFactory
 /// <summary>Encrypted file context.</summary>
 public sealed class File
    : AbstractContext,
-      IFile
+      IFile,
+      ISuggestionsProvider
 {
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
@@ -111,26 +114,25 @@ public sealed class File
       }
    }
 
+   public override async Task<string> ReadAsync()
+   {
+      return (await _view.ReadAsync(new($"{(_modified ? "*" : "")}{_name}> "), this)).Trim();
+   }
+
    public override Task Open()
    {
       Print();
       return Task.CompletedTask;
    }
 
-   public override string Prompt()
-   {
-      return $"{(_modified ? "*" : "")}{_name}";
-   }
-
-   public override string[] GetInputSuggestions(
-      string input,
-      int index)
+   public (int, IReadOnlyList<string>) Get(
+      string input)
    {
       if (!input.StartsWith('.'))
-         return Array.Empty<string>();
+         return (0, Array.Empty<string>());
 
       if (input == "..")
-         return Array.Empty<string>();
+         return (0, Array.Empty<string>());
 
       if (input.StartsWith(".cc ", StringComparison.Ordinal))
       {
@@ -138,20 +140,22 @@ public sealed class File
          var yaml = new YamlStream();
          yaml.Load(reader);
          if (yaml.Documents.First().RootNode is not YamlMappingNode mappingNode)
-            return Array.Empty<string>();
+            return (0, Array.Empty<string>());
 
          // 4 is the length of the ".cc " string
          var prefix = input[4..];
 
-         return mappingNode
-            .Children
-            .Select(item => item.Key.ToString())
-            .Where(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Select(item => $".cc {item}")
-            .ToArray();
+         return (
+            input.Length,
+            mappingNode
+               .Children
+               .Select(item => item.Key.ToString())
+               .Where(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+               .Select(item => $".cc {item}")
+               .ToArray());
       }
 
-      return new[]
+      return (input.Length, new[]
          {
             ".archive",
             ".cc",
@@ -169,7 +173,7 @@ public sealed class File
             ".unobscured"
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-         .ToArray();
+         .ToArray());
    }
 
    private void Archive()

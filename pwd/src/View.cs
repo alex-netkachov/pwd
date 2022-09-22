@@ -1,7 +1,7 @@
 using System;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.readline;
 
 namespace pwd;
 
@@ -31,14 +31,15 @@ public interface IView
 
    /// <summary>Reads the input from the console.</summary>
    Task<string> ReadAsync(
-      string prompt,
+      string prompt = "",
+      ISuggestionsProvider? suggestionsProvider = null,
       CancellationToken token = default);
 
    /// <summary>Reads UTF8 input from the console without echoing to the output until Enter is pressed.</summary>
    /// <remarks>Ctrl+U resets the input, Backspace removes the last character from the input, other control
    /// keys (e.g. tab) are ignored.</remarks>
    Task<string> ReadPasswordAsync(
-      string prompt,
+      string prompt = "",
       CancellationToken token = default);
 
    /// <summary>Clears the console and its buffer, if possible.</summary>
@@ -48,21 +49,15 @@ public interface IView
 public sealed class View
    : IView
 {
-   private readonly TimeSpan _interactionTimeout;
-   private readonly Timer _interactionTimeoutTimer;
+   private readonly Prompt _prompt;
 
    public event EventHandler? Idle;
 
    public View(
-      IState state,
       TimeSpan interactionTimeout)
    {
-      _interactionTimeout = interactionTimeout;
-      _interactionTimeoutTimer = new(_ => Idle?.Invoke(this, EventArgs.Empty));
-      _interactionTimeoutTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
-
-      ReadLine.HistoryEnabled = true;
-      ReadLine.AutoCompletionHandler = new AutoCompletionHandler(state);
+      _prompt = new(interactionTimeout);
+      _prompt.Idle += (_, _) => Idle?.Invoke(this, EventArgs.Empty);
    }
 
    public void WriteLine(
@@ -85,27 +80,24 @@ public sealed class View
       var yes = @default == Answer.Yes ? 'Y' : 'y';
       var no = @default == Answer.No ? 'N' : 'n';
 
-      var input = await ReadLineAsync($"{question} ({yes}/{no}) ", true, token);
+      var input = await _prompt.ReadAsync($"{question} ({yes}/{no}) ", token: token);
       var answer = input.ToUpperInvariant();
       return @default == Answer.Yes ? answer != "N" : answer == "Y";
    }
 
-   public Task<string> ReadAsync(
-      string prompt,
+   public async Task<string> ReadAsync(
+      string prompt = "",
+      ISuggestionsProvider? suggestionsProvider = null,
       CancellationToken token = default)
    {
-      return Task.Run(() =>
-      {
-         UpdateInteractionTimeoutTimer();
-         return ReadLine.Read(prompt);
-      }, token);
+      return await _prompt.ReadAsync(prompt, suggestionsProvider, token);
    }
 
    public async Task<string> ReadPasswordAsync(
-      string prompt,
+      string prompt = "",
       CancellationToken token = default)
    {
-      return await ReadLineAsync(prompt, false, token);
+      return await _prompt.ReadPasswordAsync(prompt, token);
    }
 
    public void Clear()
@@ -115,72 +107,5 @@ public sealed class View
       // clears the console and buffer on xterm-compatible terminals
       if (Environment.GetEnvironmentVariable("TERM")?.StartsWith("xterm") == true)
          Console.Write("\x1b[3J");
-   }
-   
-   /// <summary>Simple async reading from the console. Supports BS, Ctrl+U. Ignores control keys (e.g. tab).</summary>
-   private async Task<string> ReadLineAsync(
-      string prompt,
-      bool echo,
-      CancellationToken token = default)
-   {
-      if (!string.IsNullOrEmpty(prompt))
-         Console.Write(prompt);
-
-      return await Task.Run(() =>
-      {
-         var input = new StringBuilder();
-         while (true)
-         {
-            token.ThrowIfCancellationRequested();
-
-            if (!Console.KeyAvailable)
-            {
-               // Delay between user pressing the key and processing this key by the app.
-               // Should be small enough so the user does not notice an input lag. 
-               Thread.Sleep(10);
-               continue;
-            }
-
-            UpdateInteractionTimeoutTimer();
-
-            var key = Console.ReadKey(true);
-            switch (key.Modifiers == ConsoleModifiers.Control, key.Key)
-            {
-               case (false, ConsoleKey.Enter):
-                  Console.WriteLine();
-                  return input.ToString();
-               case (false, ConsoleKey.Backspace):
-                  if (input.Length > 0)
-                  {
-                     if (echo)
-                        Console.Write("\b \b");
-                     input.Remove(input.Length - 1, 1);
-                  }
-                  break;
-               case (true, ConsoleKey.U):
-                  if (echo)
-                  {
-                     var back = new string('\b', input.Length);
-                     var space = new string(' ', input.Length);
-                     Console.Write($"{back}{space}{back}");
-                  }
-                  input.Clear();
-                  break;
-               default:
-                  if (!char.IsControl(key.KeyChar))
-                  {
-                     if (echo)
-                        Console.Write(key.KeyChar);
-                     input.Append(key.KeyChar);
-                  }
-                  break;
-            }
-         }
-      }, token);
-   }
-
-   private void UpdateInteractionTimeoutTimer()
-   {
-      _interactionTimeoutTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
    }
 }

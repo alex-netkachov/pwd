@@ -116,7 +116,7 @@ public static class Program
 
       while (true)
       {
-         var input = (await view.ReadAsync($"{state.Context.Prompt()}> ")).Trim();
+         var input = await state.Context.ReadAsync();
 
          if (input == ".quit")
             break;
@@ -137,7 +137,7 @@ public static class Program
    {
       var logger = new ConsoleLogger();
       var state = new State(NullContext.Instance);
-      var view = new View(state, TimeSpan.FromMinutes(5));
+      var view = new View(TimeSpan.FromMinutes(5));
       var fs = new FileSystem();
 
       var isGitRepository =
@@ -226,26 +226,5 @@ public static class Program
          logger.Info(stderr.TrimEnd());
 
       return (stdout, stderr, null);
-   }
-}
-
-public class AutoCompletionHandler
-   : IAutoCompleteHandler
-{
-   private readonly IState _state;
-
-   public AutoCompletionHandler(
-      IState state)
-   {
-      _state = state;
-   }
-
-   public char[] Separators { get; set; } = Array.Empty<char>();
-
-   public string[] GetSuggestions(
-      string text,
-      int index)
-   {
-      return _state.Context.GetInputSuggestions(text, index);
    }
 }

@@ -46,9 +46,9 @@ public sealed class Lock
       return Task.CompletedTask;
    }
 
-   public string Prompt()
+   public async Task<string> ReadAsync()
    {
-      return "";
+      return (await _view.ReadAsync(new("> "))).Trim();
    }
 
    public async Task Open()
