@@ -52,11 +52,13 @@ public static class Program
 
       var services = host.Services;
 
+      var @lock = services.GetRequiredService<ILockFactory>().Create(password);
+      view.Idle += (_, _) => state.Open(@lock);
+
       var contentCipher = services.GetRequiredService<IContentCipherFactory>().Create(password);
       var nameCipher = services.GetRequiredService<INameCipherFactory>().Create(password);
       var repository = services.GetRequiredService<IRepositoryFactory>().Create(nameCipher, contentCipher, path);
       var exporter = services.GetRequiredService<IExporterFactory>().Create(contentCipher, repository);
-      var @lock = services.GetRequiredService<ILockFactory>().Create(password);
       var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter, @lock);
       state.Open(session);
 
@@ -116,7 +118,15 @@ public static class Program
 
       while (true)
       {
-         var input = await state.Context.ReadAsync();
+         var input = "";
+         try
+         {
+            input = await state.Context.ReadAsync();
+         }
+         catch (OperationCanceledException)
+         {
+            // ignore
+         }
 
          if (input == ".quit")
             break;

@@ -51,6 +51,8 @@ public sealed class View
 {
    private readonly Prompt _prompt;
 
+   private CancellationTokenSource? _cts;
+
    public event EventHandler? Idle;
 
    public View(
@@ -77,6 +79,10 @@ public sealed class View
       Answer @default = Answer.No,
       CancellationToken token = default)
    {
+      var cts = new CancellationTokenSource();
+      _cts = cts;
+      token.Register(() => cts.Cancel());
+
       var yes = @default == Answer.Yes ? 'Y' : 'y';
       var no = @default == Answer.No ? 'N' : 'n';
 
@@ -90,22 +96,29 @@ public sealed class View
       ISuggestionsProvider? suggestionsProvider = null,
       CancellationToken token = default)
    {
-      return await _prompt.ReadAsync(prompt, suggestionsProvider, token);
+      var cts = new CancellationTokenSource();
+      _cts = cts;
+      token.Register(() => cts.Cancel());
+      return await _prompt.ReadAsync(prompt, suggestionsProvider, cts.Token);
    }
 
    public async Task<string> ReadPasswordAsync(
       string prompt = "",
       CancellationToken token = default)
    {
-      return await _prompt.ReadPasswordAsync(prompt, token);
+      var cts = new CancellationTokenSource();
+      _cts = cts;
+      token.Register(() => cts.Cancel());
+      return await _prompt.ReadPasswordAsync(prompt, cts.Token);
    }
 
    public void Clear()
    {
+      _cts?.Cancel();
+
       Console.Clear();
 
-      // clears the console and buffer on xterm-compatible terminals
-      if (Environment.GetEnvironmentVariable("TERM")?.StartsWith("xterm") == true)
-         Console.Write("\x1b[3J");
+      // clears the console and its buffer
+      Console.Write("\x1b[2J\x1b[3J");
    }
 }

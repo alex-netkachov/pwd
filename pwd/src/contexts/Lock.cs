@@ -1,5 +1,3 @@
-using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace pwd.contexts;
@@ -16,12 +14,12 @@ public interface ILockFactory
 }
 
 public sealed class Lock
-   : ILock
+   : AbstractContext,
+      ILock
 {
    private readonly ILogger _logger;
    private readonly IState _state;
    private readonly IView _view;
-   private readonly Timer _locker;
    private readonly string _password;
 
    public Lock(
@@ -34,62 +32,28 @@ public sealed class Lock
       _state = state;
       _view = view;
       _password = password;
-
-      _view.Idle += ViewOnIdle;
-
-      _locker = new(_ => LockState());
    }
 
-   public Task Process(
+   public override Task Process(
       string input)
    {
+      if (input == "..")
+         _state.Back();
+
       return Task.CompletedTask;
    }
 
-   public async Task<string> ReadAsync()
+   public override async Task<string> ReadAsync()
    {
-      return (await _view.ReadAsync(new("> "))).Trim();
-   }
-
-   public async Task Open()
-   {
-      _logger.Trace($"{nameof(Lock)}.{nameof(Open)}");
-
-      while (true)
-      {
-         _view.Clear();
-
-         var password = await _view.ReadPasswordAsync("Password: ");
-         if (password == _password)
-            break;
-      }
-
       _view.Clear();
-
-      _state.Back();
+      var password = await _view.ReadPasswordAsync("Password: ");
+      return password == _password ? ".." : "";
    }
 
-   public string[] GetInputSuggestions(
-      string input,
-      int index)
+   public override Task Open()
    {
-      return Array.Empty<string>();
-   }
-   
-   private void ViewOnIdle(
-      object? sender,
-      EventArgs e)
-   {
-      // This functionality is on-hold until new readline implementation that supports cancelling read
-      // operation. Right now reading the password from Lock interferes with reading the command from Readline.
-      // Therefore, Timeout.InfiniteTimeSpan in first argument, i.e. never locks.
-      // Also, _state.Open will require locking/syncing to prevent racing. 
-      // LockState();
-   }
-
-   private void LockState()
-   {
-      _state.Open(this);
+      _view.Clear();
+      return Task.CompletedTask;
    }
 }
 
