@@ -7,31 +7,35 @@ namespace pwd.readline;
 
 public sealed class Prompt
 {
-   
    private readonly TimeSpan _interactionTimeout;
    private readonly Timer _interactionTimeoutTimer;
+   private readonly IConsole _console;
 
    public event EventHandler? Idle;
 
    public Prompt(
-      TimeSpan interactionTimeout)
+      TimeSpan interactionTimeout,
+      IConsole console)
    {
       _interactionTimeout = interactionTimeout;
+      _console = console;
       _interactionTimeoutTimer = new(_ => Idle?.Invoke(this, EventArgs.Empty));
-      _interactionTimeoutTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
+      _interactionTimeoutTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
    }
 
    /// <summary>Async reading from the console.</summary>
-   public async Task<string> ReadAsync(
+   public Task<string> ReadAsync(
       string prompt = "",
       ISuggestionsProvider? suggestionsProvider = null,
       CancellationToken token = default)
    {
-      return await Task.Run(() =>
+      return Task.Run(async () =>
       {
          token.ThrowIfCancellationRequested();
 
-         Console.Write(prompt);
+         _console.Write(prompt);
+
+         UpdateInteractionTimeoutTimer();
 
          var input = new List<char>();
 
@@ -42,21 +46,13 @@ public sealed class Prompt
          var suggestionsIndex = 0;
          var suggestionsQueriedPosition = 0;
 
+         var cts = new CancellationTokenSource();
+         token.Register(() => cts.Cancel());
+         var reader = _console.Subscribe(cts.Token);
          while (true)
          {
-            token.ThrowIfCancellationRequested();
-
-            if (!Console.KeyAvailable)
-            {
-               // Delay between user pressing the key and processing this key by the app.
-               // Should be small enough so the user does not notice an input lag. 
-               Thread.Sleep(10);
-               continue;
-            }
-
+            var key = await reader.ReadAsync(token);
             UpdateInteractionTimeoutTimer();
-
-            var key = Console.ReadKey(true);
 
             if (key.Key != ConsoleKey.Tab)
             {
@@ -72,6 +68,7 @@ public sealed class Prompt
                      MoveLeft();
                      cursorPosition--;
                   }
+
                   break;
                case (false, ConsoleKey.RightArrow):
                   if (cursorPosition < input.Count)
@@ -79,9 +76,11 @@ public sealed class Prompt
                      MoveRight();
                      cursorPosition++;
                   }
+
                   break;
                case (false, ConsoleKey.Enter):
-                  Console.WriteLine();
+                  _console.WriteLine();
+                  cts.Cancel();
                   return new string(input.ToArray());
                case (false, ConsoleKey.Backspace):
                {
@@ -113,7 +112,9 @@ public sealed class Prompt
                {
                   if (cursorPosition < input.Count)
                   {
-                     var tail = cursorPosition < input.Count - 1 ? new string(input.ToArray())[(cursorPosition+1)..] : "";
+                     var tail = cursorPosition < input.Count - 1
+                        ? new string(input.ToArray())[(cursorPosition + 1)..]
+                        : "";
 
                      WriteAndMoveBack($"{tail} ");
 
@@ -135,11 +136,13 @@ public sealed class Prompt
                         suggestionsIndex = -1;
                         suggestionsQueriedPosition = cursorPosition;
                      }
+
                      if (suggestions.Count > 0)
                      {
                         suggestionsIndex = (suggestionsIndex + 1) % suggestions.Count;
                         suggestion = suggestions[suggestionsIndex];
                      }
+
                      if (suggestion != "")
                      {
                         var currentTailLength = cursorPosition - suggestionsQueriedPosition;
@@ -147,7 +150,7 @@ public sealed class Prompt
                         WriteAndMoveBack(new(' ', currentTailLength));
 
                         var suggestionTail = suggestion[suggestionsOffset..];
-                        Console.Write(suggestionTail);
+                        _console.Write(suggestionTail);
 
                         input.RemoveRange(suggestionsQueriedPosition, input.Count - suggestionsQueriedPosition);
                         cursorPosition = cursorPosition - currentTailLength + suggestionTail.Length;
@@ -168,43 +171,41 @@ public sealed class Prompt
                      input.Insert(cursorPosition, key.KeyChar);
                      cursorPosition++;
                   }
+
                   break;
             }
          }
       }, token);
    }
-   
+
    /// <summary>Simple async reading from the console. Supports BS, Ctrl+U. Ignores control keys (e.g. tab).</summary>
-   public async Task<string> ReadPasswordAsync(
+   public Task<string> ReadPasswordAsync(
       string prompt = "",
       CancellationToken token = default)
    {
-      return await Task.Run(() =>
+      return Task.Run(async () =>
       {
          token.ThrowIfCancellationRequested();
 
-         Console.Write(prompt);
+         _console.Write(prompt);
+
+         UpdateInteractionTimeoutTimer();
 
          var input = new List<char>();
+         var cts = new CancellationTokenSource();
+         token.Register(() => cts.Cancel());
+         var reader = _console.Subscribe(cts.Token);
          while (true)
          {
-            token.ThrowIfCancellationRequested();
-
-            if (!Console.KeyAvailable)
-            {
-               // Delay between user pressing the key and processing this key by the app.
-               // Should be small enough so the user does not notice an input lag. 
-               Thread.Sleep(10);
-               continue;
-            }
+            var key = await reader.ReadAsync(token);
 
             UpdateInteractionTimeoutTimer();
 
-            var key = Console.ReadKey(true);
             switch (key.Modifiers == ConsoleModifiers.Control, key.Key)
             {
                case (false, ConsoleKey.Enter):
-                  Console.WriteLine();
+                  _console.WriteLine();
+                  cts.Cancel();
                   return new string(input.ToArray());
                case (false, ConsoleKey.Backspace):
                   if (input.Count > 0)
@@ -222,7 +223,7 @@ public sealed class Prompt
                default:
                   if (!char.IsControl(key.KeyChar))
                   {
-                     Console.Write('*');
+                     _console.Write('*');
                      input.Add(key.KeyChar);
                   }
                   break;
@@ -236,11 +237,11 @@ public sealed class Prompt
       _interactionTimeoutTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
    }
 
-   private static void MoveRight(
+   private void MoveRight(
       int steps = 1)
    {
-      var width = Console.BufferWidth;
-      var (left, top) = Console.GetCursorPosition();
+      var width = _console.BufferWidth;
+      var (left, top) = _console.GetCursorPosition();
       for (var i = 0; i < steps; i++)
       {
          left++;
@@ -249,28 +250,28 @@ public sealed class Prompt
          left = 0;
          top++;
       }
-      Console.SetCursorPosition(left, top);
+      _console.SetCursorPosition(left, top);
    }
    
-   private static void MoveLeft(
+   private void MoveLeft(
       int steps = 1)
    {
-      var (left, top) = Console.GetCursorPosition();
+      var (left, top) = _console.GetCursorPosition();
       for (var i = 0; i < steps; i++)
       {
          left--;
          if (left != -1) continue;
-         left = Console.BufferWidth - 1;
+         left = _console.BufferWidth - 1;
          top--;
       }
-      Console.SetCursorPosition(left, top);
+      _console.SetCursorPosition(left, top);
    }
 
-   private static void WriteAndMoveBack(
+   private void WriteAndMoveBack(
       string text)
    {
-      var (left, top) = Console.GetCursorPosition();
-      Console.Write(text);
-      Console.SetCursorPosition(left, top);
+      var (left, top) = _console.GetCursorPosition();
+      _console.Write(text);
+      _console.SetCursorPosition(left, top);
    }
 }

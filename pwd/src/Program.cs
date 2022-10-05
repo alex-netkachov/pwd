@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using pwd.ciphers;
 using pwd.contexts;
+using pwd.readline;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
 
@@ -36,8 +37,8 @@ public static class Program
                .AddSingleton(logger)
                .AddSingleton(fs)
                .AddSingleton(view)
-               .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton(state)
+               .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IRepositoryFactory, RepositoryFactory>()
                .AddSingleton<IExporterFactory, ExporterFactory>()
                .AddSingleton<INameCipherFactory, NameCipherFactory>()
@@ -58,9 +59,6 @@ public static class Program
       var contentCipher = services.GetRequiredService<IContentCipherFactory>().Create(password);
       var nameCipher = services.GetRequiredService<INameCipherFactory>().Create(password);
       var repository = services.GetRequiredService<IRepositoryFactory>().Create(nameCipher, contentCipher, path);
-      var exporter = services.GetRequiredService<IExporterFactory>().Create(contentCipher, repository);
-      var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter, @lock);
-      state.Open(session);
 
       try
       {
@@ -116,38 +114,17 @@ public static class Program
          }
       }
 
-      while (true)
-      {
-         var input = "";
-         try
-         {
-            input = await state.Context.ReadAsync();
-         }
-         catch (OperationCanceledException)
-         {
-            // ignore
-         }
-
-         if (input == ".quit")
-            break;
-
-         try
-         {
-            await state.Context.Process(input);
-         }
-         catch (Exception e)
-         {
-            await Console.Error.WriteLineAsync(e.Message);
-         }
-      }
+      var exporter = services.GetRequiredService<IExporterFactory>().Create(contentCipher, repository);
+      var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter, @lock);
+      await state.Open(session);
    }
 
    public static async Task Main(
       string[] args)
    {
       var logger = new ConsoleLogger();
-      var state = new State(NullContext.Instance);
-      var view = new View(TimeSpan.FromMinutes(5));
+      var state = new State();
+      var view = new View(new StandardConsole(), TimeSpan.FromMinutes(5));
       var fs = new FileSystem();
 
       var isGitRepository =

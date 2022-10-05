@@ -9,7 +9,7 @@ public class File_Tests
    {
       var repository = new Mock<IRepository>();
       var file = Shared.CreateFileContext(repository: repository.Object);
-      await file.Process(".save");
+      await file.ProcessAsync(".save");
       repository.Verify(m => m.WriteAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
    }
 
@@ -18,7 +18,7 @@ public class File_Tests
    {
       var state = new Mock<IState>();
       var file = Shared.CreateFileContext(state: state.Object);
-      await file.Process("..");
+      await file.ProcessAsync("..");
       state.Verify(m => m.Back(), Times.Once);
    }
 
@@ -27,7 +27,7 @@ public class File_Tests
    {
       var view = new Mock<IView>();
       var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "test");
-      await file.Process("");
+      await file.ProcessAsync("");
       view.Verify(m => m.WriteLine("test"), Times.Once);
    }
 
@@ -36,7 +36,7 @@ public class File_Tests
    {
       var view = new Mock<IView>();
       var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "password: secret");
-      await file.Process("");
+      await file.ProcessAsync("");
       view.Verify(m => m.WriteLine("password: ************"), Times.Once);
    }
    
@@ -45,7 +45,7 @@ public class File_Tests
    {
       var view = new Mock<IView>();
       var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "password: secret");
-      await file.Process(".help");
+      await file.ProcessAsync(".help");
       view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
    }
 
@@ -58,7 +58,7 @@ public class File_Tests
       var repository = new Repository(fs, new ZeroCipher(), new ZeroCipher(), ".");
       await repository.Initialise();
       var file = Shared.CreateFileContext(repository: repository, name: "test1");
-      await file.Process(".rename test2");
+      await file.ProcessAsync(".rename test2");
       Assert.That(fs.File.Exists("test2"));
       Assert.That(!fs.File.Exists("test1"));
    }

@@ -7,10 +7,6 @@ using Moq;
 using pwd.ciphers;
 using pwd.contexts;
 using pwd.readline;
-using IFile = pwd.contexts.IFile;
-
-
-// ReSharper disable UnusedMember.Local because the tests are called through reflection
 
 namespace pwd;
 
@@ -41,7 +37,7 @@ public static class Shared
             "475349596B69396453506F675378444A525F73396D6D636E616D6A746A3734616E4D43793255324B6A464B48345F335234477859675452326C446E726778352B694E654A573375474F63737E"));
    }
 
-   public static IFile CreateFileContext(
+   public static contexts.File CreateFileContext(
       string path = "",
       string name = "",
       string content = "",
@@ -59,7 +55,9 @@ public static class Shared
       var builder = Host.CreateDefaultBuilder();
       builder.ConfigureServices(
          services =>
-            services.AddSingleton(clipboard ?? Mock.Of<IClipboard>())
+            services
+               .AddSingleton(Mock.Of<ILogger>())
+               .AddSingleton(clipboard ?? Mock.Of<IClipboard>())
                .AddSingleton(fs ?? Mock.Of<IFileSystem>())
                .AddSingleton(repository)
                .AddSingleton(state ?? Mock.Of<IState>())
@@ -68,7 +66,7 @@ public static class Shared
 
       using var host = builder.Build();
 
-      return host.Services
+      return (contexts.File)host.Services
          .GetRequiredService<IFileFactory>()
          .Create(
             repository,
@@ -86,14 +84,26 @@ public static class Shared
       INewFileFactory? newFileFactory = null,
       ILock? @lock = null)
    {
-      return new Session(
-         exporter ?? Mock.Of<IExporter>(),
-         repository ?? Mock.Of<IRepository>(),
-         state ?? Mock.Of<IState>(),
-         view ?? Mock.Of<IView>(),
-         fileFactory ?? Mock.Of<IFileFactory>(),
-         newFileFactory ?? Mock.Of<INewFileFactory>(),
-         @lock ?? Mock.Of<ILock>());
+      var builder = Host.CreateDefaultBuilder();
+      builder.ConfigureServices(
+         services =>
+            services
+               .AddSingleton(Mock.Of<ILogger>())
+               .AddSingleton(state ?? Mock.Of<IState>())
+               .AddSingleton(view ?? Mock.Of<IView>())
+               .AddSingleton(fileFactory ?? Mock.Of<IFileFactory>())
+               .AddSingleton(newFileFactory ?? Mock.Of<INewFileFactory>())
+               .AddSingleton(@lock ?? Mock.Of<ILock>())
+               .AddSingleton<ISessionFactory, SessionFactory>());
+
+      using var host = builder.Build();
+
+      return (Session)host.Services
+         .GetRequiredService<ISessionFactory>()
+         .Create(
+            repository ?? Mock.Of<IRepository>(),
+            exporter ?? Mock.Of<IExporter>(),
+            @lock ?? Mock.Of<ILock>());
    }
 
    public static IFileSystem GetMockFs()
@@ -130,7 +140,7 @@ public static class Shared
    {
       var (pwd, _, _) = ContentEncryptionTestData();
       var fs = FileLayout1(GetMockFs());
-      var view = new View(Timeout.InfiniteTimeSpan);
+      var view = new View(new StandardConsole(), Timeout.InfiniteTimeSpan);
       var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
       await repository.Initialise();
       var session = CreateSessionContext(repository, view: view);
@@ -159,7 +169,7 @@ public static class Shared
          "test",
          "..",
          ".quit");
-      var state = new State(NullContext.Instance);
+      var state = new State();
       await Program.Run(Mock.Of<ILogger>(), fs, view, state);
       var expected = string.Join("\n",
          "Password: secret",

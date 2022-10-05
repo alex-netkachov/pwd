@@ -27,6 +27,9 @@ public static class Shared
             view.Clear();
             state.Open(@lock);
             return Task.FromResult(true);
+         case (_, "quit", _):
+            state.Close();
+            return Task.FromResult(true);
          default:
             return Task.FromResult(false);
       }

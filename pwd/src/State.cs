@@ -1,44 +1,66 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using pwd.contexts;
 
 namespace pwd;
 
 public interface IState
 {
-   IContext Context { get; }
-
    void Back();
 
-   void Open(
+   Task Open(
       IContext context);
+
+   void Close();
 }
 
 public class State
    : IState
 {
-   private readonly Stack<IContext> _stack;
+   private readonly Stack<(IContext, TaskCompletionSource)> _stack;
 
-   public State(
-      IContext initial)
+   public State()
    {
       _stack = new();
-      _stack.Push(initial);
    }
-
-   public IContext Context => _stack.Peek();
 
    public void Back()
    {
       if (_stack.Count < 1)
          return;
 
-      _stack.Pop();
+      var (context, tcs) = _stack.Pop();
+      context.StopAsync();
+      tcs.SetResult();
+
+      if (_stack.Count == 0)
+         return;
+
+      var (peek, _) = _stack.Peek();
+      peek.RunAsync();
    }
 
-   public void Open(
+   public Task Open(
       IContext context)
    {
-      _stack.Push(context);
-      context.Open();
+      if (_stack.Count > 0)
+      {
+         var (peek, _) = _stack.Peek();
+         peek.StopAsync();
+      }
+
+      var tcs = new TaskCompletionSource();
+      _stack.Push((context, tcs));
+      context.RunAsync();
+      return tcs.Task;
+   }
+
+   public void Close()
+   {
+      foreach (var (context, tcs) in _stack)
+      {
+         context.StopAsync();
+         tcs.SetResult();
+      }
    }
 }

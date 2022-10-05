@@ -7,7 +7,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using pwd.readline;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts;
@@ -28,9 +27,8 @@ public interface IFileFactory
 
 /// <summary>Encrypted file context.</summary>
 public sealed class File
-   : AbstractContext,
-      IFile,
-      ISuggestionsProvider
+   : ReplContext,
+      IFile
 {
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
@@ -43,6 +41,7 @@ public sealed class File
    private string _name;
 
    public File(
+      ILogger logger,
       IClipboard clipboard,
       IFileSystem fs,
       IRepository repository,
@@ -51,6 +50,9 @@ public sealed class File
       ILock @lock,
       string name,
       string content)
+   : base(
+      logger,
+      view)
    {
       _clipboard = clipboard;
       _fs = fs;
@@ -65,7 +67,7 @@ public sealed class File
       _modified = false;
    }
 
-   public override async Task Process(
+   public override async Task ProcessAsync(
       string input)
    {
       switch (Shared.ParseCommand(input))
@@ -114,18 +116,18 @@ public sealed class File
       }
    }
 
-   public override async Task<string> ReadAsync()
+   protected override string Prompt()
    {
-      return (await _view.ReadAsync(new($"{(_modified ? "*" : "")}{_name}> "), this)).Trim();
+      return $"{(_modified ? "*" : "")}{_name}";
    }
 
-   public override Task Open()
+   public override Task RunAsync()
    {
       Print();
-      return Task.CompletedTask;
+      return base.RunAsync();
    }
 
-   public (int, IReadOnlyList<string>) Get(
+   public override (int, IReadOnlyList<string>) Get(
       string input)
    {
       if (!input.StartsWith('.'))
@@ -281,7 +283,7 @@ public sealed class File
       try
       {
          var startInfo = new ProcessStartInfo(editor, path);
-         var process = System.Diagnostics.Process.Start(startInfo);
+         var process = Process.Start(startInfo);
          if (process == null)
          {
             _view.WriteLine($"Starting the process '{startInfo.FileName}' failed.");
@@ -329,17 +331,20 @@ public sealed class File
 public sealed class FileFactory
    : IFileFactory
 {
+   private readonly ILogger _logger;
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
    private readonly IState _state;
    private readonly IView _view;
 
    public FileFactory(
+      ILogger logger,
       IClipboard clipboard,
       IFileSystem fs,
       IState state,
       IView view)
    {
+      _logger = logger;
       _clipboard = clipboard;
       _fs = fs;
       _state = state;
@@ -353,6 +358,7 @@ public sealed class FileFactory
       string content)
    {
       return new File(
+         _logger,
          _clipboard,
          _fs,
          repository,

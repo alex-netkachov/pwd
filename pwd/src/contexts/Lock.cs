@@ -1,4 +1,7 @@
+using System;
+using System.Threading;
 using System.Threading.Tasks;
+using PasswordGenerator;
 
 namespace pwd.contexts;
 
@@ -14,8 +17,7 @@ public interface ILockFactory
 }
 
 public sealed class Lock
-   : AbstractContext,
-      ILock
+   : ILock
 {
    private readonly ILogger _logger;
    private readonly IState _state;
@@ -34,26 +36,25 @@ public sealed class Lock
       _password = password;
    }
 
-   public override Task Process(
-      string input)
+   public async Task RunAsync()
    {
-      if (input == "..")
+      while (true)
+      {
+         _view.Clear();
+
+         var password = await _view.ReadPasswordAsync("Password: ");
+         if (password != _password)
+            continue;
+
          _state.Back();
-
-      return Task.CompletedTask;
+         break;
+      }
    }
 
-   public override async Task<string> ReadAsync()
+   public Task StopAsync()
    {
-      _view.Clear();
-      var password = await _view.ReadPasswordAsync("Password: ");
-      return password == _password ? ".." : "";
-   }
-
-   public override Task Open()
-   {
-      _view.Clear();
-      return Task.CompletedTask;
+      // the lock screen cannot be actually stopped unless the correct password is entered
+      throw new NotSupportedException();
    }
 }
 

@@ -27,18 +27,26 @@ public sealed class Session_Tests
       var cipher = new ContentCipher(pwd);
       var view = new BufferedView();
       var fs = Shared.FileLayout1(Shared.GetMockFs());
-      var state = new State(NullContext.Instance);
+      var state = new State();
       var repository = new Repository(fs, new ZeroCipher(), cipher, ".");
       await repository.Initialise();
+
+      var fileFactory =
+         new FileFactory(
+            Mock.Of<ILogger>(),
+            Mock.Of<IClipboard>(),
+            fs,
+            state,
+            view);
 
       var session =
          Shared.CreateSessionContext(
             repository,
             view: view,
             state: state,
-            fileFactory: new FileFactory(Mock.Of<IClipboard>(), fs, state, view));
+            fileFactory: fileFactory);
 
-      await session.Process($".open {file}");
+      await session.ProcessAsync($".open {file}");
       Assert.That(view.ToString().Trim(), Is.EqualTo(text));
    }
    
@@ -47,7 +55,7 @@ public sealed class Session_Tests
    {
       var view = new Mock<IView>();
       var session = Shared.CreateSessionContext(view: view.Object);
-      await session.Process(".help");
+      await session.ProcessAsync(".help");
       view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
    }
 }

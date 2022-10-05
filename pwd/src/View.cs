@@ -56,9 +56,10 @@ public sealed class View
    public event EventHandler? Idle;
 
    public View(
+      IConsole console,
       TimeSpan interactionTimeout)
    {
-      _prompt = new(interactionTimeout);
+      _prompt = new(interactionTimeout, console);
       _prompt.Idle += (_, _) => Idle?.Invoke(this, EventArgs.Empty);
    }
 

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using pwd.readline;
 
 namespace pwd.contexts;
 
@@ -24,9 +23,8 @@ public interface ISessionFactory
 
 /// <summary>Repository working session context.</summary>
 public sealed class Session
-   : AbstractContext,
-      ISession,
-      ISuggestionsProvider
+   : ReplContext,
+      ISession
 {
    private readonly IExporter _exporter;
    private readonly IFileFactory _fileFactory;
@@ -37,6 +35,7 @@ public sealed class Session
    private readonly IView _view;
 
    public Session(
+      ILogger logger,
       IExporter exporter,
       IRepository repository,
       IState state,
@@ -44,6 +43,9 @@ public sealed class Session
       IFileFactory fileFactory,
       INewFileFactory newFileFactory,
       ILock @lock)
+      : base(
+         logger,
+         view)
    {
       _exporter = exporter;
       _repository = repository;
@@ -54,10 +56,10 @@ public sealed class Session
       _lock = @lock;
    }
 
-   public override async Task Process(
+   public override async Task ProcessAsync(
       string input)
    {
-      await base.Process(input);
+      await base.ProcessAsync(input);
 
       switch (Shared.ParseCommand(input))
       {
@@ -116,12 +118,7 @@ public sealed class Session
       }
    }
 
-   public override async Task<string> ReadAsync()
-   {
-      return (await _view.ReadAsync(new("> "), this)).Trim();
-   }
-
-   public (int, IReadOnlyList<string>) Get(
+   public override (int, IReadOnlyList<string>) Get(
       string input)
    {
       if (!input.StartsWith('.'))
@@ -155,7 +152,7 @@ public sealed class Session
    {
       var content = await _repository.ReadAsync(name);
       var file = _fileFactory.Create(_repository, _lock, name, content);
-      _state.Open(file);
+      await _state.Open(file);
    }
 
    private async Task Export(
@@ -170,7 +167,7 @@ public sealed class Session
    private async Task Add(
       string name)
    {
-      _state.Open(_newFileFactory.Create(_repository, name));
+      await _state.Open(_newFileFactory.Create(_repository, name));
       await Open(name);
    }
 
@@ -194,15 +191,18 @@ public sealed class SessionFactory
 {
    private readonly IFileFactory _fileFactory;
    private readonly INewFileFactory _newFileFactory;
+   private readonly ILogger _logger;
    private readonly IState _state;
    private readonly IView _view;
 
    public SessionFactory(
+      ILogger logger,
       IState state,
       IView view,
       IFileFactory fileFactory,
       INewFileFactory newFileFactory)
    {
+      _logger = logger;
       _state = state;
       _view = view;
       _fileFactory = fileFactory;
@@ -215,6 +215,7 @@ public sealed class SessionFactory
       ILock @lock)
    {
       return new Session(
+         _logger,
          exporter,
          repository,
          _state,
