@@ -1,16 +1,54 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace pwd.readline;
 
+/// <summary>Provides reading access to the buffered stream of console input-related events.</summary>
+/// <remarks>The reader should be disposed when the client is no longer interested in the events.</remarks>
+public interface IConsoleReader
+   : IDisposable
+{
+   ValueTask<ConsoleKeyInfo> ReadAsync(
+      CancellationToken cancellationToken = default);
+}
+
+public sealed class ConsoleReader
+   : IConsoleReader
+{
+   private readonly ChannelReader<ConsoleKeyInfo> _reader;
+   private readonly Action _disposing;
+   private int _disposed;
+
+   public ConsoleReader(
+      ChannelReader<ConsoleKeyInfo> reader,
+      Action disposing)
+   {
+      _reader = reader;
+      _disposing = disposing;
+   }
+
+   public ValueTask<ConsoleKeyInfo> ReadAsync(
+      CancellationToken cancellationToken = default)
+   {
+      return _reader.ReadAsync(cancellationToken);
+   }
+
+   public void Dispose()
+   {
+      if (Interlocked.Increment(ref _disposed) != 1)
+         return;
+      _disposing();
+   }
+}
+
 public interface IConsole
 {
    int BufferWidth { get; }
 
-   ChannelReader<ConsoleKeyInfo> Subscribe(
-      CancellationToken token);
+   IConsoleReader Subscribe();
 
    void Write(
       object? value = null);
@@ -23,22 +61,27 @@ public interface IConsole
    void SetCursorPosition(
       int left,
       int top);
+
+   void Clear();
 }
 
 public sealed class StandardConsole
-   : IConsole
+   : IConsole,
+      IDisposable
 {
-   public int BufferWidth => Console.BufferWidth;
+   private State _state;
+   private readonly CancellationTokenSource _cts;
 
-   public ChannelReader<ConsoleKeyInfo> Subscribe(
-      CancellationToken token)
+   public StandardConsole()
    {
-      var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
+      _state = new(false, ImmutableList<Channel<ConsoleKeyInfo>>.Empty);
+
+      _cts = new();
+
+      var token = _cts.Token;
 
       Task.Run(() =>
       {
-         var writer = channel.Writer;
-
          while (!token.IsCancellationRequested)
          {
             if (!Console.KeyAvailable)
@@ -49,14 +92,71 @@ public sealed class StandardConsole
                continue;
             }
 
+            if (token.IsCancellationRequested)
+               break;
+
             var key = Console.ReadKey(true);
-            while (!writer.TryWrite(key) && !token.IsCancellationRequested) ;
+            var state = _state;
+            foreach (var subscriber in state.Subscribers)
+               while (!subscriber.Writer.TryWrite(key))
+               {
+               }
          }
-
-         writer.Complete();
       }, token);
+   }
 
-      return channel.Reader;
+   public int BufferWidth => Console.BufferWidth;
+   
+   public void Dispose()
+   {
+      State initial;
+      while (true)
+      {
+         initial = _state;
+         if (initial.Disposed)
+            return;
+         var updated = new State(true, ImmutableList<Channel<ConsoleKeyInfo>>.Empty);
+         if (initial == Interlocked.CompareExchange(ref _state, updated, initial))
+            break;
+      }
+
+      _cts.Cancel();
+      _cts.Dispose();
+      
+      foreach (var channel in initial.Subscribers)
+         channel.Writer.Complete();
+   }
+
+   public IConsoleReader Subscribe()
+   {
+      var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
+
+      var reader = new ConsoleReader(channel.Reader, () =>
+      {
+         while (true)
+         {
+            var initial = _state;
+            if (_state.Disposed)
+               break;
+            var updated = _state with { Subscribers = initial.Subscribers.Remove(channel) };
+            if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
+               continue;
+            channel.Writer.Complete();
+            break;
+         }
+      });
+
+      while (true)
+      {
+         var initial = _state;
+         if (_state.Disposed)
+            throw new ObjectDisposedException(nameof(StandardConsole));
+         var updated = _state with { Subscribers = initial.Subscribers.Add(channel) };
+         if (initial == Interlocked.CompareExchange(ref _state, updated, initial))
+            break;
+      }
+
+      return reader;
    }
 
    public void Write(
@@ -82,4 +182,16 @@ public sealed class StandardConsole
    {
       Console.SetCursorPosition(left, top);
    }
+
+   public void Clear()
+   {
+      Console.Clear();
+
+      // clears the console and its buffer
+      Console.Write("\x1b[2J\x1b[3J");
+   }
+
+   private record State(
+      bool Disposed,
+      ImmutableList<Channel<ConsoleKeyInfo>> Subscribers);
 }

@@ -19,6 +19,7 @@ public static class Program
 {
    internal static async Task Run(
       ILogger logger,
+      IConsole console,
       IFileSystem fs,
       IView view,
       IState state)
@@ -38,6 +39,7 @@ public static class Program
                .AddSingleton(fs)
                .AddSingleton(view)
                .AddSingleton(state)
+               .AddSingleton(console)
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IRepositoryFactory, RepositoryFactory>()
                .AddSingleton<IExporterFactory, ExporterFactory>()
@@ -123,8 +125,9 @@ public static class Program
       string[] args)
    {
       var logger = new ConsoleLogger();
+      var console = new StandardConsole();
       var state = new State();
-      var view = new View(new StandardConsole(), TimeSpan.FromMinutes(5));
+      var view = new View(console, new Reader(console), TimeSpan.FromMinutes(5));
       var fs = new FileSystem();
 
       var isGitRepository =
@@ -146,6 +149,7 @@ public static class Program
 
       await Run(
          logger,
+         console,
          fs,
          view,
          state);

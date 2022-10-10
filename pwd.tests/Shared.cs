@@ -140,7 +140,8 @@ public static class Shared
    {
       var (pwd, _, _) = ContentEncryptionTestData();
       var fs = FileLayout1(GetMockFs());
-      var view = new View(new StandardConsole(), Timeout.InfiniteTimeSpan);
+      var console = new StandardConsole();
+      var view = new View(console, new Reader(console), Timeout.InfiniteTimeSpan);
       var repository = new Repository(fs, new ZeroCipher(), new ContentCipher(pwd), ".");
       await repository.Initialise();
       var session = CreateSessionContext(repository, view: view);
@@ -170,7 +171,7 @@ public static class Shared
          "..",
          ".quit");
       var state = new State();
-      await Program.Run(Mock.Of<ILogger>(), fs, view, state);
+      await Program.Run(Mock.Of<ILogger>(), Mock.Of<IConsole>(), fs, view, state);
       var expected = string.Join("\n",
          "Password: secret",
          "It seems that you are creating a new repository. Please confirm password: secret",
