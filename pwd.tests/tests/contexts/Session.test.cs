@@ -1,6 +1,8 @@
+using Castle.Core.Smtp;
 using Moq;
 using pwd.ciphers;
 using pwd.contexts;
+using pwd.mocks;
 
 namespace pwd.tests.contexts;
 
@@ -22,9 +24,10 @@ public sealed class Session_Tests
    public async Task open_file(
       string file)
    {
-      var (pwd, text, _) = Shared.ContentEncryptionTestData();
+      const string password = "secret";
+      const string text = "test";
 
-      var cipher = new ContentCipher(pwd);
+      var cipher = new ContentCipher(password);
       var view = new BufferedView();
       var fs = Shared.FileLayout1(Shared.GetMockFs());
       var state = new State();
@@ -46,7 +49,10 @@ public sealed class Session_Tests
             state: state,
             fileFactory: fileFactory);
 
+      view.Idle += (sender, args) => state.Close();
+      
       await session.ProcessAsync($".open {file}");
+
       Assert.That(view.ToString().Trim(), Is.EqualTo(text));
    }
    

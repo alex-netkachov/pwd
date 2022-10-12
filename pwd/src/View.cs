@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.readline;
@@ -63,7 +64,11 @@ public sealed class View
    private readonly IConsole _console;
    private readonly IReader _reader;
 
-   private CancellationTokenSource? _cts;
+   private readonly Timer _idleTimer;
+   private readonly TimeSpan _interactionTimeout;
+
+   private ImmutableList<CancellationTokenSource> _ctss;
+   private CancellationTokenSource _cts;
 
    public event EventHandler? Idle;
 
@@ -74,6 +79,13 @@ public sealed class View
    {
       _console = console;
       _reader = reader;
+      _interactionTimeout = interactionTimeout;
+
+      _ctss = ImmutableList<CancellationTokenSource>.Empty;
+      _cts = new();
+
+      _idleTimer = new(_ => Idle?.Invoke(this, EventArgs.Empty));
+      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
 
       Task.Run(async () =>
       {
@@ -81,21 +93,22 @@ public sealed class View
          while (true)
          {
             await keys.ReadAsync();
-            // TODO reset idle timer
+            _idleTimer?.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
          }
       });
-      //_reader.Idle += (_, _) => Idle?.Invoke(this, EventArgs.Empty);
    }
 
    public void Write(
       string text)
    {
+      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
       _console.Write(text);
    }
 
    public void WriteLine(
       string text)
    {
+      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
       _console.WriteLine(text);
    }
 
@@ -104,16 +117,18 @@ public sealed class View
       Answer @default = Answer.No,
       CancellationToken token = default)
    {
-      var cts = new CancellationTokenSource();
-      _cts = cts;
-      token.Register(() => cts.Cancel());
+      var cts = CreateLinkedCancellationTokenSource(token);
 
       var yes = @default == Answer.Yes ? 'Y' : 'y';
       var no = @default == Answer.No ? 'N' : 'n';
 
-      var input = await _reader.ReadAsync($"{question} ({yes}/{no}) ", cancellationToken: token);
+      var input = await _reader.ReadAsync($"{question} ({yes}/{no}) ", cancellationToken: cts.Token);
       var answer = input.ToUpperInvariant();
-      return @default == Answer.Yes ? answer != "N" : answer == "Y";
+      var result = @default == Answer.Yes ? answer != "N" : answer == "Y";
+
+      RemoveLinkedCancellationTokenSource(cts);
+
+      return result;
    }
 
    public async Task<string> ReadAsync(
@@ -121,26 +136,64 @@ public sealed class View
       ISuggestionsProvider? suggestionsProvider = null,
       CancellationToken token = default)
    {
-      var cts = new CancellationTokenSource();
-      _cts = cts;
-      token.Register(() => cts.Cancel());
-      return await _reader.ReadAsync(prompt, suggestionsProvider, cts.Token);
+      var cts = CreateLinkedCancellationTokenSource(token);
+
+      var result = await _reader.ReadAsync(prompt, suggestionsProvider, cts.Token);
+      
+      RemoveLinkedCancellationTokenSource(cts);
+
+      return result;
    }
 
    public async Task<string> ReadPasswordAsync(
       string prompt = "",
       CancellationToken token = default)
    {
-      var cts = new CancellationTokenSource();
-      _cts = cts;
-      token.Register(() => cts.Cancel());
-      return await _reader.ReadPasswordAsync(prompt, cts.Token);
+      var cts = CreateLinkedCancellationTokenSource(token);
+
+      var result = await _reader.ReadPasswordAsync(prompt, cts.Token);
+
+      RemoveLinkedCancellationTokenSource(cts);
+
+      return result;
    }
 
    public void Clear()
    {
-      _cts?.Cancel();
+      _cts.Cancel();
+      _cts.Dispose();
+
+      _cts = new();
 
       _console.Clear();
+   }
+
+   private CancellationTokenSource CreateLinkedCancellationTokenSource(
+      CancellationToken token)
+   {
+      var linked = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, token);
+      while (true)
+      {
+         var initial = _ctss;
+         var updated = initial.Add(linked);
+         if (Interlocked.CompareExchange(ref _ctss, updated, initial) == initial)
+            break;
+      }
+      return linked;
+   }
+
+   private void RemoveLinkedCancellationTokenSource(
+      CancellationTokenSource cts)
+   {
+      while (true)
+      {
+         var initial = _ctss;
+         var updated = initial.Remove(cts);
+         if (Interlocked.CompareExchange(ref _ctss, updated, initial) != initial)
+            continue;
+         cts.Dispose();
+         break;
+      }
+
    }
 }

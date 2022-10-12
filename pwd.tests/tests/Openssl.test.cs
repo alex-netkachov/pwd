@@ -6,6 +6,9 @@ namespace pwd.tests;
 
 public sealed class Openssl_Tests
 {
+   private const string Password = "secret";
+   private const string Text = "test";
+
    private static string LocateOpenssl()
    {
       return new[]
@@ -42,16 +45,14 @@ public sealed class Openssl_Tests
          await process.StandardOutput.BaseStream.CopyToAsync(stream);
       }
 
-      var (password, text, _) = Shared.ContentEncryptionTestData();
-
       var path = Path.GetTempFileName();
-      await OpensslEncrypt(path, password, text);
-      var cipher = new ContentCipher(password);
+      await OpensslEncrypt(path, Password, Text);
+      var cipher = new ContentCipher(Password);
       await using var stream = File.OpenRead(path);
       var decrypted = await cipher.DecryptStringAsync(stream);
       stream.Close();
       File.Delete(path);
-      Assert.That(text, Is.EqualTo(decrypted.Item2));
+      Assert.That(Text, Is.EqualTo(decrypted.Item2));
    }
 
    [Test]
@@ -79,14 +80,12 @@ public sealed class Openssl_Tests
          return await process.StandardOutput.ReadToEndAsync();
       }
 
-      var (password, text, _) = Shared.ContentEncryptionTestData();
-
       var path = Path.GetTempFileName();
       await using var stream = File.OpenWrite(path);
-      await new ContentCipher(password).EncryptAsync(text, stream);
+      await new ContentCipher(Password).EncryptAsync(Text, stream);
       stream.Close();
-      var decrypted = await OpensslDecrypt(path, password);
+      var decrypted = await OpensslDecrypt(path, Password);
       File.Delete(path);
-      Assert.That(text, Is.EqualTo(decrypted));
+      Assert.That(Text, Is.EqualTo(decrypted));
    }
 }

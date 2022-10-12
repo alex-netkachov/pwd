@@ -35,7 +35,7 @@ public sealed class Reader
    {
       _console = console;
 
-      _state = new(false, ImmutableQueue<(Func<Task>, TaskCompletionSource<string>, CancellationToken)>.Empty);
+      _state = new(false, ImmutableQueue<QueueItem>.Empty);
 
       _cts = new();
 
@@ -132,7 +132,7 @@ public sealed class Reader
          var initial = _state;
          if (_state.Disposed)
             throw new ObjectDisposedException(nameof(Reader));
-         var updated = _state with { Queue = initial.Queue.Enqueue((TaskFactory, tcs, cancellationToken)) };
+         var updated = _state with { Queue = initial.Queue.Enqueue(new(TaskFactory, tcs, cancellationToken)) };
          if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
             continue;
          while (!_requests.TryWrite(true))
@@ -386,5 +386,10 @@ public sealed class Reader
    
    private record State(
       bool Disposed,
-      ImmutableQueue<(Func<Task>, TaskCompletionSource<string>, CancellationToken)> Queue);
+      ImmutableQueue<QueueItem> Queue);
+
+   private record QueueItem(
+      Func<Task> Task,
+      TaskCompletionSource<string> Complete,
+      CancellationToken CancellationToken);
 }

@@ -111,7 +111,7 @@ public static class Program
             await view.ReadPasswordAsync("It seems that you are creating a new repository. Please confirm password: ");
          if (confirmPassword != password)
          {
-            await Console.Error.WriteLineAsync("passwords do not match");
+            view.WriteLine("passwords do not match");
             return;
          }
       }

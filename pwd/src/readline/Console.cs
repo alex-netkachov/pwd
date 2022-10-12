@@ -24,10 +24,10 @@ public sealed class ConsoleReader
 
    public ConsoleReader(
       ChannelReader<ConsoleKeyInfo> reader,
-      Action disposing)
+      Action? disposing = null)
    {
       _reader = reader;
-      _disposing = disposing;
+      _disposing = disposing ?? new Action(() => { });
    }
 
    public ValueTask<ConsoleKeyInfo> ReadAsync(

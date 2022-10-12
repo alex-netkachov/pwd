@@ -1,5 +1,6 @@
 using System.Text;
 using pwd.ciphers;
+using pwd.mocks;
 
 namespace pwd.tests;
 
