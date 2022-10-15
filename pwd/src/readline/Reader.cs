@@ -160,7 +160,7 @@ public sealed class Reader
 
       var input = new List<char>();
 
-      var cursorPosition = 0;
+      var position = 0;
 
       IReadOnlyList<string>? suggestions = null;
       var suggestionsOffset = 0;
@@ -180,64 +180,34 @@ public sealed class Reader
 
          switch (key.Modifiers == ConsoleModifiers.Control, key.Key)
          {
-            case (false, ConsoleKey.LeftArrow):
-               if (cursorPosition > 0)
-               {
-                  MoveLeft();
-                  cursorPosition--;
-               }
-
-               break;
-            case (false, ConsoleKey.RightArrow):
-               if (cursorPosition < input.Count)
-               {
-                  MoveRight();
-                  cursorPosition++;
-               }
-
-               break;
             case (false, ConsoleKey.Enter):
                _console.WriteLine();
                reader.Dispose();
                tcs.TrySetResult(new(input.ToArray()));
                return;
+            case (false, ConsoleKey.LeftArrow):
+               MoveLeft(1, ref position);
+               break;
+            case (false, ConsoleKey.RightArrow):
+               MoveRight(1, input.Count, ref position);
+               break;
             case (false, ConsoleKey.Backspace):
-            {
-               if (cursorPosition > 0)
-               {
-                  var tail = cursorPosition < input.Count ? new string(input.ToArray())[cursorPosition..] : "";
-
-                  MoveLeft();
-                  WriteAndMoveBack($"{tail} ");
-
-                  input.RemoveAt(cursorPosition - 1);
-                  cursorPosition--;
-               }
-
+               DeletePrevious(input, ref position);
                break;
-            }
             case (true, ConsoleKey.U):
-            {
-               var tail = cursorPosition < input.Count ? new string(input.ToArray())[cursorPosition..] : "";
-
-               MoveLeft(cursorPosition);
-               WriteAndMoveBack(tail + new string(' ', cursorPosition));
-
-               input.RemoveRange(0, cursorPosition);
-               cursorPosition = 0;
+               DeleteFromStartToCursor(input, ref position);
                break;
-            }
             case (false, ConsoleKey.Delete):
             {
-               if (cursorPosition < input.Count)
+               if (position < input.Count)
                {
-                  var tail = cursorPosition < input.Count - 1
-                     ? new string(input.ToArray())[(cursorPosition + 1)..]
+                  var tail = position < input.Count - 1
+                     ? new string(input.ToArray())[(position + 1)..]
                      : "";
 
                   WriteAndMoveBack($"{tail} ");
 
-                  input.RemoveAt(cursorPosition);
+                  input.RemoveAt(position);
                }
 
                break;
@@ -249,11 +219,11 @@ public sealed class Reader
                   var suggestion = "";
                   if (suggestions == null)
                   {
-                     var (offset, list) = suggestionsProvider.Get(new(input.ToArray()[..cursorPosition]));
+                     var (offset, list) = suggestionsProvider.Get(new(input.ToArray()[..position]));
                      suggestions = list;
                      suggestionsOffset = offset;
                      suggestionsIndex = -1;
-                     suggestionsQueriedPosition = cursorPosition;
+                     suggestionsQueriedPosition = position;
                   }
 
                   if (suggestions.Count > 0)
@@ -264,33 +234,23 @@ public sealed class Reader
 
                   if (suggestion != "")
                   {
-                     var currentTailLength = cursorPosition - suggestionsQueriedPosition;
-                     MoveLeft(currentTailLength);
-                     WriteAndMoveBack(new(' ', currentTailLength));
-
+                     var currentTailLength = position - suggestionsQueriedPosition;
                      var suggestionTail = suggestion[suggestionsOffset..];
-                     _console.Write(suggestionTail);
 
                      input.RemoveRange(suggestionsQueriedPosition, input.Count - suggestionsQueriedPosition);
-                     cursorPosition = cursorPosition - currentTailLength + suggestionTail.Length;
                      input.AddRange(suggestionTail);
+
+                     MoveLeft(currentTailLength, ref position);
+                     WriteAndMoveBack(new(' ', currentTailLength));
+                     WriteAndMoveBack(suggestionTail);
+                     MoveRight(suggestionTail.Length, input.Count, ref position);
                   }
                }
 
                break;
             }
             default:
-               if (!char.IsControl(key.KeyChar))
-               {
-                  var tail = cursorPosition < input.Count ? new string(input.ToArray())[cursorPosition..] : "";
-
-                  WriteAndMoveBack(key.KeyChar + tail);
-                  MoveRight();
-
-                  input.Insert(cursorPosition, key.KeyChar);
-                  cursorPosition++;
-               }
-
+               CharacterKey(input, key.KeyChar, false, ref position);
                break;
          }
       }
@@ -310,6 +270,7 @@ public sealed class Reader
       _console.Write(prompt);
       
       var input = new List<char>();
+      var position = 0;
       using var reader = _console.Subscribe();
       while (!token.IsCancellationRequested)
       {
@@ -323,32 +284,72 @@ public sealed class Reader
                tcs.TrySetResult(new(input.ToArray()));
                return;
             case (false, ConsoleKey.Backspace):
-               if (input.Count > 0)
-               {
-                  MoveLeft();
-                  WriteAndMoveBack(" ");
-                  input.RemoveAt(input.Count);
-               }
+               DeletePrevious(input, ref position);
                break;
             case (true, ConsoleKey.U):
-               MoveLeft(input.Count);
-               WriteAndMoveBack(new(' ', input.Count));
-               input.Clear();
+               DeleteFromStartToCursor(input, ref position);
                break;
             default:
-               if (!char.IsControl(key.KeyChar))
-               {
-                  _console.Write('*');
-                  input.Add(key.KeyChar);
-               }
+               CharacterKey(input, key.KeyChar, true, ref position);
                break;
          }
       }
    }
 
-   private void MoveRight(
-      int steps = 1)
+   private void DeletePrevious(
+      List<char> input,
+      ref int position)
    {
+      if (position == 0)
+         return;
+
+      input.RemoveAt(position - 1);
+
+      var tail = position < input.Count ? new string(input.ToArray())[position..] : "";
+      MoveLeft(1, ref position);
+      WriteAndMoveBack($"{tail} ");
+   }
+
+   private void DeleteFromStartToCursor(
+      List<char> input,
+      ref int position)
+   {
+      if (position == 0)
+         return;
+
+      var length = input.Count;
+      input.RemoveRange(0, position);
+
+      var tail = position < input.Count ? new string(input.ToArray())[position..] : "";
+      MoveLeft(position, ref position);
+      WriteAndMoveBack(tail + new string(' ', length - tail.Length));
+   }
+
+   private void CharacterKey(
+      List<char> input,
+      char @char,
+      bool obscure,
+      ref int position)
+   {
+      if (char.IsControl(@char))
+         return;
+
+      var tail = position < input.Count ? new string(input.ToArray())[position..] : "";
+
+      input.Insert(position, @char);
+
+      WriteAndMoveBack((obscure ? '*' : @char) + tail);
+      MoveRight(1, input.Count, ref position);
+   }
+
+   private void MoveRight(
+      int steps,
+      int limit,
+      ref int position)
+   {
+      if (position >= limit)
+         return;
+
       var width = _console.BufferWidth;
       var (left, top) = _console.GetCursorPosition();
       for (var i = 0; i < steps; i++)
@@ -360,11 +361,17 @@ public sealed class Reader
          top++;
       }
       _console.SetCursorPosition(left, top);
+
+      position += steps;
    }
    
    private void MoveLeft(
-      int steps = 1)
+      int steps,
+      ref int position)
    {
+      if (position == 0)
+         return;
+
       var (left, top) = _console.GetCursorPosition();
       for (var i = 0; i < steps; i++)
       {
@@ -374,6 +381,8 @@ public sealed class Reader
          top--;
       }
       _console.SetCursorPosition(left, top);
+      
+      position -= steps;
    }
 
    private void WriteAndMoveBack(
