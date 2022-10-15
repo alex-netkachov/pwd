@@ -50,6 +50,16 @@ public static class TestConsoleReaderText
          {
             list.Add((ch, ch switch
             {
+               '0' => ConsoleKey.D0,
+               '1' => ConsoleKey.D1,
+               '2' => ConsoleKey.D2,
+               '3' => ConsoleKey.D3,
+               '4' => ConsoleKey.D4,
+               '5' => ConsoleKey.D5,
+               '6' => ConsoleKey.D6,
+               '7' => ConsoleKey.D7,
+               '8' => ConsoleKey.D8,
+               '9' => ConsoleKey.D9,
                'a' => ConsoleKey.A,
                'b' => ConsoleKey.B,
                'c' => ConsoleKey.C,
@@ -76,6 +86,7 @@ public static class TestConsoleReaderText
                'x' => ConsoleKey.X,
                'y' => ConsoleKey.Y,
                'z' => ConsoleKey.Z,
+               '.' => ConsoleKey.Decimal,
                '*' => ConsoleKey.Multiply,
                '\n' => ConsoleKey.Enter,
                ' ' => ConsoleKey.Spacebar,

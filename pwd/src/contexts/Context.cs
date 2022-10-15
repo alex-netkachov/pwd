@@ -49,8 +49,11 @@ public abstract class ReplContext
    private readonly ILogger _logger;
    private readonly IView _view;
 
-   private TaskCompletionSource? _tcs;
-   private CancellationTokenSource? _cts;
+   private record State(
+      TaskCompletionSource Complete,
+      CancellationTokenSource Cancel);
+
+   private State? _state;
 
    protected ReplContext(
       ILogger logger,
@@ -58,6 +61,7 @@ public abstract class ReplContext
    {
       _logger = logger;
       _view = view;
+      _state = null;
    }
 
    public virtual Task ProcessAsync(
@@ -73,26 +77,39 @@ public abstract class ReplContext
 
    public virtual Task RunAsync()
    {
-      var @new = new TaskCompletionSource();
-      var updated = Interlocked.CompareExchange(ref _tcs, @new, null);
-      if (updated != null)
-         return _tcs.Task;
+      var initial = _state;
+      if (initial != null)
+         return initial.Complete.Task;
+      var state = new State(new(), new());
+      var current = Interlocked.CompareExchange(ref _state, state, initial);
+      if (initial != current)
+      {
+         state.Cancel.Dispose();
+         return current!.Complete.Task;
+      }
 
-      _cts = new();
+      var token = state.Cancel.Token;
 
       Task.Run(async () =>
       {
-         while (true)
+         while (!token.IsCancellationRequested)
          {
             string input;
             try
             {
-               input = (await _view.ReadAsync(new($"{Prompt()}> "), this, _cts.Token)).Trim();
+               input = (await _view.ReadAsync(new($"{Prompt()}> "), this, token)).Trim();
             }
-            catch (OperationCanceledException e) when (e.CancellationToken == _cts.Token)
+            catch (OperationCanceledException e)
             {
-               // StopAsync() is called, exit gracefully. 
-               break;
+               if (e.CancellationToken == token)
+                  // StopAsync() is called, exit gracefully
+                  break;
+
+               // no need to cancel CTS, need to dispose it
+               Interlocked.CompareExchange(ref _state, null, state);
+               state.Cancel.Dispose();
+               state.Complete.TrySetCanceled();
+               return;
             }
 
             try
@@ -104,20 +121,23 @@ public abstract class ReplContext
                _logger.Error($"Executing the command '{input}' caused the following exception: {e}");
             }
          }
-         
-         @new.SetResult();
+
+         // StopAsync() is called, exit gracefully, CTS should be disposed already
+         Interlocked.CompareExchange(ref _state, null, state);
+         state.Complete.SetResult();
       });
 
-      return @new.Task;
+      return state.Complete.Task;
    }
 
    public virtual Task StopAsync()
    {
-      var value = _tcs;
-      var updated = Interlocked.CompareExchange(ref _tcs, null, value);
-      if (updated == value)
-         _cts?.Cancel();
-      return Task.CompletedTask;
+      var state = _state;
+      if (state == null)
+         return Task.CompletedTask;
+      state.Cancel.Cancel();
+      state.Cancel.Dispose();
+      return state.Complete.Task;
    }
 
    public virtual (int offset, IReadOnlyList<string>) Get(
