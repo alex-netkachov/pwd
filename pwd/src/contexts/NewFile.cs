@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using PasswordGenerator;
 using pwd.readline;
 
 namespace pwd.contexts;
@@ -83,7 +82,7 @@ public sealed class NewFile
                   _view.WriteLine("Enter new file content line by line. Empty line completes the file.");
                   break;
                default:
-                  _content.AppendLine(input).Replace("***", new Password().Next());
+                  _content.AppendLine(input).Replace("***", Shared.Password());
                   break;
             }
          }

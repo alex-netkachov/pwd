@@ -87,7 +87,8 @@ public sealed class StandardConsole
             if (!Console.KeyAvailable)
             {
                // Delay between user pressing the key and processing this key by the app.
-               // Should be small enough so the user does not notice an input lag. 
+               // Should be small enough so the user does not notice an input lag and big
+               // enough to not fall back to spin wait. 
                Thread.Sleep(10);
                continue;
             }

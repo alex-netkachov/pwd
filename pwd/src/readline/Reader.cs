@@ -71,7 +71,19 @@ public sealed class Reader
                continue;
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(token, taskToken);
-            await Task.Run(task, cts.Token);
+            try
+            {
+               await Task.Run(task, cts.Token);
+            }
+            catch (OperationCanceledException e)
+            {
+               if (e.CancellationToken == taskToken)
+               {
+                  // single reader is cancelled
+               }
+               // when the reading operation is cancelled, this 
+               // ignore and continue
+            }
          }
       }, token);
    }

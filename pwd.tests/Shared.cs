@@ -117,7 +117,7 @@ public static class Shared
    {
       var fs = FileLayout1(GetMockFs());
       var console = new StandardConsole();
-      var view = new View(console, new Reader(console), Timeout.InfiniteTimeSpan);
+      var view = new View(console, new Reader(console));
       var repository = new Repository(fs, new ZeroCipher(), new ContentCipher("secret"), ".");
       await repository.Initialise();
       var session = CreateSessionContext(repository, view: view);
@@ -129,5 +129,11 @@ public static class Shared
       Assert.That(string.Join(";", session.Get("regular_dir/")), Is.EqualTo("regular_dir/encrypted"));
       Assert.That(string.Join(";", session.Get("regular_dir/enc")), Is.EqualTo("regular_dir/encrypted"));
       Assert.That(string.Join(";", session.Get("regular_dir/encrypted")), Is.EqualTo("regular_dir/encrypted"));
+   }
+   
+   public static void Run(
+      Func<Task> action)
+   {
+      action();
    }
 }

@@ -52,7 +52,7 @@ public sealed class Openssl_Tests
       var decrypted = await cipher.DecryptStringAsync(stream);
       stream.Close();
       File.Delete(path);
-      Assert.That(Text, Is.EqualTo(decrypted.Item2));
+      Assert.That(decrypted.Item2, Is.EqualTo(Text));
    }
 
    [Test]
@@ -86,6 +86,6 @@ public sealed class Openssl_Tests
       stream.Close();
       var decrypted = await OpensslDecrypt(path, Password);
       File.Delete(path);
-      Assert.That(Text, Is.EqualTo(decrypted));
+      Assert.That(decrypted, Is.EqualTo(Text));
    }
 }

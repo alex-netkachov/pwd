@@ -15,6 +15,9 @@ using pwd.readline;
 
 namespace pwd;
 
+public record Settings(
+   TimeSpan LockTimeout);
+
 public static class Program
 {
    internal static async Task Run(
@@ -22,7 +25,8 @@ public static class Program
       IConsole console,
       IFileSystem fs,
       IView view,
-      IState state)
+      IState state,
+      Settings settings)
    {
       // read the password and initialise ciphers 
       var password = await view.ReadPasswordAsync("Password: ");
@@ -55,8 +59,7 @@ public static class Program
 
       var services = host.Services;
 
-      var @lock = services.GetRequiredService<ILockFactory>().Create(password);
-      view.Idle += (_, _) => state.Open(@lock);
+      var @lock = services.GetRequiredService<ILockFactory>().Create(password, settings.LockTimeout);
 
       var contentCipher = services.GetRequiredService<IContentCipherFactory>().Create(password);
       var nameCipher = services.GetRequiredService<INameCipherFactory>().Create(password);
@@ -127,7 +130,7 @@ public static class Program
       var logger = new ConsoleLogger();
       var console = new StandardConsole();
       var state = new State();
-      var view = new View(console, new Reader(console), TimeSpan.FromMinutes(5));
+      var view = new View(console, new Reader(console));
       var fs = new FileSystem();
 
       var isGitRepository =
@@ -152,7 +155,8 @@ public static class Program
          console,
          fs,
          view,
-         state);
+         state,
+         new(TimeSpan.FromMinutes(5)));
 
       view.Clear();
 

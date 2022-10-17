@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,10 +14,6 @@ public enum Answer
 
 public interface IView
 {
-   /// <summary>Notifies listeners about reaching the user interaction timeout.</summary>
-   /// <remarks>Writing to the view with Write() or WriteLine() and Clear() reset the timer.</remarks>
-   event EventHandler Idle;
-
    void Write(
       string text);
 
@@ -64,51 +59,29 @@ public sealed class View
    private readonly IConsole _console;
    private readonly IReader _reader;
 
-   private readonly Timer _idleTimer;
-   private readonly TimeSpan _interactionTimeout;
-
    private ImmutableList<CancellationTokenSource> _ctss;
    private CancellationTokenSource _cts;
 
-   public event EventHandler? Idle;
-
    public View(
       IConsole console,
-      IReader reader,
-      TimeSpan interactionTimeout)
+      IReader reader)
    {
       _console = console;
       _reader = reader;
-      _interactionTimeout = interactionTimeout;
 
       _ctss = ImmutableList<CancellationTokenSource>.Empty;
       _cts = new();
-
-      _idleTimer = new(_ => Idle?.Invoke(this, EventArgs.Empty));
-      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
-
-      Task.Run(async () =>
-      {
-         var keys = _console.Subscribe();
-         while (true)
-         {
-            await keys.ReadAsync();
-            _idleTimer?.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
-         }
-      });
    }
 
    public void Write(
       string text)
    {
-      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
       _console.Write(text);
    }
 
    public void WriteLine(
       string text)
    {
-      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
       _console.WriteLine(text);
    }
 
@@ -117,16 +90,23 @@ public sealed class View
       Answer @default = Answer.No,
       CancellationToken token = default)
    {
-      var cts = CreateLinkedCancellationTokenSource(token);
-
       var yes = @default == Answer.Yes ? 'Y' : 'y';
       var no = @default == Answer.No ? 'N' : 'n';
 
-      var input = await _reader.ReadAsync($"{question} ({yes}/{no}) ", cancellationToken: cts.Token);
+      var cts = CreateLinkedCancellationTokenSource(token);
+
+      string input;
+      try
+      {
+         input = await _reader.ReadAsync($"{question} ({yes}/{no}) ", cancellationToken: cts.Token);
+      }
+      finally
+      {
+         RemoveLinkedCancellationTokenSource(cts);
+      }
+
       var answer = input.ToUpperInvariant();
       var result = @default == Answer.Yes ? answer != "N" : answer == "Y";
-
-      RemoveLinkedCancellationTokenSource(cts);
 
       return result;
    }
@@ -138,9 +118,15 @@ public sealed class View
    {
       var cts = CreateLinkedCancellationTokenSource(token);
 
-      var result = await _reader.ReadAsync(prompt, suggestionsProvider, cts.Token);
-      
-      RemoveLinkedCancellationTokenSource(cts);
+      string result;
+      try
+      {
+         result = await _reader.ReadAsync(prompt, suggestionsProvider, cts.Token);
+      }
+      finally
+      {
+         RemoveLinkedCancellationTokenSource(cts);
+      }
 
       return result;
    }
@@ -151,9 +137,15 @@ public sealed class View
    {
       var cts = CreateLinkedCancellationTokenSource(token);
 
-      var result = await _reader.ReadPasswordAsync(prompt, cts.Token);
-
-      RemoveLinkedCancellationTokenSource(cts);
+      string result;
+      try
+      {
+         result = await _reader.ReadPasswordAsync(prompt, cts.Token);
+      }
+      finally
+      {
+         RemoveLinkedCancellationTokenSource(cts);
+      }
 
       return result;
    }
@@ -194,6 +186,5 @@ public sealed class View
          cts.Dispose();
          break;
       }
-
    }
 }

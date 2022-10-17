@@ -24,6 +24,7 @@ public sealed class Clipboard
    private readonly ILogger _logger;
    private readonly Channel<string> _channel;
    private readonly Timer _cleaner;
+   private readonly CancellationTokenSource _cts;
 
    public Clipboard(
       ILogger logger)
@@ -32,13 +33,28 @@ public sealed class Clipboard
 
       _cleaner = new(_ => Clear());
 
+      _cts = new();
+
+      var token = _cts.Token;
+
       _channel = Channel.CreateUnbounded<string>();
       Task.Run(async () =>
       {
          var reader = _channel.Reader;
-         while (!reader.Completion.IsCompleted)
+         while (!reader.Completion.IsCompleted && !token.IsCancellationRequested)
          {
-            var text = await reader.ReadAsync();
+            string text;
+            try
+            {
+               text = await reader.ReadAsync(token);
+            }
+            catch (OperationCanceledException e)
+            {
+               if (e.CancellationToken == token)
+                  break;
+               throw;
+            }
+
             CopyText(text);
          }
       });
@@ -60,6 +76,9 @@ public sealed class Clipboard
 
    public void Dispose()
    {
+      _cts.Cancel();
+      _cts.Dispose();
+
       _channel.Writer.Complete();
    }
 

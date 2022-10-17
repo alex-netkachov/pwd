@@ -1,4 +1,5 @@
-﻿using Moq;
+﻿using System.Threading.Channels;
+using Moq;
 using pwd.readline;
 using pwd.mocks;
 
@@ -13,10 +14,17 @@ public sealed class Reader_Tests
    [TestCase("{<x}\n", "")]
    [Timeout(1000)]
    public async Task Read(
-      string instruction,
+      string keys,
       string expected)
    {
-      var reader = new Reader(new TestConsole(() => new TestConsoleReader(instruction)));
+      var channel = Channel.CreateUnbounded<string>();
+      Shared.Run(async () =>
+      {
+         await Task.Delay(100);
+         await channel.Writer.WriteAsync(keys);
+      });
+      using var console = new TestConsole(channel.Reader);
+      var reader = new Reader(console);
       var input = await reader.ReadAsync();
       Assert.That(input, Is.EqualTo(expected));
    }
@@ -24,26 +32,13 @@ public sealed class Reader_Tests
    [Test]
    public void Disposing_reader_cancels_reading()
    {
-      var reader = new Reader(new TestConsole(() => new TestConsoleReader()));
+      var channel = Channel.CreateUnbounded<string>();
+      var reader = new Reader(new TestConsole(channel.Reader));
       var task1 = reader.ReadAsync();
       var task2 = reader.ReadAsync();
       reader.Dispose();
       Assert.That(task1.IsCanceled);
       Assert.That(task2.IsCanceled);
-   }
-
-   [Test]
-   public async Task Reader_reads_sequentially()
-   {
-      TestConsoleReader? consoleReader = null;
-      using var reader = new Reader(new TestConsole(() =>
-      {
-         Assert.That(consoleReader == null || consoleReader.Disposed);
-         return consoleReader = new("*\n");
-      }));
-      await Task.WhenAll(reader.ReadAsync(), reader.ReadAsync(), reader.ReadAsync());
-      reader.Dispose();
-      Assert.That(consoleReader is { Disposed: true });
    }
 
    [TestCase("{TAB}\n", "test1")]
@@ -54,13 +49,19 @@ public sealed class Reader_Tests
    [TestCase("o{TAB}\n", "ok")]
    [TestCase("t{TAB}{BS}{TAB}\n", "test1")]
    public async Task Reader_shows_suggestions_on_tab(
-      string instruction,
+      string keys,
       string expected)
    {
-      var reader = new Reader(new TestConsole(() => new TestConsoleReader(instruction)));
+      var channel = Channel.CreateUnbounded<string>();
+      Shared.Run(async () =>
+      {
+         await Task.Delay(100);
+         await channel.Writer.WriteAsync(keys);
+      });
+      var reader = new Reader(new TestConsole(channel.Reader));
       var mockSuggestionsProvider = new Mock<ISuggestionsProvider?>();
       mockSuggestionsProvider
-         .Setup(m => m.Get(It.IsAny<string>()))
+         .Setup(m => m!.Get(It.IsAny<string>()))
          .Returns<string>(input =>
          {
             return (
@@ -69,6 +70,5 @@ public sealed class Reader_Tests
          });
       var input = await reader.ReadAsync(suggestionsProvider: mockSuggestionsProvider.Object);
       Assert.That(input, Is.EqualTo(expected));
-
    }
 }
