@@ -29,13 +29,15 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Remove="template.html" />
-    </ItemGroup>
-
-    <ItemGroup>
       <EmbeddedResource Include="res\context_file_help.txt" />
       <EmbeddedResource Include="res\context_session_help.txt" />
       <EmbeddedResource Include="res\template.html" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="pwd.runtimeconfig.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>
