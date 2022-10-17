@@ -34,10 +34,4 @@
       <EmbeddedResource Include="res\template.html" />
     </ItemGroup>
 
-    <ItemGroup>
-      <None Update="pwd.runtimeconfig.json">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-    </ItemGroup>
-
 </Project>
