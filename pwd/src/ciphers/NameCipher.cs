@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using pwd.extensions;
 
@@ -29,7 +30,7 @@ public sealed class NameCipher
       _password = password;
    }
 
-   public int Encrypt(
+   public int EncryptString(
       string text,
       Stream stream)
    {
@@ -55,121 +56,107 @@ public sealed class NameCipher
       return base64.Length;
    }
 
-   public async Task<int> EncryptAsync(
+   public async Task<int> EncryptStringAsync(
       string text,
-      Stream stream)
+      Stream stream,
+      CancellationToken cancellationToken = default)
    {
       using var dataStream = new MemoryStream();
 
       var salt = new byte[8];
       using var rng = RandomNumberGenerator.Create();
       rng.GetBytes(salt);
-      await dataStream.WriteAsync(salt);
+      await dataStream.WriteAsync(salt, cancellationToken);
 
       using var aes = CipherShared.CreateAes(_password, salt);
       using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
       await using var cryptoStream = new CryptoStream(dataStream, encryptor, CryptoStreamMode.Write, true);
       var data = Encoding.UTF8.GetBytes(text);
-      await cryptoStream.WriteAsync(data);
-      await cryptoStream.FlushFinalBlockAsync();
+      await cryptoStream.WriteAsync(data, cancellationToken);
+      await cryptoStream.FlushFinalBlockAsync(cancellationToken);
 
       var encryptedBase64Name = Convert.ToBase64String(dataStream.ToArray());
       var encryptedFileName = ToFileName(encryptedBase64Name);
       var base64 = Encoding.UTF8.GetBytes(encryptedFileName);
-      await stream.WriteAsync(base64);
+      await stream.WriteAsync(base64, cancellationToken);
 
       return base64.Length;
    }
 
-   public (bool Success, string Text) DecryptString(
+   public string DecryptString(
       Stream stream)
    {
-      try
-      {
-         using var reader = new StreamReader(stream, leaveOpen: true);
-         var encryptedFileName = reader.ReadToEnd();
-         if (string.IsNullOrEmpty(encryptedFileName))
-            return (false, "");
-            
-         var encryptedBase64Name = ToBase64(encryptedFileName);
-         var encryptedName = Convert.FromBase64String(encryptedBase64Name);
-         
-         // the data is an encrypted name when it is AES-encrypted 16-byte size blocks with 8 bytes salt, 
-         // i.e. length(concat(salt, join(aes_blocks)))
-         if (encryptedName.Length < 8 || 0 != (encryptedName.Length - 8) % 16)
-            return (false, "");
-         
-         var encryptedNameStream = new MemoryStream(encryptedName);
+      using var reader = new StreamReader(stream, leaveOpen: true);
+      var encryptedFileName = reader.ReadToEnd();
+      if (string.IsNullOrEmpty(encryptedFileName))
+         throw ThrowNotEncryptedException();
 
-         var salt = encryptedNameStream.ReadBytes(8);
+      var encryptedBase64Name = ToBase64(encryptedFileName);
+      var encryptedName = Convert.FromBase64String(encryptedBase64Name);
 
-         using var aes = CipherShared.CreateAes(_password, salt);
+      // the data is an encrypted name when it is AES-encrypted 16-byte size blocks with 8 bytes salt, 
+      // i.e. length(concat(salt, join(aes_blocks)))
+      if (encryptedName.Length < 8 || 0 != (encryptedName.Length - 8) % 16)
+         throw ThrowNotEncryptedException();
 
-         using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+      var encryptedNameStream = new MemoryStream(encryptedName);
 
-         using var cryptoStream =
-            new CryptoStream(
-               encryptedNameStream,
-               decryptor,
-               CryptoStreamMode.Read,
-               true);
+      var salt = encryptedNameStream.ReadBytes(8);
 
-         var data = cryptoStream.ReadAllBytes();
+      using var aes = CipherShared.CreateAes(_password, salt);
 
-         return TextExtensions.IsUtf8(data) switch
-         {
-            true => (true, Encoding.UTF8.GetString(data)),
-            false => (false, "")
-         };
-      }
-      catch
-      {
-         throw new FormatException("The data stream is not encrypted name.");
-      }
+      using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+
+      using var cryptoStream =
+         new CryptoStream(
+            encryptedNameStream,
+            decryptor,
+            CryptoStreamMode.Read,
+            true);
+
+      var data = cryptoStream.ReadAllBytes();
+
+      if (!TextExtensions.IsUtf8(data))
+         throw ThrowNotEncryptedException();
+
+      return Encoding.UTF8.GetString(data);
    }
 
-   public async Task<(bool Success, string Text)> DecryptStringAsync(
-      Stream stream)
+   public async Task<string> DecryptStringAsync(
+      Stream stream,
+      CancellationToken cancellationToken = default)
    {
-      try
-      {
-         using var reader = new StreamReader(stream, leaveOpen: true);
-         var encryptedFileName = await reader.ReadToEndAsync();
-         var encryptedBase64Name = ToBase64(encryptedFileName);
-         var encryptedName = Convert.FromBase64String(encryptedBase64Name);
+      using var reader = new StreamReader(stream, leaveOpen: true);
+      var encryptedFileName = await reader.ReadToEndAsync();
+      var encryptedBase64Name = ToBase64(encryptedFileName);
+      var encryptedName = Convert.FromBase64String(encryptedBase64Name);
 
-         // the data is an encrypted name when it is AES-encrypted 16-byte size blocks with 8 bytes salt, 
-         // i.e. length(concat(salt, join(aes_blocks)))
-         if (encryptedName.Length < 8 || 0 != (encryptedName.Length - 8) % 16)
-            return (false, "");
+      // the data is an encrypted name when it is AES-encrypted 16-byte size blocks with 8 bytes salt, 
+      // i.e. length(concat(salt, join(aes_blocks)))
+      if (encryptedName.Length < 8 || 0 != (encryptedName.Length - 8) % 16)
+         throw ThrowNotEncryptedException();
 
-         var encryptedNameStream = new MemoryStream(encryptedName);
+      var encryptedNameStream = new MemoryStream(encryptedName);
 
-         var salt = await encryptedNameStream.ReadBytesAsync(8);
+      var salt = await encryptedNameStream.ReadBytesAsync(8, cancellationToken);
 
-         using var aes = CipherShared.CreateAes(_password, salt);
+      using var aes = CipherShared.CreateAes(_password, salt);
 
-         using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+      using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
 
-         await using var cryptoStream =
-            new CryptoStream(
-               encryptedNameStream,
-               decryptor,
-               CryptoStreamMode.Read,
-               true);
+      await using var cryptoStream =
+         new CryptoStream(
+            encryptedNameStream,
+            decryptor,
+            CryptoStreamMode.Read,
+            true);
 
-         var data = await cryptoStream.ReadAllBytesAsync();
+      var data = await cryptoStream.ReadAllBytesAsync(cancellationToken);
 
-         return TextExtensions.IsUtf8(data) switch
-         {
-            true => (true, Encoding.UTF8.GetString(data)),
-            false => (false, "")
-         };
-      }
-      catch
-      {
-         return (false, "");
-      }
+      if (!TextExtensions.IsUtf8(data))
+         throw ThrowNotEncryptedException();
+
+      return Encoding.UTF8.GetString(data);
    }
 
    /// <summary>Converts a base64-encoded string to the file name.</summary>
@@ -185,6 +172,11 @@ public sealed class NameCipher
       string fileName)
    {
       return fileName.Replace('_', '/').Replace('~', '=');
+   }
+   
+   private static Exception ThrowNotEncryptedException()
+   {
+      return new("The data stream does not contain an encrypted string.");
    }
 }
 

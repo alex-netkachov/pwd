@@ -9,7 +9,7 @@ public sealed class ZeroCipher
 {
    public static readonly ZeroCipher Instance = new();
 
-   public int Encrypt(
+   public int EncryptString(
       string text,
       Stream stream)
    {
@@ -18,26 +18,30 @@ public sealed class ZeroCipher
       return data.Length;
    }
 
-   public Task<int> EncryptAsync(
+   public Task<int> EncryptStringAsync(
       string text,
-      Stream stream)
+      Stream stream,
+      CancellationToken cancellationToken = default)
    {
+      cancellationToken.ThrowIfCancellationRequested();
       var data = Encoding.UTF8.GetBytes(text);
       stream.Write(data);
       return Task.FromResult(data.Length);
    }
 
-   public (bool Success, string Text) DecryptString(
+   public string DecryptString(
       Stream stream)
    {
       using var reader = new StreamReader(stream);
-      return (true, reader.ReadToEnd());
+      return reader.ReadToEnd();
    }
 
-   public async Task<(bool Success, string Text)> DecryptStringAsync(
-      Stream stream)
+   public async Task<string> DecryptStringAsync(
+      Stream stream,
+      CancellationToken cancellationToken = default)
    {
+      cancellationToken.ThrowIfCancellationRequested();
       using var reader = new StreamReader(stream);
-      return (true, await reader.ReadToEndAsync());
+      return await reader.ReadToEndAsync();
    }
 }

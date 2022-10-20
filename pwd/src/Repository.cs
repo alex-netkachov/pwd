@@ -202,7 +202,7 @@ public sealed class Repository
       if (!file.Exists)
          throw new("The file does not exist.");
       await using var stream = _fs.File.OpenRead(file.EncryptedPath);
-      return (await _contentCipher.DecryptStringAsync(stream)).Text;
+      return await _contentCipher.DecryptStringAsync(stream);
    }
 
    public void Rename(
@@ -252,7 +252,7 @@ public sealed class Repository
       var folder = CreateFolders(folders);
 
       using var stream = new MemoryStream();
-      await _contentCipher.EncryptAsync(text, stream);
+      await _contentCipher.EncryptStringAsync(text, stream);
 
       await _fs.File.WriteAllBytesAsync(file.EncryptedPath, stream.ToArray());
 
@@ -280,6 +280,19 @@ public sealed class Repository
 
       Task.Run(async () =>
       {
+         (bool Success, string Text) Decrypt(
+            byte[] data)
+         {
+            try
+            {
+               return (true, _nameCipher.DecryptString(data));
+            }
+            catch
+            {
+               return (false, "");
+            }
+         }
+
          var invalidFileNameChars = _fs.Path.GetInvalidFileNameChars();
 
          // items is a list of relative paths of all the files in folders in the repository's folder
@@ -319,7 +332,7 @@ public sealed class Repository
 
                // the folder is not in the cache, create it if it is encrypted
                var folderNameBytes = Encoding.UTF8.GetBytes(folder);
-               var (folderNameDecrypted, folderName) = await _nameCipher.DecryptStringAsync(folderNameBytes);
+               var (folderNameDecrypted, folderName) = Decrypt(folderNameBytes);
                if (!folderNameDecrypted || folderName.IndexOfAny(invalidFileNameChars) != -1)
                {
                   repositoryItem = null;
@@ -342,7 +355,7 @@ public sealed class Repository
             // if the last part of the path is a file
             if (!isFolder)
             {
-               var (fileNameDecrypted, fileName) = await _nameCipher.DecryptStringAsync(Encoding.UTF8.GetBytes(name));
+               var (fileNameDecrypted, fileName) = Decrypt(Encoding.UTF8.GetBytes(name));
 
                if (!fileNameDecrypted || fileName.IndexOfAny(invalidFileNameChars) != -1)
                   continue;
@@ -352,7 +365,8 @@ public sealed class Repository
                try
                {
                   await using var stream = _fs.File.OpenRead(itemPath);
-                  (decrypted, content) = await _contentCipher.DecryptStringAsync(stream);
+                  content = await _contentCipher.DecryptStringAsync(stream);
+                  decrypted = true;
                }
                catch
                {

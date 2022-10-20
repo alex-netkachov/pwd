@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using pwd.extensions;
 
@@ -25,7 +26,7 @@ public sealed class ContentCipher
    /// <summary>"Salted__" encoded in ASCII (UTF8).</summary>
    private static readonly byte[] Salted = {0x53, 0x61, 0x6c, 0x74, 0x65, 0x64, 0x5f, 0x5f};
 
-   private static readonly int SaltSize = 8;
+   private const int SaltSize = 8;
 
    private readonly string _password;
 
@@ -35,7 +36,7 @@ public sealed class ContentCipher
       _password = password;
    }
 
-   public int Encrypt(
+   public int EncryptString(
       string text,
       Stream stream)
    {
@@ -55,56 +56,71 @@ public sealed class ContentCipher
       return Salted.Length + salt.Length + data.Length;
    }
 
-   public async Task<int> EncryptAsync(
+   public async Task<int> EncryptStringAsync(
       string text,
-      Stream stream)
+      Stream stream,
+      CancellationToken cancellationToken = default)
    {
-      await stream.WriteAsync(Salted);
+      await stream.WriteAsync(Salted, cancellationToken);
 
       var salt = new byte[8];
       using var rng = RandomNumberGenerator.Create();
       rng.GetBytes(salt);
-      await stream.WriteAsync(salt);
+      await stream.WriteAsync(salt, cancellationToken);
 
       using var aes = CipherShared.CreateAes(_password, salt);
       using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
       await using var cryptoStream = new CryptoStream(stream, encryptor, CryptoStreamMode.Write, true);
       var data = Encoding.UTF8.GetBytes(text);
-      await cryptoStream.WriteAsync(data);
+      await cryptoStream.WriteAsync(data, cancellationToken);
 
       return Salted.Length + salt.Length + data.Length;
    }
 
-   public (bool Success, string Text) DecryptString(
+   public string DecryptString(
       Stream stream)
    {
       var octet = stream.ReadBytes(Salted.Length);
       if (octet.Length != Salted.Length || Salted.Where((t, i) => octet[i] != t).Any())
-         return (false, "");
+         throw ThrowNotEncryptedException();
 
       var salt = stream.ReadBytes(SaltSize);
       if (salt.Length != SaltSize)
-         return (false, "");
+         throw ThrowNotEncryptedException();
 
       using var aes = CipherShared.CreateAes(_password, salt);
       using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
       using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read, true);
       var data = cryptoStream.ReadAllBytes();
-      return (true, Encoding.UTF8.GetString(data));
+
+      if (!TextExtensions.IsUtf8(data))
+         throw ThrowNotEncryptedException();
+
+      return Encoding.UTF8.GetString(data);
    }
 
-   public async Task<(bool Success, string Text)> DecryptStringAsync(
-      Stream stream)
+   public async Task<string> DecryptStringAsync(
+      Stream stream,
+      CancellationToken cancellationToken = default)
    {
-      var octet = await stream.ReadBytesAsync(8);
+      var octet = await stream.ReadBytesAsync(8, cancellationToken);
       if (octet.Length != Salted.Length || Salted.Where((t, i) => octet[i] != t).Any())
-         throw new FormatException("The data stream is not encrypted.");
+         throw ThrowNotEncryptedException();
 
-      using var aes = CipherShared.CreateAes(_password, await stream.ReadBytesAsync(8));
+      using var aes = CipherShared.CreateAes(_password, await stream.ReadBytesAsync(8, cancellationToken));
       using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
       await using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read, true);
-      var data = await cryptoStream.ReadAllBytesAsync();
-      return (true, Encoding.UTF8.GetString(data));
+      var data = await cryptoStream.ReadAllBytesAsync(cancellationToken);
+      
+      if (!TextExtensions.IsUtf8(data))
+         throw ThrowNotEncryptedException();
+
+      return Encoding.UTF8.GetString(data);
+   }
+
+   private static Exception ThrowNotEncryptedException()
+   {
+      return new("The data stream does not contain an encrypted string.");
    }
 }
 

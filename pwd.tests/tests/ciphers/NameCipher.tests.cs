@@ -21,7 +21,7 @@ public sealed class NameCipher_Tests
       var (password, text, encrypted) = NameEncryptionTestData();
       var cipher = new NameCipher(password);
       using var stream = new MemoryStream(encrypted);
-      var decrypted = (await cipher.DecryptStringAsync(stream)).Text;
+      var decrypted = await cipher.DecryptStringAsync(stream);
       Assert.That(text, Is.EqualTo(decrypted));
    }
 
@@ -34,10 +34,10 @@ public sealed class NameCipher_Tests
    {
       var cipher = new NameCipher("pa$$w0rd");
       var text = new string(symbol, length);
-      var stream = new MemoryStream();
-      await cipher.EncryptAsync(new string(symbol, length), stream);
+      using var stream = new MemoryStream();
+      await cipher.EncryptStringAsync(new(symbol, length), stream);
       stream.Position = 0;
-      var decrypted = (await cipher.DecryptStringAsync(stream)).Item2;
+      var decrypted = await cipher.DecryptStringAsync(stream);
       Assert.That(text, Is.EqualTo(decrypted));
    }
 
@@ -47,8 +47,7 @@ public sealed class NameCipher_Tests
       var (password, expected, encrypted) = NameEncryptionTestData();
       var cipher = new NameCipher(password);
       using var stream = new MemoryStream(encrypted);
-      var (decrypted, actual) = cipher.DecryptString(stream);
-      Assert.That(decrypted);
+      var actual = cipher.DecryptString(stream);
       Assert.That(actual, Is.EqualTo(expected));
    }
 
@@ -58,8 +57,7 @@ public sealed class NameCipher_Tests
    {
       var cipher = new NameCipher("pa$$w0rd");
       using var stream = new MemoryStream(Convert.FromHexString(data));
-      var (decrypted, _) = cipher.DecryptString(stream);
-      Assert.That(decrypted, Is.False);
+      Assert.Throws<Exception>(() => cipher.DecryptString(stream));
    }
    
    private static (string pwd, string text, byte[] encrypted) NameEncryptionTestData()

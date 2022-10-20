@@ -60,6 +60,7 @@ public static class Program
       var services = host.Services;
 
       var @lock = services.GetRequiredService<ILockFactory>().Create(password, settings.LockTimeout);
+      @lock.Password();
 
       var contentCipher = services.GetRequiredService<IContentCipherFactory>().Create(password);
       var nameCipher = services.GetRequiredService<INameCipherFactory>().Create(password);

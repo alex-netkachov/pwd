@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace pwd.extensions;
@@ -25,13 +26,14 @@ public static class StreamExtensions
 
    public static async Task<byte[]> ReadBytesAsync(
       this Stream stream,
-      int length)
+      int length,
+      CancellationToken cancellationToken = default)
    {
       var buffer = new byte[length];
       var offset = 0;
       while (offset != length)
       {
-         var read = await stream.ReadAsync(buffer.AsMemory(offset, length - offset));
+         var read = await stream.ReadAsync(buffer.AsMemory(offset, length - offset), cancellationToken);
          offset += read;
          if (read == 0)
             return buffer[..offset];
@@ -49,10 +51,11 @@ public static class StreamExtensions
    }
 
    public static async Task<byte[]> ReadAllBytesAsync(
-      this Stream stream)
+      this Stream stream,
+      CancellationToken cancellationToken = default)
    {
       using var memoryStream = new MemoryStream();
-      await stream.CopyToAsync(memoryStream);
+      await stream.CopyToAsync(memoryStream, cancellationToken);
       return memoryStream.ToArray();
    }
 }

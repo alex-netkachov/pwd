@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace pwd.ciphers;
@@ -8,28 +9,31 @@ namespace pwd.ciphers;
 public interface ICipher
 {
    /// <summary>Encrypts the string and saves it into the stream.</summary>
-   /// <remarks>Does not close the stream.</remarks>
+   /// <remarks>Does not close nor flush the stream.</remarks>
    /// <returns>Number of bytes written to the stream.</returns>
-   int Encrypt(
+   int EncryptString(
       string text,
       Stream stream);
 
    /// <summary>Encrypts the string and saves it into the stream.</summary>
-   /// <remarks>Does not close the stream.</remarks>
+   /// <remarks>Does not close nor flush the stream. Cancelling the task may result with only part of the encrypted
+   /// text written to the stream.</remarks>
    /// <returns>Number of bytes written to the stream.</returns>
-   Task<int> EncryptAsync(
+   Task<int> EncryptStringAsync(
       string text,
+      Stream stream,
+      CancellationToken cancellationToken = default);
+
+   /// <summary>Decrypts content of the stream into a string.</summary>
+   /// <remarks>Does not close the stream. Throws an exception when the stream encoding is not UTF-8.</remarks>
+   string DecryptString(
       Stream stream);
 
    /// <summary>Decrypts content of the stream into a string.</summary>
-   /// <remarks>Does not close the stream. Fails when string encoding is not UTF-8.</remarks>
-   (bool Success, string Text) DecryptString(
-      Stream stream);
-
-   /// <summary>Decrypts content of the stream into a string.</summary>
-   /// <remarks>Does not close the stream. Fails when string encoding is not UTF-8.</remarks>
-   Task<(bool Success, string Text)> DecryptStringAsync(
-      Stream stream);
+   /// <remarks>Does not close the stream. Throws an exception when the stream encoding is not UTF-8.</remarks>
+   Task<string> DecryptStringAsync(
+      Stream stream,
+      CancellationToken cancellationToken = default);
 }
 
 public static class CipherExtensions
@@ -39,25 +43,35 @@ public static class CipherExtensions
       string text)
    {
       using var stream = new MemoryStream();
-      cipher.Encrypt(text, stream);
+      cipher.EncryptString(text, stream);
       return stream.ToArray();
    }
 
    public static async Task<byte[]> EncryptAsync(
       this ICipher cipher,
-      string text)
+      string text,
+      CancellationToken cancellationToken = default)
    {
       using var stream = new MemoryStream();
-      await cipher.EncryptAsync(text, stream);
+      await cipher.EncryptStringAsync(text, stream, cancellationToken);
       return stream.ToArray();
    }
 
-   public static Task<(bool Success, string Text)> DecryptStringAsync(
+   public static string DecryptString(
       this ICipher cipher,
       byte[] data)
    {
       using var stream = new MemoryStream(data);
-      return cipher.DecryptStringAsync(stream);
+      return cipher.DecryptString(stream);
+   }
+
+   public static Task<string> DecryptStringAsync(
+      this ICipher cipher,
+      byte[] data,
+      CancellationToken cancellationToken = default)
+   {
+      using var stream = new MemoryStream(data);
+      return cipher.DecryptStringAsync(stream, cancellationToken);
    }
 }
 
@@ -70,7 +84,7 @@ internal static class CipherShared
       var aes = Aes.Create();
 
       if (aes == null)
-         throw new Exception("Cannot create AES encryption object.");
+         throw new("Cannot create AES encryption object.");
 
       aes.Mode = CipherMode.CBC;
       aes.Padding = PaddingMode.PKCS7;

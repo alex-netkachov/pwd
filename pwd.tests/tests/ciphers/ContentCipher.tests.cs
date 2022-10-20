@@ -21,7 +21,7 @@ public sealed class ContentCipher_Tests
       var (password, text, encrypted) = ContentEncryptionTestData();
       var cipher = new ContentCipher(password);
       using var stream = new MemoryStream(encrypted);
-      var decrypted = (await cipher.DecryptStringAsync(stream)).Text;
+      var decrypted = await cipher.DecryptStringAsync(stream);
       Assert.That(text, Is.EqualTo(decrypted));
    }
 
@@ -35,10 +35,9 @@ public sealed class ContentCipher_Tests
       var cipher = new ContentCipher("pa$$w0rd");
       var expected = new string(symbol, length);
       var stream = new MemoryStream();
-      cipher.Encrypt(new string(symbol, length), stream);
+      cipher.EncryptString(new string(symbol, length), stream);
       stream.Position = 0;
-      var (decrypted, actual) = cipher.DecryptString(stream);
-      Assert.That(decrypted);
+      var actual = cipher.DecryptString(stream);
       Assert.That(actual, Is.EqualTo(expected));
    }
 
@@ -48,8 +47,7 @@ public sealed class ContentCipher_Tests
       var (password, expected, encrypted) = ContentEncryptionTestData();
       var cipher = new ContentCipher(password);
       using var stream = new MemoryStream(encrypted);
-      var (decrypted, actual) = cipher.DecryptString(stream);
-      Assert.That(decrypted);
+      var actual = cipher.DecryptString(stream);
       Assert.That(actual, Is.EqualTo(expected));
    }
 
@@ -61,8 +59,7 @@ public sealed class ContentCipher_Tests
    {
       var cipher = new ContentCipher("pa$$w0rd");
       using var stream = new MemoryStream(Convert.FromHexString(data));
-      var (decrypted, _) = cipher.DecryptString(stream);
-      Assert.That(decrypted, Is.False);
+      Assert.Throws<Exception>(() => cipher.DecryptString(stream));
    }
    
    private static (string pwd, string text, byte[] encrypted) ContentEncryptionTestData()
