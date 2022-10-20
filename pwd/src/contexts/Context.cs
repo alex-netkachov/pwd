@@ -65,7 +65,8 @@ public abstract class ReplContext
    }
 
    public virtual Task ProcessAsync(
-      string input)
+      string input,
+      CancellationToken cancellationToken = default)
    {
       return Task.CompletedTask;
    }
@@ -114,7 +115,7 @@ public abstract class ReplContext
 
             try
             {
-               await ProcessAsync(input);
+               await ProcessAsync(input, token);
             }
             catch (Exception e)
             {

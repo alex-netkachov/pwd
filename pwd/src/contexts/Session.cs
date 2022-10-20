@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace pwd.contexts;
@@ -57,9 +58,10 @@ public sealed class Session
    }
 
    public override async Task ProcessAsync(
-      string input)
+      string input,
+      CancellationToken cancellationToken = default)
    {
-      await base.ProcessAsync(input);
+      await base.ProcessAsync(input, cancellationToken);
 
       switch (Shared.ParseCommand(input))
       {

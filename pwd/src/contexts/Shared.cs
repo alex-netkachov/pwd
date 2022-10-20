@@ -11,7 +11,7 @@ namespace pwd.contexts;
 
 public static class Shared
 {
-   public static Task<bool> Process(
+   public static async Task<bool> Process(
       string input,
       IView view,
       IState state,
@@ -21,19 +21,33 @@ public static class Shared
       {
          case (_, "pwd", _):
             view.WriteLine(Password());
-            return Task.FromResult(true);
+            return true;
          case (_, "clear", _):
             view.Clear();
-            return Task.FromResult(true);
-         case (_, "lock", _):
-            view.Clear();
-            state.Open(@lock);
-            return Task.FromResult(true);
+            return true;
+         case (_, "lock", var type):
+            switch (type)
+            {
+               case "":
+                  view.Clear();
+                  state.Open(@lock);
+                  break;
+               case "disable":
+                  @lock.Disable();
+                  break;
+               case "pin":
+                  await @lock.Pin();
+                  break;
+               case "pwd":
+                  @lock.Password();
+                  break;
+            }
+            return true;
          case (_, "quit", _):
             state.Close();
-            return Task.FromResult(true);
+            return true;
          default:
-            return Task.FromResult(false);
+            return false;
       }
    }
 

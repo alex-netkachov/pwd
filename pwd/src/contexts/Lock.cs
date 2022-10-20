@@ -8,6 +8,9 @@ namespace pwd.contexts;
 public interface ILock
    : IContext
 {
+   Task Pin();
+   void Password();
+   void Disable();
 }
 
 public interface ILockFactory
@@ -15,6 +18,13 @@ public interface ILockFactory
    ILock Create(
       string password,
       TimeSpan interactionTimeout);
+}
+
+public enum LockType
+{
+   None,
+   Password,
+   Pin
 }
 
 public sealed class Lock
@@ -28,7 +38,11 @@ public sealed class Lock
    private readonly Timer _idleTimer;
    private readonly TimeSpan _interactionTimeout;
 
-   public Lock(ILogger logger,
+   private LockType _lockType;
+   private string _lockToken;
+
+   public Lock(
+      ILogger logger,
       IState state,
       IView view,
       IConsole console,
@@ -40,6 +54,9 @@ public sealed class Lock
       _view = view;
       _password = password;
       _interactionTimeout = interactionTimeout;
+
+      _lockType = LockType.None;
+      _lockToken = "";
       
       _idleTimer = new(_ =>
       {
@@ -60,14 +77,61 @@ public sealed class Lock
       });
    }
 
+   public async Task Pin()
+   {
+      var pin1 = await _view.ReadPasswordAsync("Pin: ");
+      var pin2 = await _view.ReadPasswordAsync("Confirm Pin: ");
+      if (pin1 != pin2)
+      {
+         _view.WriteLine("Pins do not match");
+         return;
+      }
+
+      if (pin1 == "")
+         ChangeLockType(LockType.None, "");
+      else
+         ChangeLockType(LockType.Pin, pin1);
+   }
+   
+   public void Password()
+   {
+      ChangeLockType(LockType.Password, _password);
+   }
+   
+   public void Disable()
+   {
+      ChangeLockType(LockType.None, "");
+   }
+
+   private void ChangeLockType(
+      LockType type,
+      string token)
+   {
+      _lockType = type;
+      _lockToken = token;
+
+      _idleTimer.Change(
+         _lockType == LockType.None
+            ? Timeout.InfiniteTimeSpan
+            : _interactionTimeout,
+         Timeout.InfiniteTimeSpan);
+   }
+
    public async Task RunAsync()
    {
       while (true)
       {
          _view.Clear();
 
-         var password = await _view.ReadPasswordAsync("Password: ");
-         if (password != _password)
+         var hint = _lockType switch
+         {
+            LockType.Password => "Password: ",
+            LockType.Pin => "Pin: ",
+            _ => ""
+         };
+
+         var token = await _view.ReadPasswordAsync(hint);
+         if (token != _lockToken)
             continue;
 
          _state.Back();

@@ -6,6 +6,7 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
 
@@ -68,7 +69,8 @@ public sealed class File
    }
 
    public override async Task ProcessAsync(
-      string input)
+      string input,
+      CancellationToken cancellationToken = default)
    {
       switch (Shared.ParseCommand(input))
       {
@@ -91,7 +93,7 @@ public sealed class File
             Check();
             break;
          case (_, "edit", var editor):
-            await Edit(editor);
+            await Edit(editor, cancellationToken);
             break;
          case (_, "help", _):
             await Help();
@@ -265,7 +267,8 @@ public sealed class File
    }
 
    private async Task Edit(
-      string? editor)
+      string? editor,
+      CancellationToken cancellationToken)
    {
       editor = string.IsNullOrEmpty(editor)
          ? Environment.GetEnvironmentVariable("EDITOR")
@@ -278,24 +281,39 @@ public sealed class File
       }
 
       var path = _fs.Path.GetTempFileName();
-      await _fs.File.WriteAllTextAsync(path, _content);
+      await _fs.File.WriteAllTextAsync(path, _content, cancellationToken);
 
+      Process? process = null;
       try
       {
          var startInfo = new ProcessStartInfo(editor, path);
-         var process = Process.Start(startInfo);
+         process = Process.Start(startInfo);
          if (process == null)
          {
             _view.WriteLine($"Starting the process '{startInfo.FileName}' failed.");
             return;
          }
 
-         await process.WaitForExitAsync();
-         var content = await _fs.File.ReadAllTextAsync(path);
-         if (content == _content || !await _view.ConfirmAsync("Update the content?", Answer.Yes))
+         await process.WaitForExitAsync(cancellationToken);
+
+         var content = await _fs.File.ReadAllTextAsync(path, cancellationToken);
+         if (content == _content ||
+             !await _view.ConfirmAsync("Update the content?", Answer.Yes, cancellationToken))
+         {
             return;
+         }
+
          Update(content);
          await Save();
+      }
+      catch (TaskCanceledException)
+      {
+         // this catch captures an exception in interrupted process.WaitForExitAsync(...)
+         if (process == null || process.HasExited)
+            return;
+
+         // kill the process
+         process.Kill();
       }
       finally
       {
