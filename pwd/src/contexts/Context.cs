@@ -8,9 +8,9 @@ namespace pwd.contexts;
 
 public interface IContext
 {
-   /// <summary>Runs the context. The returned task completes when the context is started.</summary>
-   /// <remarks>The context can be started and stopped multiple times. If the context is started, this method
-   /// does nothing.</remarks>
+   /// <summary>Starts the context. The returned task completes when the context is started.</summary>
+   /// <remarks>The context can be started and stopped multiple times. Multiple calls to the method returns the same
+   /// task. If the context is started, this method does nothing and returns a completed task.</remarks>
    Task StartAsync();
 
    /// <summary>Stops the context. Completes when the context is stopped.</summary>
@@ -23,6 +23,7 @@ public abstract class ReplContext
 {
    private record State(
       TaskCompletionSource Starting,
+      TaskCompletionSource Stopped,
       CancellationTokenSource Cancel);
 
    private State? _state;
@@ -56,7 +57,7 @@ public abstract class ReplContext
       var initial = _state;
       if (initial != null)
          return initial.Starting.Task;
-      var state = new State(new(), new());
+      var state = new State(new(), new(), new());
       var current = Interlocked.CompareExchange(ref _state, state, initial);
       if (initial != current)
       {
@@ -73,19 +74,18 @@ public abstract class ReplContext
             string input;
             try
             {
-               input = (await _view.ReadAsync(new($"{Prompt()}> "), this, token)).Trim();
+               var prompt = Prompt();
+               input = (await _view.ReadAsync(new($"{prompt}> "), this, token)).Trim();
             }
-            catch (OperationCanceledException e)
+            catch (OperationCanceledException e) when (e.CancellationToken == token)
             {
-               if (e.CancellationToken == token)
-                  // StopAsync() is called, exit gracefully
-                  break;
-
-               // no need to cancel CTS, need to dispose it
-               Interlocked.CompareExchange(ref _state, null, state);
-               state.Cancel.Dispose();
-               state.Starting.TrySetCanceled();
-               return;
+               // StopAsync() is called
+               break;
+            }
+            catch (Exception e)
+            {
+               _logger.Error($"Waiting for the user's input ended with the following exception: {e}");
+               continue;
             }
 
             try
@@ -94,31 +94,40 @@ public abstract class ReplContext
             }
             catch (TaskCanceledException e) when (e.CancellationToken == token)
             {
-               // graceful cancellation, e.g. state asked this context to stop
+               // StopAsync() is called
+               break;
             }
             catch (Exception e)
             {
-               _logger.Error($"Executing the command '{input}' caused the following exception: {e}");
+               _logger.Error($"Executing the command '{input}' ended with the following exception: {e}");
             }
          }
 
-         // StopAsync() is called, exit gracefully, CTS should be disposed already
-         Interlocked.CompareExchange(ref _state, null, state);
-         state.Starting.SetResult();
+         state.Stopped.TrySetResult();
+         state.Cancel.Dispose();
       });
 
       state.Starting.SetResult();
+
       return state.Starting.Task;
    }
 
    public virtual Task StopAsync()
    {
-      var state = _state;
+      State? state;
+      while (true)
+      {
+         state = _state;
+         if (state == null || state == Interlocked.CompareExchange(ref _state, null, state))
+            break;
+      }
+
       if (state == null)
          return Task.CompletedTask;
+
       state.Cancel.Cancel();
       state.Cancel.Dispose();
-      return state.Starting.Task;
+      return state.Stopped.Task;
    }
 
    public virtual (int offset, IReadOnlyList<string>) Get(
