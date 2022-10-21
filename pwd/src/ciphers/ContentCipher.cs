@@ -23,10 +23,10 @@ public interface IContentCipherFactory
 public sealed class ContentCipher
    : IContentCipher
 {
-   /// <summary>"Salted__" encoded in ASCII (UTF8).</summary>
-   private static readonly byte[] Salted = {0x53, 0x61, 0x6c, 0x74, 0x65, 0x64, 0x5f, 0x5f};
-
    private const int SaltSize = 8;
+
+   /// <summary>"Salted__" encoded in ASCII (UTF8).</summary>
+   private static readonly byte[] Salted = { 0x53, 0x61, 0x6c, 0x74, 0x65, 0x64, 0x5f, 0x5f };
 
    private readonly string _password;
 
@@ -111,7 +111,7 @@ public sealed class ContentCipher
       using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
       await using var cryptoStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read, true);
       var data = await cryptoStream.ReadAllBytesAsync(cancellationToken);
-      
+
       if (!TextExtensions.IsUtf8(data))
          throw ThrowNotEncryptedException();
 

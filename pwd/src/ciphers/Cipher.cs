@@ -15,8 +15,10 @@ public interface ICipher
       Stream stream);
 
    /// <summary>Encrypts the string and saves it into the stream.</summary>
-   /// <remarks>Does not close nor flush the stream. Cancelling the task may result with only part of the encrypted
-   /// text written to the stream.</remarks>
+   /// <remarks>
+   ///    Does not close nor flush the stream. Cancelling the task may result with only part of the encrypted
+   ///    text written to the stream.
+   /// </remarks>
    /// <returns>Number of bytes written to the stream.</returns>
    Task<int> EncryptStringAsync(
       string text,

@@ -173,7 +173,7 @@ public sealed class NameCipher
    {
       return fileName.Replace('_', '/').Replace('~', '=');
    }
-   
+
    private static Exception ThrowNotEncryptedException()
    {
       return new("The data stream does not contain an encrypted string.");

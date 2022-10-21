@@ -260,7 +260,7 @@ public sealed class File
    private async Task Delete(
       CancellationToken cancellationToken)
    {
-      if (!await _view.ConfirmAsync($"Delete '{_name}'?"))
+      if (!await _view.ConfirmAsync($"Delete '{_name}'?", Answer.No, cancellationToken))
          return;
 
       _repository.Delete(_name);

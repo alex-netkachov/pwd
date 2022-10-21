@@ -105,7 +105,7 @@ public abstract class ReplContext
 
          state.Stopped.TrySetResult();
          state.Cancel.Dispose();
-      });
+      }, token);
 
       state.Starting.SetResult();
 
@@ -118,12 +118,14 @@ public abstract class ReplContext
       while (true)
       {
          state = _state;
-         if (state == null || state == Interlocked.CompareExchange(ref _state, null, state))
+
+         if (state == null)
+            // this method is called for the already stopped context
+            return Task.CompletedTask;
+
+         if (state == Interlocked.CompareExchange(ref _state, null, state))
             break;
       }
-
-      if (state == null)
-         return Task.CompletedTask;
 
       state.Cancel.Cancel();
       state.Cancel.Dispose();
