@@ -25,7 +25,6 @@ public static class Program
       IConsole console,
       IFileSystem fs,
       IView view,
-      IState state,
       Settings settings)
    {
       // read the password and initialise ciphers 
@@ -42,9 +41,9 @@ public static class Program
                .AddSingleton(logger)
                .AddSingleton(fs)
                .AddSingleton(view)
-               .AddSingleton(state)
                .AddSingleton(console)
                .AddSingleton<IClipboard, Clipboard>()
+               .AddSingleton<IState, State>()
                .AddSingleton<IRepositoryFactory, RepositoryFactory>()
                .AddSingleton<IExporterFactory, ExporterFactory>()
                .AddSingleton<INameCipherFactory, NameCipherFactory>()
@@ -122,7 +121,11 @@ public static class Program
 
       var exporter = services.GetRequiredService<IExporterFactory>().Create(contentCipher, repository);
       var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter, @lock);
-      await state.Open(session);
+
+      var state = services.GetRequiredService<IState>();
+      var subscription = state.Subscribe();
+      await state.OpenAsync(session);
+      await subscription.ReadAsync();
    }
 
    public static async Task Main(
@@ -130,7 +133,6 @@ public static class Program
    {
       var logger = new ConsoleLogger();
       var console = new StandardConsole();
-      var state = new State();
       var view = new View(console, new Reader(console));
       var fs = new FileSystem();
 
@@ -156,7 +158,6 @@ public static class Program
          console,
          fs,
          view,
-         state,
          new(TimeSpan.FromMinutes(5)));
 
       view.Clear();

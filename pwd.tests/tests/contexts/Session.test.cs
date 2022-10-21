@@ -49,7 +49,7 @@ public sealed class Session_Tests
             state: state,
             fileFactory: fileFactory);
 
-      view.Idle += (sender, args) => state.Close();
+      view.Idle += (sender, args) => state.DisposeAsync();
       
       await session.ProcessAsync($".open {file}");
 

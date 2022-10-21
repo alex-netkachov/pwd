@@ -8,52 +8,27 @@ namespace pwd.contexts;
 
 public interface IContext
 {
-   /// <summary>Runs the context. The returned task completes when the context
-   /// gracefully stops, either by StopAsync() or by its own.</summary>
-   /// <remarks>The context can be started and stopped multiple times. If
-   /// the context is started, this method does nothing.</remarks>
-   Task RunAsync();
+   /// <summary>Runs the context. The returned task completes when the context is started.</summary>
+   /// <remarks>The context can be started and stopped multiple times. If the context is started, this method
+   /// does nothing.</remarks>
+   Task StartAsync();
 
    /// <summary>Stops the context. Completes when the context is stopped.</summary>
    Task StopAsync();
-}
-
-public sealed class NullContext
-   : IContext
-{
-   public static IContext Instance { get; } = new NullContext();
-
-   private TaskCompletionSource? _tcs;
-
-   public Task RunAsync()
-   {
-      var @new = new TaskCompletionSource();
-      var updated = Interlocked.CompareExchange(ref _tcs, @new, null);
-      return updated == null ? @new.Task : updated.Task;
-   }
-
-   public Task StopAsync()
-   {
-      var value = _tcs;
-      var updated = Interlocked.CompareExchange(ref _tcs, null, value);
-      if (updated == value)
-         value?.SetResult();
-      return Task.CompletedTask;
-   }
 }
 
 public abstract class ReplContext
    : IContext,
       ISuggestionsProvider
 {
-   private readonly ILogger _logger;
-   private readonly IView _view;
-
    private record State(
-      TaskCompletionSource Complete,
+      TaskCompletionSource Starting,
       CancellationTokenSource Cancel);
 
    private State? _state;
+
+   private readonly ILogger _logger;
+   private readonly IView _view;
 
    protected ReplContext(
       ILogger logger,
@@ -76,17 +51,17 @@ public abstract class ReplContext
       return "";
    }
 
-   public virtual Task RunAsync()
+   public virtual Task StartAsync()
    {
       var initial = _state;
       if (initial != null)
-         return initial.Complete.Task;
+         return initial.Starting.Task;
       var state = new State(new(), new());
       var current = Interlocked.CompareExchange(ref _state, state, initial);
       if (initial != current)
       {
          state.Cancel.Dispose();
-         return current!.Complete.Task;
+         return state.Starting.Task;
       }
 
       var token = state.Cancel.Token;
@@ -109,13 +84,17 @@ public abstract class ReplContext
                // no need to cancel CTS, need to dispose it
                Interlocked.CompareExchange(ref _state, null, state);
                state.Cancel.Dispose();
-               state.Complete.TrySetCanceled();
+               state.Starting.TrySetCanceled();
                return;
             }
 
             try
             {
                await ProcessAsync(input, token);
+            }
+            catch (TaskCanceledException e) when (e.CancellationToken == token)
+            {
+               // graceful cancellation, e.g. state asked this context to stop
             }
             catch (Exception e)
             {
@@ -125,10 +104,11 @@ public abstract class ReplContext
 
          // StopAsync() is called, exit gracefully, CTS should be disposed already
          Interlocked.CompareExchange(ref _state, null, state);
-         state.Complete.SetResult();
+         state.Starting.SetResult();
       });
 
-      return state.Complete.Task;
+      state.Starting.SetResult();
+      return state.Starting.Task;
    }
 
    public virtual Task StopAsync()
@@ -138,7 +118,7 @@ public abstract class ReplContext
          return Task.CompletedTask;
       state.Cancel.Cancel();
       state.Cancel.Dispose();
-      return state.Complete.Task;
+      return state.Starting.Task;
    }
 
    public virtual (int offset, IReadOnlyList<string>) Get(

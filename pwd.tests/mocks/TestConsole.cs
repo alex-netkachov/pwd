@@ -9,7 +9,12 @@ public sealed class TestConsole
    : IConsole,
       IDisposable
 {
+   private record State(
+      bool Disposed,
+      ImmutableList<Channel<ConsoleKeyInfo>> Subscribers);
+
    private State _state;
+
    private readonly CancellationTokenSource _cts;
    private readonly List<StringBuilder> _writes;
 
@@ -222,8 +227,4 @@ public sealed class TestConsole
          index++;
       }
    }
-
-   private record State(
-      bool Disposed,
-      ImmutableList<Channel<ConsoleKeyInfo>> Subscribers);
 }

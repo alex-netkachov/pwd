@@ -69,6 +69,10 @@ public sealed class StandardConsole
    : IConsole,
       IDisposable
 {
+   private record State(
+      bool Disposed,
+      ImmutableList<Channel<ConsoleKeyInfo>> Subscribers);
+
    private State _state;
    private readonly CancellationTokenSource _cts;
 
@@ -191,8 +195,4 @@ public sealed class StandardConsole
       // clears the console and its buffer
       Console.Write("\x1b[2J\x1b[3J");
    }
-
-   private record State(
-      bool Disposed,
-      ImmutableList<Channel<ConsoleKeyInfo>> Subscribers);
 }

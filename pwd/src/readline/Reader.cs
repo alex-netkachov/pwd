@@ -25,7 +25,17 @@ public sealed class Reader
    : IReader,
       IDisposable
 {
+   private record State(
+      bool Disposed,
+      ImmutableQueue<QueueItem> Queue);
+
+   private record QueueItem(
+      Func<Task> Task,
+      TaskCompletionSource<string> Complete,
+      CancellationToken CancellationToken);
+
    private State _state;
+
    private readonly IConsole _console;
    private readonly ChannelWriter<bool> _requests;
    private readonly CancellationTokenSource _cts;
@@ -404,13 +414,4 @@ public sealed class Reader
       _console.Write(text);
       _console.SetCursorPosition(left, top);
    }
-   
-   private record State(
-      bool Disposed,
-      ImmutableQueue<QueueItem> Queue);
-
-   private record QueueItem(
-      Func<Task> Task,
-      TaskCompletionSource<string> Complete,
-      CancellationToken CancellationToken);
 }

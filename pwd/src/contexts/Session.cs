@@ -66,7 +66,7 @@ public sealed class Session
       switch (Shared.ParseCommand(input))
       {
          case (_, "add", var path):
-            await Add(path);
+            await Add(path, cancellationToken);
             break;
          case (_, "export", var path):
             await Export(path);
@@ -75,10 +75,10 @@ public sealed class Session
             await Help();
             break;
          case (_, "open", var path):
-            await Open(path);
+            await Open(path, cancellationToken);
             break;
          default:
-            if (await Shared.Process(input, _view, _state, _lock))
+            if (await Shared.Process(input, _view, _state, _lock, cancellationToken))
                break;
 
             if (input == "")
@@ -113,7 +113,7 @@ public sealed class Session
                if (chosen == null)
                   _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
                else
-                  await Open(chosen);
+                  await Open(chosen, cancellationToken);
             }
 
             break;
@@ -150,11 +150,12 @@ public sealed class Session
    }
 
    private async Task Open(
-      string name)
+      string name,
+      CancellationToken cancellationToken)
    {
       var content = await _repository.ReadAsync(name);
       var file = _fileFactory.Create(_repository, _lock, name, content);
-      await _state.Open(file);
+      await _state.OpenAsync(file).WaitAsync(cancellationToken);
    }
 
    private async Task Export(
@@ -167,10 +168,10 @@ public sealed class Session
    }
 
    private async Task Add(
-      string name)
+      string name,
+      CancellationToken cancellationToken)
    {
-      await _state.Open(_newFileFactory.Create(_repository, name));
-      await Open(name);
+      await _state.OpenAsync(_newFileFactory.Create(_repository, name)).WaitAsync(cancellationToken);
    }
 
    private async Task Help()

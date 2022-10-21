@@ -52,7 +52,7 @@ public sealed class NewFile
       _content = new();
    }
    
-   public async Task RunAsync()
+   public async Task StartAsync()
    {
       while (true)
       {
@@ -67,6 +67,7 @@ public sealed class NewFile
             break;
          }
 
+         // TODO: it does not look like this is the right wau to handle it
          if (input == ".quit")
             break;
 
@@ -76,7 +77,7 @@ public sealed class NewFile
             {
                case "":
                   await _repository.WriteAsync(_name, _content.ToString());
-                  _state.Back();
+                  await _state.BackAsync();
                   return;
                case ".help":
                   _view.WriteLine("Enter new file content line by line. Empty line completes the file.");

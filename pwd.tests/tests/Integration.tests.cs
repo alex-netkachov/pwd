@@ -31,9 +31,8 @@ public class Integration_Tests
       using var console = new TestConsole(channel.Reader);
       using var reader = new Reader(console);
       var view = new View(console, reader);
-      
-      var state = new State();
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, state, DefaultSettings);
+
+      await Program.Run(Mock.Of<ILogger>(), console, fs, view, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
          "",
@@ -71,8 +70,7 @@ public class Integration_Tests
 
       var view = new View(console, new Reader(console));
       
-      var state = new State();
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, state, DefaultSettings);
+      await Program.Run(Mock.Of<ILogger>(), console, fs, view, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
          ".",
@@ -110,8 +108,7 @@ public class Integration_Tests
 
       var view = new View(console, new Reader(console));
       
-      var state = new State();
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, state, DefaultSettings);
+      await Program.Run(Mock.Of<ILogger>(), console, fs, view, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
          "> .quit\n");
@@ -142,8 +139,7 @@ public class Integration_Tests
 
       var view = new View(console, new Reader(console));
       
-      var state = new State();
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, state, new(TimeSpan.FromMilliseconds(2000)));
+      await Program.Run(Mock.Of<ILogger>(), console, fs, view, new(TimeSpan.FromMilliseconds(2000)));
       var expected = string.Join("\n",
          "Password: ******",
          "> .quit\n");

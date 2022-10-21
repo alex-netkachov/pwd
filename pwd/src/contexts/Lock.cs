@@ -61,7 +61,7 @@ public sealed class Lock
       _idleTimer = new(_ =>
       {
          // timer only starts once
-         _state.Open(this);
+         _state.OpenAsync(this);
       });
 
       _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
@@ -117,7 +117,7 @@ public sealed class Lock
          Timeout.InfiniteTimeSpan);
    }
 
-   public async Task RunAsync()
+   public async Task StartAsync()
    {
       while (true)
       {
@@ -134,7 +134,7 @@ public sealed class Lock
          if (token != _lockToken)
             continue;
 
-         _state.Back();
+         await _state.BackAsync();
          break;
       }
       

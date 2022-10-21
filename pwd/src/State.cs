@@ -1,66 +1,197 @@
-using System.Collections.Generic;
+using System;
+using System.Collections.Immutable;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using pwd.contexts;
 
 namespace pwd;
 
-public interface IState
+public interface IStateChange
 {
-   void Back();
+}
 
-   Task Open(
+public sealed class StateDisposed
+   : IStateChange
+{
+}
+
+public interface IStateChangeReader
+   : IDisposable
+{
+   ValueTask<IStateChange> ReadAsync(
+      CancellationToken cancellationToken = default);
+}
+
+public sealed class StateChangeReader
+   : IStateChangeReader
+{
+   private readonly ChannelReader<IStateChange> _reader;
+   private readonly Action _disposing;
+   private int _disposed;
+
+   public StateChangeReader(
+      ChannelReader<IStateChange> reader,
+      Action? disposing = null)
+   {
+      _reader = reader;
+      _disposing = disposing ?? new Action(() => { });
+   }
+
+   public ValueTask<IStateChange> ReadAsync(
+      CancellationToken cancellationToken = default)
+   {
+      return _reader.ReadAsync(cancellationToken);
+   }
+
+   public void Dispose()
+   {
+      if (Interlocked.Increment(ref _disposed) != 1)
+         return;
+      _disposing();
+   }
+}
+
+/// <summary>Stack of contexts.</summary>
+public interface IState
+   : IAsyncDisposable
+{
+   /// <summary>Sends stopping signal to the active context, removes it from the top, and activates
+   /// the context that is on top of the stack. Completes when the new context is active.</summary>
+   Task BackAsync();
+
+   /// <summary>Sends stopping signal to the active context, puts the new one on top of the stack, and activates
+   /// it. Completes when the new context is active.</summary>
+   Task OpenAsync(
       IContext context);
 
-   void Close();
+   IStateChangeReader Subscribe();
 }
 
 public class State
    : IState
 {
-   private readonly Stack<(IContext, TaskCompletionSource)> _stack;
+   private record StateInt(
+      bool Disposed,
+      IImmutableStack<IContext> Stack,
+      ImmutableList<Channel<IStateChange>> Subscribers);
+
+   private StateInt _state;
 
    public State()
    {
-      _stack = new();
+      _state = new(
+         false,
+         ImmutableStack<IContext>.Empty,
+         ImmutableList<Channel<IStateChange>>.Empty);
    }
 
-   public void Back()
+   public IStateChangeReader Subscribe()
    {
-      if (_stack.Count < 1)
-         return;
+      var channel = Channel.CreateUnbounded<IStateChange>();
 
-      var (context, tcs) = _stack.Pop();
-      context.StopAsync();
-      tcs.SetResult();
-
-      if (_stack.Count == 0)
-         return;
-
-      var (peek, _) = _stack.Peek();
-      peek.RunAsync();
-   }
-
-   public Task Open(
-      IContext context)
-   {
-      if (_stack.Count > 0)
+      var reader = new StateChangeReader(channel.Reader, () =>
       {
-         var (peek, _) = _stack.Peek();
-         peek.StopAsync();
+         while (true)
+         {
+            var initial = _state;
+            if (_state.Disposed)
+               break;
+            var updated = _state with { Subscribers = initial.Subscribers.Remove(channel) };
+            if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
+               continue;
+            channel.Writer.Complete();
+            break;
+         }
+      });
+
+      while (true)
+      {
+         var initial = _state;
+         if (_state.Disposed)
+            throw new ObjectDisposedException(nameof(State));
+         var updated = _state with { Subscribers = initial.Subscribers.Add(channel) };
+         if (initial == Interlocked.CompareExchange(ref _state, updated, initial))
+            break;
       }
 
-      var tcs = new TaskCompletionSource();
-      _stack.Push((context, tcs));
-      context.RunAsync();
-      return tcs.Task;
+      return reader;
    }
 
-   public void Close()
+   public async Task BackAsync()
    {
-      foreach (var (context, tcs) in _stack)
+      IContext? removed;
+      IContext? active;
+      while (true)
       {
-         context.StopAsync();
-         tcs.SetResult();
+         var initial = _state;
+         if (initial.Disposed)
+            throw new ObjectDisposedException(nameof(State));
+         if (initial.Stack.IsEmpty)
+            return;
+         var updated = initial with { Stack = initial.Stack.Pop(out var item) };
+         if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
+            continue;
+         removed = item;
+         active = updated.Stack.IsEmpty ? null : updated.Stack.Peek();
+         break;
+      }
+
+      await removed.StopAsync();
+      if (active != null)
+         await active.StartAsync();
+   }
+
+   public async Task OpenAsync(
+      IContext context)
+   {
+      IContext? previous;
+      while (true)
+      {
+         var initial = _state;
+         if (initial.Disposed)
+            throw new ObjectDisposedException(nameof(State));
+         var updated = initial with { Stack = initial.Stack.Push(context) };
+         if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
+            continue;
+         previous = initial.Stack.IsEmpty ? null : initial.Stack.Peek();
+         break;
+      }
+
+      if (previous != null)
+         await previous.StopAsync();
+      await context.StartAsync();
+   }
+
+   public async ValueTask DisposeAsync()
+   {
+      IContext? active;
+      ImmutableList<Channel<IStateChange>> channels;
+
+      while (true)
+      {
+         var initial = _state;
+         if (initial.Disposed)
+            return;
+         var updated = new StateInt(
+            Disposed: true,
+            Stack: initial.Stack.Clear(),
+            Subscribers: ImmutableList<Channel<IStateChange>>.Empty);
+         if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
+            continue;
+         active = initial.Stack.IsEmpty ? null : initial.Stack.Peek();
+         channels = initial.Subscribers;
+         break;
+      }
+
+      if (active != null)
+         await active.StopAsync();
+
+      var stateDisposed = new StateDisposed();
+      foreach (var channel in channels)
+      {
+         await channel.Writer.WriteAsync(stateDisposed);
+         channel.Writer.Complete();
       }
    }
 }

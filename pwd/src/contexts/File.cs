@@ -75,10 +75,10 @@ public sealed class File
       switch (Shared.ParseCommand(input))
       {
          case ("..", _, _):
-            _state.Back();
+            await _state.BackAsync().WaitAsync(cancellationToken);
             break;
          case (_, "archive", _):
-            Archive();
+            await Archive(cancellationToken);
             break;
          case (_, "cc", var name):
             CopyField(name);
@@ -102,7 +102,7 @@ public sealed class File
             await Rename(name);
             break;
          case (_, "rm", _):
-            await Delete();
+            await Delete(cancellationToken);
             break;
          case (_, "save", _):
             await Save();
@@ -111,7 +111,7 @@ public sealed class File
             Unobscured();
             break;
          default:
-            if (await Shared.Process(input, _view, _state, _lock))
+            if (await Shared.Process(input, _view, _state, _lock, cancellationToken))
                return;
             Print();
             break;
@@ -123,10 +123,10 @@ public sealed class File
       return $"{(_modified ? "*" : "")}{_name}";
    }
 
-   public override Task RunAsync()
+   public override Task StartAsync()
    {
       Print();
-      return base.RunAsync();
+      return base.StartAsync();
    }
 
    public override (int, IReadOnlyList<string>) Get(
@@ -180,10 +180,11 @@ public sealed class File
          .ToArray());
    }
 
-   private void Archive()
+   private async Task Archive(
+      CancellationToken cancellationToken)
    {
       _repository.Archive(_name);
-      _state.Back();
+      await _state.BackAsync().WaitAsync(cancellationToken);
    }
 
    private async Task Save()
@@ -256,14 +257,15 @@ public sealed class File
       return (node.Value as YamlScalarNode)?.Value ?? "";
    }
 
-   private async Task Delete()
+   private async Task Delete(
+      CancellationToken cancellationToken)
    {
       if (!await _view.ConfirmAsync($"Delete '{_name}'?"))
          return;
 
       _repository.Delete(_name);
       _view.WriteLine($"'{_name}' has been deleted.");
-      _state.Back();
+      await _state.BackAsync().WaitAsync(cancellationToken);
    }
 
    private async Task Edit(

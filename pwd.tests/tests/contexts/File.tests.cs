@@ -20,7 +20,7 @@ public class File_Tests
       var state = new Mock<IState>();
       var file = Shared.CreateFileContext(state: state.Object);
       await file.ProcessAsync("..");
-      state.Verify(m => m.Back(), Times.Once);
+      state.Verify(m => m.BackAsync(), Times.Once);
    }
 
    [Test]

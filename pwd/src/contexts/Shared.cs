@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
 
@@ -15,7 +16,8 @@ public static class Shared
       string input,
       IView view,
       IState state,
-      ILock @lock)
+      ILock @lock,
+      CancellationToken cancellationToken)
    {
       switch (ParseCommand(input))
       {
@@ -30,7 +32,7 @@ public static class Shared
             {
                case "":
                   view.Clear();
-                  state.Open(@lock);
+                  await state.OpenAsync(@lock).WaitAsync(cancellationToken);
                   break;
                case "disable":
                   @lock.Disable();
@@ -44,7 +46,7 @@ public static class Shared
             }
             return true;
          case (_, "quit", _):
-            state.Close();
+            await state.DisposeAsync().AsTask().WaitAsync(cancellationToken);
             return true;
          default:
             return false;
