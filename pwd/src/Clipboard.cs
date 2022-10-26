@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -22,14 +21,17 @@ public sealed class Clipboard
       IDisposable
 {
    private readonly ILogger _logger;
-   private readonly Channel<string> _channel;
+   private readonly IRunner _runner;
+   private readonly ChannelWriter<string> _writer;
    private readonly Timer _cleaner;
    private readonly CancellationTokenSource _cts;
 
    public Clipboard(
-      ILogger logger)
+      ILogger logger,
+      IRunner runner)
    {
       _logger = logger;
+      _runner = runner;
 
       _cleaner = new(_ => Clear());
 
@@ -37,10 +39,13 @@ public sealed class Clipboard
 
       var token = _cts.Token;
 
-      _channel = Channel.CreateUnbounded<string>();
+      var channel = Channel.CreateUnbounded<string>();
+      var reader = channel.Reader;
+
+      _writer = channel.Writer;
+
       Task.Run(async () =>
       {
-         var reader = _channel.Reader;
          while (!reader.Completion.IsCompleted && !token.IsCancellationRequested)
          {
             string text;
@@ -48,11 +53,9 @@ public sealed class Clipboard
             {
                text = await reader.ReadAsync(token);
             }
-            catch (OperationCanceledException e)
+            catch (OperationCanceledException e) when (e.CancellationToken == token)
             {
-               if (e.CancellationToken == token)
-                  break;
-               throw;
+               break;
             }
 
             CopyText(text);
@@ -65,12 +68,18 @@ public sealed class Clipboard
       TimeSpan clearAfter)
    {
       _cleaner.Change(clearAfter, Timeout.InfiniteTimeSpan);
-      _channel.Writer.TryWrite(text);
+
+      while (!_writer.TryWrite(text))
+      {
+      }
    }
 
    public void Clear()
    {
-      _channel.Writer.TryWrite("");
+      while (!_writer.TryWrite(""))
+      {
+      }
+
       _cleaner.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
    }
 
@@ -78,42 +87,15 @@ public sealed class Clipboard
    {
       _cts.Cancel();
       _cts.Dispose();
-
-      _channel.Writer.Complete();
+      _writer.Complete();
    }
 
    private void CopyText(
       string text)
    {
-      Exception? Run(
-         string executable)
-      {
-         try
-         {
-            var startInfo = new ProcessStartInfo(executable)
-            {
-               RedirectStandardInput = true
-            };
-
-            var process = Process.Start(startInfo);
-            if (process == null)
-               throw new($"Starting the executable '{executable}' failed.");
-
-            var stdin = process.StandardInput;
-            stdin.Write(text);
-            stdin.Close();
-         }
-         catch (Exception e)
-         {
-            return e;
-         }
-
-         return null;
-      }
-
-      if (Run("clip.exe") is not null &&
-          Run("pbcopy") is not null &&
-          Run("xsel") is not null)
+      if (_runner.Run("clip.exe", text) is not null &&
+          _runner.Run("pbcopy", text) is not null &&
+          _runner.Run("xsel", text) is not null)
       {
          _logger.Error("Cannot copy to the clipboard.");
       }

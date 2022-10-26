@@ -42,6 +42,7 @@ public static class Program
                .AddSingleton(fs)
                .AddSingleton(view)
                .AddSingleton(console)
+               .AddSingleton<IRunner, Runner>()
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IState, State>()
                .AddSingleton<IRepositoryFactory, RepositoryFactory>()
