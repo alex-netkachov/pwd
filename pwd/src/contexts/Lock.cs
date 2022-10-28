@@ -35,7 +35,7 @@ public sealed class Lock
    private readonly IView _view;
    private readonly string _password;
 
-   private readonly Timer _idleTimer;
+   private readonly ITimer _idleTimer;
    private readonly TimeSpan _interactionTimeout;
 
    private LockType _lockType;
@@ -46,6 +46,7 @@ public sealed class Lock
       IState state,
       IView view,
       IConsole console,
+      ITimers timers,
       string password,
       TimeSpan interactionTimeout)
    {
@@ -58,7 +59,7 @@ public sealed class Lock
       _lockType = LockType.None;
       _lockToken = "";
       
-      _idleTimer = new(_ =>
+      _idleTimer = timers.Create(() =>
       {
          // timer only starts once
          _state.OpenAsync(this);
@@ -155,17 +156,20 @@ public sealed class LockFactory
    private readonly IState _state;
    private readonly IView _view;
    private readonly IConsole _console;
+   private readonly ITimers _timers;
 
    public LockFactory(
       ILogger logger,
       IState state,
       IView view,
-      IConsole console)
+      IConsole console,
+      ITimers timers)
    {
       _logger = logger;
       _state = state;
       _view = view;
       _console = console;
+      _timers = timers;
    }
 
    public ILock Create(
@@ -177,6 +181,7 @@ public sealed class LockFactory
          _state,
          _view,
          _console,
+         _timers,
          password,
          interactionTimeout);
    }

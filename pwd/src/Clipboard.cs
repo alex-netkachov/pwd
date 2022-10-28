@@ -23,17 +23,18 @@ public sealed class Clipboard
    private readonly ILogger _logger;
    private readonly IRunner _runner;
    private readonly ChannelWriter<string> _writer;
-   private readonly Timer _cleaner;
+   private readonly ITimer _cleaner;
    private readonly CancellationTokenSource _cts;
 
    public Clipboard(
       ILogger logger,
-      IRunner runner)
+      IRunner runner,
+      ITimers timers)
    {
       _logger = logger;
       _runner = runner;
 
-      _cleaner = new(_ => Clear());
+      _cleaner = timers.Create(Clear);
 
       _cts = new();
 
@@ -85,6 +86,7 @@ public sealed class Clipboard
 
    public void Dispose()
    {
+      _cleaner.Dispose();
       _cts.Cancel();
       _cts.Dispose();
       _writer.Complete();
@@ -93,11 +95,16 @@ public sealed class Clipboard
    private void CopyText(
       string text)
    {
-      if (_runner.Run("clip.exe", text) is not null &&
-          _runner.Run("pbcopy", text) is not null &&
-          _runner.Run("xsel", text) is not null)
+      var e = Environment.OSVersion.Platform switch
       {
-         _logger.Error("Cannot copy to the clipboard.");
-      }
+         PlatformID.Win32Windows => _runner.Run("clip.exe", text),
+         PlatformID.Win32NT => _runner.Run("clip.exe", text),
+         PlatformID.Unix => _runner.Run("xsel", text),
+         PlatformID.MacOSX => _runner.Run("pbcopy", text),
+         _ => new NotSupportedException()
+      };
+
+      if (e != null)
+         _logger.Error($"Cannot copy to the clipboard: {e}");
    }
 }
