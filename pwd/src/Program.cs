@@ -20,19 +20,12 @@ public record Settings(
 
 public static class Program
 {
-   internal static async Task Run(
-      ILogger logger,
-      IConsole console,
-      IFileSystem fs,
-      IView view,
-      Settings settings)
+   internal static IHost SetupHost(
+         ILogger logger,
+         IConsole console,
+         IFileSystem fs,
+         IView view)
    {
-      // read the password and initialise ciphers 
-      var password = await view.ReadPasswordAsync("Password: ");
-
-      // open the repository from the current working folder
-      var path = fs.Path.GetFullPath(".");
-
       var builder = Host.CreateDefaultBuilder();
       builder.ConfigureServices(
          services =>
@@ -56,9 +49,23 @@ public static class Program
                .AddSingleton<ILockFactory, LockFactory>();
          });
 
-      using var host = builder.Build();
+      return builder.Build();
+   }
 
+   internal static async Task Run(
+      IHost host,
+      Settings settings)
+   {
       var services = host.Services;
+
+      var fs = services.GetRequiredService<IFileSystem>();
+      var view = services.GetRequiredService<IView>();
+
+      // read the password and initialise ciphers 
+      var password = await view.ReadPasswordAsync("Password: ");
+
+      // open the repository from the current working folder
+      var path = fs.Path.GetFullPath(".");
 
       var @lock = services.GetRequiredService<ILockFactory>().Create(password, settings.LockTimeout);
       @lock.Password();
@@ -133,7 +140,7 @@ public static class Program
    public static async Task Main(
       string[] args)
    {
-      var logger = new ConsoleLogger();
+      var logger = new NullLogger();
       var console = new StandardConsole();
       var view = new View(console, new Reader(console));
       var fs = new FileSystem();
@@ -155,12 +162,9 @@ public static class Program
          }
       }
 
-      await Run(
-         logger,
-         console,
-         fs,
-         view,
-         new(TimeSpan.FromMinutes(5)));
+      using var host = SetupHost(logger, console, fs, view);
+
+      await Run(host, new(TimeSpan.FromMinutes(5)));
 
       view.Clear();
 

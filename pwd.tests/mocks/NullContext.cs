@@ -5,8 +5,6 @@ namespace pwd.mocks;
 public sealed class NullContext
    : IContext
 {
-   public static IContext Instance { get; } = new NullContext();
-
    private TaskCompletionSource? _tcs;
 
    public Task StartAsync()

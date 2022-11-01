@@ -2,10 +2,15 @@
 
 `pwd` is a simple cross-platform console password manager, written in .NET6/C#.
 
-- It is tiny yet efficient as it only focused on helping you managing passwords.
-- No vendor-lock, use encrypted passwords with openssl and your text editor.
-- It is opensource and cross-platform, it works where .NET works.
-- Can export passwords to a self-contained HTML page.
+Main features:
+
+- Helps managing your sensitive information (e.g. passwords, keys, notes) in
+  openssl-encrypted YAML files.
+- Cross-platform, i.e. it works where .NET works (windows, macos, linux).
+- Exports the passwords to an HTML page, which can be opened in mobile browsers
+  or on the systems where no new software can be installed.
+- No vendor lock, the encrypted files can be managed with well known open-source
+  tools, e.g. openssl.
 
 ## Requirements
 
@@ -14,21 +19,21 @@
 ## Quickstart
 
 1. Install [.NET](https://dotnet.microsoft.com/download)
-2. Download portable single executable for your operating system from the
-   releases.
+2. Download the portable executable for your platform from the releases or
+   clone this repository.
 3. Open terminal application ([terminal](https://github.com/microsoft/terminal),
    cmd, xterm, etc).
-4. Navigate to the folder where you want your password files.
-5. Run the downloaded executable.
-6. When the tool runs, type a password for your new storage and confirm it.
-7. Type `.add website.com` to add a new encrypted file.
+4. Navigate to the folder where you want to store your password files.
+5. Run the downloaded executable or the cloned project.
+6. When the tool asks, type the password and confirm it.
+7. Type `.add website.com` to add an encrypted file.
 8. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and
    then press `Enter` on the empty line.
 9. Command prompt is changed to `website.com>`. Type `..` to go back to the list
    of files.
 10. Type `websi` and press TAB to autocomplete, then press Enter.
 11. Now either copy the username by typing `.ccu`, copy the password by
-    typing `.ccp`. You have 5 seconds to paste it somewhere.
+    typing `.ccp`. The clipboard content will nbe cleared in 10 seconds.
 12. Go back to the file list by typing `..`.
 13. Type `.edit` to edit the file in the default text editor. If the environment
     variable `EDITOR` is not set, specify the editor's executable after the
@@ -36,35 +41,39 @@
     finish. Confirm overwriting.
 14. Quit anytime by typing `.quit`.
 
-## Highlights
+## Details
 
-Passwords are stored in files. When the tool starts, it checks the integrity of
-all encrypted files in the folder: it checks that they can be decrypted are
-valid YAML files. See more on YAML here:
-https://yaml.org/.
+When the tool starts, it checks the integrity of all encrypted files in
+the folder: it checks that they can be decrypted are valid YAML files. See more
+about YAML on https://yaml.org/.
 
-There are two ways to modify content of the encrypted file:
+There are several ways to edit the encrypted file:
 
-- type `.edit` followed by the name of your editor and press ENTER or
-  just `.edit` alone if the environment variable EDITOR is set;
+- open it in the app, type `.edit` followed by the name of your editor and
+  press ENTER or just `.edit` if the environment variable EDITOR is set;
 - decrypt `cat file | openssl aes-256-cbc -d -salt -pbkdf2 > file.txt`, edit,
   and then encrypt `cat file.txt | openssl aes-256-cbc -e -salt -pbkdf2 > file`
-  with openssl
-
-There is a set of shell scripts that help with listing, decrypting, and
-encrypting files with openssl in a way that is compatible with `pwd`.
+  with openssl;
+- use the bash scripts from this project to decrypt and encrypt files.  
 
 When the passwords folder is a git repository, the tool helps updating
 the repository on startup and pushing changes after exiting from the tool.
 
 The tool provides autocomplete for commands and paths.
 
-# List of Commands
+# Commands
 
-Commands are sent to pwd by typing them and pressing enter. Most of the commands
-are either for a single passwords file or for a list of them. When pwd starts,
-it enters the list mode. From the list mode you can go to the file mode by
-typing a part of the file name or by using `.open`.
+`pwd` is a contextual REPL (read–eval–print loop) tool for managing sensitive
+information (e.g. passwords, keys, notes) in openssl-encrypted YAML files. It is
+a console (i.e. works in terminal) application. List of available commands
+depends on the context, e.g. in the folder context the user can list files or
+open them. In the file context user can edit file's content or copy fields.
+
+To list the files in the folder context just press Enter. Type a few characters
+and press Enter to list the names that begin with them. If there is only one
+match the app will open the file context. If you type a first few
+characters of the name and press Tab, the app will complete the name with
+the first match. Subsequent Tabs iterate over the matches.
 
 Commands:
 
@@ -91,8 +100,6 @@ Commands:
 - `.clear` clears the console.
 - `.export path` writes the encrypted password files to a single HTML file.
 
-Also see a list of readline commands: https://github.com/tonerdo/readline
-
 ## Using on other devices
 
 Export your password files to HTML and open them with browser as follows:
@@ -107,29 +114,34 @@ Export your password files to HTML and open them with browser as follows:
 While copying text to the clipboard `clip.exe` is used for Windows and WSL,
 `pbcopy` is for mac, and `xsel` is for Linux.
 
+## TODO
+
+- cleanup this file, use its content in helps
+- .export with new password
+- .html with new password
+- pin external references and protect them with hashsets
+
 ## Story of pwd
 
-For years I was in a search for the right password management tool. I've started
-many, many years ago, with a plain text file. The Internet wasn't a thing yet.
-OMG, even networks were not a thing so a plain text file wasn't actually a bad
-idea.
+The right password management tool is hard to find. I've started many, many
+years ago, with a text editor. The Internet wasn't a thing yet. Even networks
+were not a thing so a plain text file wasn't actually so bad.
 
 Over the years a few things happened:
 
-- number of records in my passwords database had grown significantly (like 1500
-  or something)
-- I store not only passwords, but all different types of files as well (ssh
-  keys, pdfs, etc)
-- Internet had brought a whole set of new threats
+- Number of records in my passwords database had grown significantly.
+- There are not only passwords, but all sorts of files as well (ssh
+  keys, pdfs, etc).
+- Internet had brought a whole set of new threats.
 
-So I'd evaluated a lot and tried some of the tools that claimed to help me
-manage my passwords. Some of them really did actually and I've used these one
-for a while: truecrypt, Password Commander, KeePass, 1Password.
+I'd tried some of the tools that claimed to help me manage passwords. Some of
+them was really helpful and I've used these one for a while: truecrypt,
+Password Commander, KeePass, 1Password.
 
-Believe me, moving from one to another isn't fun. I wouldn't if I did not have
-to. But what are the alternatives if the application is just discontinued, or
-your dream job requires you to change an operating system? You cannot really let
-your software make live decisions for you, don't you agree?
+Moving from one to another is no fun. I wouldn't if I did not have to. But what
+are the alternatives if the application is just discontinued, or
+your want to change an operating system? You cannot really let
+your software make decisions for you, don't you agree?
 
 Suffering enough, I came up with a list of requirements for the password
 management software:

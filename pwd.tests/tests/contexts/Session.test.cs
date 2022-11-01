@@ -1,8 +1,9 @@
-using Castle.Core.Smtp;
+using System.Threading.Channels;
 using Moq;
 using pwd.ciphers;
 using pwd.contexts;
 using pwd.mocks;
+using pwd.readline;
 
 namespace pwd.tests.contexts;
 
@@ -27,16 +28,23 @@ public sealed class Session_Tests
       const string password = "secret";
       const string text = "test";
 
+      var logger = Mock.Of<ILogger>();
+
       var cipher = new ContentCipher(password);
-      var view = new BufferedView();
+
       var fs = Shared.FileLayout1(Shared.GetMockFs());
-      var state = new State();
+      var state = new State(logger);
       var repository = new Repository(fs, new ZeroCipher(), cipher, ".");
       await repository.Initialise();
 
+      var channel = Channel.CreateUnbounded<string>();
+      var console = new TestConsole(channel.Reader);
+      var reader = new Reader(console);
+      var view = new View(console, reader);
+
       var fileFactory =
          new FileFactory(
-            Mock.Of<ILogger>(),
+            logger,
             Mock.Of<IClipboard>(),
             fs,
             state,
@@ -49,11 +57,9 @@ public sealed class Session_Tests
             state: state,
             fileFactory: fileFactory);
 
-      view.Idle += (sender, args) => state.DisposeAsync();
-      
       await session.ProcessAsync($".open {file}");
 
-      Assert.That(view.ToString().Trim(), Is.EqualTo(text));
+      Assert.That(console.GetScreen(), Is.EqualTo(text + "\n"));
    }
    
    [Test]

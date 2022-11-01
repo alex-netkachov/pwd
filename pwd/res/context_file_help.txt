@@ -1,8 +1,9 @@
 Available commands:
+
 ..
-   go one level up
+   closes the file
 .archive
-   move the current to the archive
+   archives the current file
 .cc field
    copies value of the field into the clipboard
 .clear
@@ -16,7 +17,7 @@ Available commands:
 .edit [editor]
    opens the current file in the editor
 .help
-   this help
+   prints this help
 .lock
    locks the application
 .pwd

@@ -97,7 +97,6 @@ public sealed class Clipboard
    {
       var e = Environment.OSVersion.Platform switch
       {
-         PlatformID.Win32Windows => _runner.Run("clip.exe", text),
          PlatformID.Win32NT => _runner.Run("clip.exe", text),
          PlatformID.Unix => _runner.Run("xsel", text),
          PlatformID.MacOSX => _runner.Run("pbcopy", text),

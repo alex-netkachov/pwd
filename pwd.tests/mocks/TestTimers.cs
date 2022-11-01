@@ -53,7 +53,7 @@ public sealed class TestTimers
 
    public TimeSpan Time { get; private set; } = TimeSpan.Zero;
 
-   public void Forward()
+   public void Run()
    {
       var min = TimeSpan.MaxValue;
       TestTimer? timer = null;

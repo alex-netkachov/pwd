@@ -12,27 +12,58 @@ public class Integration_Tests
    private static readonly Settings DefaultSettings = new(Timeout.InfiniteTimeSpan);
 
    [Test]
-   [Timeout(2000)]
+   [Timeout(5000)]
    public async Task Initialise_from_empty_repository()
    {
+      var logger = new ConsoleLogger();
+
       var fs = Shared.GetMockFs();
 
-      var channel = Channel.CreateUnbounded<string>();
+      var notifications = Channel.CreateUnbounded<IViewNotification>();
+      var input = Channel.CreateUnbounded<string>();
       Shared.Run(async () =>
       {
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync(".quit\n");
+         var reader = notifications.Reader;
+         var writer = input.Writer;
+
+         try
+         {
+            logger.Info("waiting for ReadPassword");
+            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+
+            logger.Info("writing `secret`");
+            await writer.WriteAsync("secret\n");
+
+            logger.Info("waiting for ReadPassword");
+            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+
+            logger.Info("writing `secret`");
+            await writer.WriteAsync("secret\n");
+
+            logger.Info("waiting for Read");
+            Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+
+            logger.Info("writing `.quit`");
+            await writer.WriteAsync(".quit\n");
+
+            logger.Info("done writing");
+         }
+         catch (Exception e)
+         {
+            logger.Error(e.ToString());
+         }
       });
 
-      using var console = new TestConsole(channel.Reader);
+      using var console = new TestConsole(input.Reader);
       using var reader = new Reader(console);
-      var view = new View(console, reader);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
 
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, DefaultSettings);
+      using var host = Program.SetupHost(logger, console, fs, view);
+
+      logger.Info("Before Program.Run(...)");
+      await Program.Run(host, DefaultSettings);
+      logger.Info("After Program.Run(...)");
+
       var expected = string.Join("\n",
          "Password: ******",
          "",
@@ -47,30 +78,35 @@ public class Integration_Tests
    [Timeout(3000)]
    public async Task Initialise_with_repository_with_files()
    {
+      var notifications = Channel.CreateUnbounded<IViewNotification>();
+      var input = Channel.CreateUnbounded<string>();
+      Shared.Run(async () =>
+      {
+         var reader = notifications.Reader;
+         var writer = input.Writer;
+
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+         await writer.WriteAsync("file1\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+         await writer.WriteAsync("..\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+         await writer.WriteAsync(".quit\n");
+      });
+
       var fs = Shared.GetMockFs();
       var nameCipher = new NameCipher("secret");
       var contentCipher = new ContentCipher("secret");
       var repository = new Repository(fs, nameCipher, contentCipher, ".");
       await repository.WriteAsync("file1", "content1");
-
-      var channel = Channel.CreateUnbounded<string>();
-      Shared.Run(async () =>
-      {
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("file1\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("..\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync(".quit\n");
-      });
-
-      var console = new TestConsole(channel.Reader);
-
-      var view = new View(console, new Reader(console));
       
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, DefaultSettings);
+      using var console = new TestConsole(input.Reader);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      
+      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, view);
+      await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
          ".",
@@ -87,28 +123,33 @@ public class Integration_Tests
    [Timeout(4000)]
    public async Task Initialise_from_empty_repository_plus_locking()
    {
-      var fs = Shared.GetMockFs();
-
-      var channel = Channel.CreateUnbounded<string>();
+      var notifications = Channel.CreateUnbounded<IViewNotification>();
+      var input = Channel.CreateUnbounded<string>();
       Shared.Run(async () =>
       {
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync(".lock\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync(".quit\n");
+         var reader = notifications.Reader;
+         var writer = input.Writer;
+
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+         await writer.WriteAsync(".lock\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+         await writer.WriteAsync(".quit\n");
       });
 
-      var console = new TestConsole(channel.Reader);
+      var fs = Shared.GetMockFs();
 
-      var view = new View(console, new Reader(console));
+      using var console = new TestConsole(input.Reader);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
       
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, DefaultSettings);
+      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, view);
+      await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
          "> .quit\n");
@@ -120,30 +161,134 @@ public class Integration_Tests
    [Timeout(20000)]
    public async Task Initialise_from_empty_repository_plus_timeout_lock()
    {
-      var fs = Shared.GetMockFs();
-
-      var channel = Channel.CreateUnbounded<string>();
+      var notifications = Channel.CreateUnbounded<IViewNotification>();
+      var input = Channel.CreateUnbounded<string>();
       Shared.Run(async () =>
       {
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(500);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(4000);
-         await channel.Writer.WriteAsync("secret\n");
-         await Task.Delay(1000);
-         await channel.Writer.WriteAsync(".quit\n");
+         var reader = notifications.Reader;
+         var writer = input.Writer;
+
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n");
+
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n");
+         
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n");
+
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+         await writer.WriteAsync(".quit\n");
       });
 
-      var console = new TestConsole(channel.Reader);
+      var fs = Shared.GetMockFs();
 
-      var view = new View(console, new Reader(console));
-      
-      await Program.Run(Mock.Of<ILogger>(), console, fs, view, new(TimeSpan.FromMilliseconds(2000)));
+      using var console = new TestConsole(input.Reader);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+
+      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, view);
+
+      await Program.Run(host, new(TimeSpan.FromSeconds(1)));
+
       var expected = string.Join("\n",
          "Password: ******",
          "> .quit\n");
       var actual = console.GetScreen();
       Assert.That(actual, Is.EqualTo(expected));
+   }
+
+   private interface IViewNotification
+   {
+   }
+
+   private sealed class Confirm
+      : IViewNotification
+   {
+   }
+
+   private sealed class Read
+      : IViewNotification
+   {
+   }
+
+   private sealed class ReadPassword
+      : IViewNotification
+   {
+   }
+
+   private sealed class ViewWithNotifications
+      : IView
+   {
+      private readonly IView _view;
+      private readonly ChannelWriter<IViewNotification> _writer;
+
+      public ViewWithNotifications(
+         IView view,
+         ChannelWriter<IViewNotification> writer)
+      {
+         _view = view;
+         _writer = writer;
+      }
+
+      public void Write(
+         string text)
+      {
+         _view.Write(text);
+      }
+
+      public void WriteLine(
+         string text)
+      {
+         _view.WriteLine(text);
+      }
+
+      public Task<bool> ConfirmAsync(
+         string question,
+         Answer @default = Answer.No,
+         CancellationToken token = default)
+      {
+         var task = _view.ConfirmAsync(question, @default, token);
+         Notify(new Confirm());
+         return task;
+      }
+
+      public Task<string> ReadAsync(
+         string prompt = "",
+         ISuggestionsProvider? suggestionsProvider = null,
+         CancellationToken token = default)
+      {
+         var task = _view.ReadAsync(prompt, suggestionsProvider, token);
+         Notify(new Read());
+         return task;
+      }
+
+      public Task<string> ReadPasswordAsync(
+         string prompt = "",
+         CancellationToken token = default)
+      {
+         var task = _view.ReadPasswordAsync(prompt, token);
+         Notify(new ReadPassword());
+         return task;
+      }
+
+      public void Clear()
+      {
+         _view.Clear();
+      }
+
+      private void Notify(
+         IViewNotification notification)
+      {
+         // If notification goes immediately after read request it may be read before reading starts
+         // making it frozen. Adding small delay makes things not ideal but better.
+         Task.Delay(50).ContinueWith(_ =>
+         {
+            while (!_writer.TryWrite(notification))
+            {
+            }
+         });
+      }
    }
 }

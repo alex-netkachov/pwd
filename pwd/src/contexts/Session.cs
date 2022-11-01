@@ -27,6 +27,7 @@ public sealed class Session
    : ReplContext,
       ISession
 {
+   private readonly ILogger _logger;
    private readonly IExporter _exporter;
    private readonly IFileFactory _fileFactory;
    private readonly INewFileFactory _newFileFactory;
@@ -48,6 +49,7 @@ public sealed class Session
          logger,
          view)
    {
+      _logger = logger;
       _exporter = exporter;
       _repository = repository;
       _state = state;
@@ -61,6 +63,8 @@ public sealed class Session
       string input,
       CancellationToken cancellationToken = default)
    {
+      _logger.Info($"Session.ProcessAsync({input})");
+
       await base.ProcessAsync(input, cancellationToken);
 
       switch (Shared.ParseCommand(input))
@@ -71,6 +75,9 @@ public sealed class Session
          case (_, "export", var path):
             await Export(path);
             break;
+         case (_, "html", var path):
+            await ExportToHtml(path);
+            break;
          case (_, "help", _):
             await Help();
             break;
@@ -78,8 +85,12 @@ public sealed class Session
             await Open(path, cancellationToken);
             break;
          default:
+            _logger.Info($"Session.ProcessAsync({input}) : fallback to shared handlers");
+
             if (await Shared.Process(input, _view, _state, _lock, cancellationToken))
                break;
+
+            _logger.Info($"Session.ProcessAsync({input}) : fallback to file list handlers");
 
             if (input == "")
             {
@@ -157,8 +168,15 @@ public sealed class Session
       var file = _fileFactory.Create(_repository, _lock, name, content);
       await _state.OpenAsync(file).WaitAsync(cancellationToken);
    }
+   
+   private Task Export(
+      string path)
+   {
+      _view.WriteLine("Not implemented");
+      return Task.CompletedTask;
+   }
 
-   private async Task Export(
+   private async Task ExportToHtml(
       string path)
    {
       await _exporter.Export(

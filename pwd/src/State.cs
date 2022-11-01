@@ -76,10 +76,14 @@ public class State
       IImmutableStack<IContext> Stack,
       ImmutableList<Channel<IStateChange>> Subscribers);
 
+   private readonly ILogger _logger;
+
    private StateInt _state;
 
-   public State()
+   public State(
+      ILogger logger)
    {
+      _logger = logger;
       _state = new(
          false,
          ImmutableStack<IContext>.Empty,
@@ -159,7 +163,14 @@ public class State
       }
 
       if (previous != null)
+      {
+         _logger.Info("stopping the context");
+
          await previous.StopAsync();
+      }
+
+      _logger.Info("starting the context");
+
       await context.StartAsync();
    }
 

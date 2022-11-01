@@ -1,15 +1,20 @@
 Available commands:
+
 .add file
    creates a new password file
-.export path
-   exports passwords as an html page
 .clear
    clears the screen
+.export path
+   exports files to a new repository with a new password
 .help
-   this help
+   prints this help
+.html path
+    exports to a password-protected html page
 .lock
    locks the application
+.lock ( pin | password | none )
+   changes auto-lock type
 .open path
-   open file by path
+   opens file by path
 .pwd
    generates passwords

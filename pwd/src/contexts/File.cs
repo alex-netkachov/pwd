@@ -330,7 +330,7 @@ public sealed class File
       if (string.IsNullOrEmpty(value))
          _clipboard.Clear();
       else
-         _clipboard.Put(value, TimeSpan.FromSeconds(5));
+         _clipboard.Put(value, TimeSpan.FromSeconds(10));
    }
 
    private async Task Help()

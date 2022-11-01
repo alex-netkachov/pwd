@@ -75,16 +75,22 @@ public abstract class ReplContext
             try
             {
                var prompt = Prompt();
+
+               _logger.Info("ReplContext.Loop(): _view.ReadAsync(...)");
+
                input = (await _view.ReadAsync(new($"{prompt}> "), this, token)).Trim();
+
+               _logger.Info($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
             }
             catch (OperationCanceledException e) when (e.CancellationToken == token)
             {
                // StopAsync() is called
+               _logger.Info("ReplContext.Loop(): _view.ReadAsync(...) has been cancelled");
                break;
             }
             catch (Exception e)
             {
-               _logger.Error($"Waiting for the user's input ended with the following exception: {e}");
+               _logger.Error($"waiting for the user's input ended with the following exception: {e}");
                continue;
             }
 

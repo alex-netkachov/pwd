@@ -4,9 +4,6 @@ namespace pwd;
 
 public interface ILogger
 {
-   void Trace(
-      string message);
-
    void Info(
       string message);
 
@@ -14,24 +11,36 @@ public interface ILogger
       string message);
 }
 
-public sealed class ConsoleLogger
+public sealed class NullLogger
    : ILogger
 {
-   public void Trace(
-      string message)
-   {
-      Console.WriteLine(message);
-   }
-
    public void Info(
       string message)
    {
-      Console.WriteLine(message);
    }
 
    public void Error(
       string message)
    {
-      Console.Error.WriteLine(message);
+   }
+}
+
+public sealed class ConsoleLogger
+   : ILogger
+{
+   private readonly object _sync = new { };
+
+   public void Info(
+      string message)
+   {
+      lock (_sync)
+         Console.WriteLine(message);
+   }
+
+   public void Error(
+      string message)
+   {
+      lock (_sync)
+         Console.Error.WriteLine(message);
    }
 }

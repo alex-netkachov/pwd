@@ -190,9 +190,10 @@ public sealed class StandardConsole
 
    public void Clear()
    {
-      Console.Clear();
-
       // clears the console and its buffer
       Console.Write("\x1b[2J\x1b[3J");
+
+      // followed by the standard clear
+      Console.Clear();
    }
 }
