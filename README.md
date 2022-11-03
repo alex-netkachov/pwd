@@ -69,11 +69,11 @@ a console (i.e. works in terminal) application. List of available commands
 depends on the context, e.g. in the folder context the user can list files or
 open them. In the file context user can edit file's content or copy fields.
 
-To list the files in the folder context just press Enter. Type a few characters
-and press Enter to list the names that begin with them. If there is only one
-match the app will open the file context. If you type a first few
-characters of the name and press Tab, the app will complete the name with
-the first match. Subsequent Tabs iterate over the matches.
+To list the files in the folder just press Enter. Type a few characters
+and press Enter to view only the names that begin with them. If there is only
+one match the app will open the file. If you type a first few characters of the
+name and press Tab, the app will complete the name with the first match.
+Subsequent Tabs iterate over the matches.
 
 Commands:
 
