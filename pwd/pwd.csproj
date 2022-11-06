@@ -13,8 +13,15 @@
         <Nullable>enable</Nullable>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <RestoreLockedMode>true</RestoreLockedMode>
+        <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <NuGetLockFilePath Condition="$(RuntimeIdentifier) != ''">nuget/packages.$(RuntimeIdentifier).lock.json</NuGetLockFilePath>
+        <NuGetLockFilePath Condition="$(RuntimeIdentifier) == ''">nuget/packages.any.lock.json</NuGetLockFilePath>
+    </PropertyGroup>
+    
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
       <PlatformTarget>AnyCPU</PlatformTarget>
     </PropertyGroup>
@@ -34,6 +41,10 @@
       <EmbeddedResource Include="res\context_file_help.txt" />
       <EmbeddedResource Include="res\context_session_help.txt" />
       <EmbeddedResource Include="res\template.html" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="nuget" />
     </ItemGroup>
 
 </Project>
