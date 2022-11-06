@@ -19,6 +19,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "files", "files", "{9A521188
 		README.md = README.md
 		NuGet.config = NuGet.config
 		pwd.bat = pwd.bat
+		pwd.sh = pwd.sh
+		pwd.tests.bat = pwd.tests.bat
+		publish.sh = publish.sh
+		pwd.tests.sh = pwd.tests.sh
 	EndProjectSection
 EndProject
 Global

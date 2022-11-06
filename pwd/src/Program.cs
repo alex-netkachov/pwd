@@ -152,13 +152,13 @@ public static class Program
 
       if (isGitRepository)
       {
-         await Exec(logger, "git", "remote update");
-         var (status, _, e) = await Exec(logger, "git", "status");
+         await Exec(view, "git", "remote update");
+         var (status, _, e) = await Exec(view, "git", "status");
          if (e == null &&
              status.Contains("Your branch is behind") &&
              await view.ConfirmAsync("Pull changes from the remote?", Answer.Yes))
          {
-            await Exec(logger, "git", "pull");
+            await Exec(view, "git", "pull");
          }
       }
 
@@ -171,9 +171,9 @@ public static class Program
       if (isGitRepository && await view.ConfirmAsync("Update the repository?", Answer.Yes))
       {
          await ExecChain(
-            () => Exec(logger, "git", "add ."),
-            () => Exec(logger, "git", "commit -m update"),
-            () => Exec(logger, "git", "push"));
+            () => Exec(view, "git", "add ."),
+            () => Exec(view, "git", "commit -m update"),
+            () => Exec(view, "git", "push"));
       }
    }
    
@@ -189,7 +189,7 @@ public static class Program
    }
 
    private static async Task<(string StdOut, string StdErr, Exception? Exception)> Exec(
-      ILogger logger,
+      IView view,
       string exe,
       string arguments)
    {
@@ -203,7 +203,7 @@ public static class Program
             UseShellExecute = false,
          };
 
-      logger.Info($"> {exe} {arguments}");
+      view.WriteLine($"> {exe} {arguments}");
 
       Process? process;
 
@@ -216,7 +216,7 @@ public static class Program
       }
       catch (Exception e)
       {
-         logger.Error(e.Message);
+         view.WriteLine(e.Message);
          return ("", "", e);
       }
 
@@ -224,9 +224,9 @@ public static class Program
       var stderr = await process.StandardError.ReadToEndAsync();
 
       if (stdout != "")
-         logger.Info(stdout.TrimEnd());
+         view.WriteLine(stdout.TrimEnd());
       if (stderr != "")
-         logger.Info(stderr.TrimEnd());
+         view.WriteLine(stderr.TrimEnd());
 
       return (stdout, stderr, null);
    }

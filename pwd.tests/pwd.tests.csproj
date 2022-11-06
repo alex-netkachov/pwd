@@ -7,13 +7,7 @@
         <IsPackable>false</IsPackable>
         <RootNamespace>pwd</RootNamespace>
         <LangVersion>default</LangVersion>
-        <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-        <RestoreLockedMode>true</RestoreLockedMode>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <NuGetLockFilePath Condition="$(RuntimeIdentifier) != ''">nuget/packages.$(RuntimeIdentifier).lock.json</NuGetLockFilePath>
-        <NuGetLockFilePath Condition="$(RuntimeIdentifier) == ''">nuget/packages.any.lock.json</NuGetLockFilePath>
+        <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,11 +19,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\pwd\pwd.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="nuget" />
+        <ProjectReference Include="..\pwd\pwd.csproj" />
     </ItemGroup>
 
 </Project>

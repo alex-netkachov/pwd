@@ -1,3 +1,8 @@
 @echo off
+
 SET SOLUTION_FOLDER=%~dp0
-dotnet run --project "%SOLUTION_FOLDER%/pwd/pwd.csproj" --runtime win-x64 --self-contained "$@"
+
+dotnet publish "%SOLUTION_FOLDER%/pwd/pwd.csproj" --configuration Release --runtime win-x64 -p:PublishSingleFile=true --self-contained
+if NOT %ERRORLEVEL% == 0 GOTO :EOF
+
+%SOLUTION_FOLDER%\pwd\bin\Release\net6.0\win-x64\publish\pwd.exe
