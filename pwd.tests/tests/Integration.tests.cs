@@ -15,7 +15,7 @@ public class Integration_Tests
    [Timeout(5000)]
    public async Task QuickStart()
    {
-      var logger = new ConsoleLogger();
+      var logger = new NullLogger();
 
       var fs = Shared.GetMockFs();
       
