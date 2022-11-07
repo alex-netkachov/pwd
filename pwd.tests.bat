@@ -1,5 +1,8 @@
 @echo off
 
+rem Restores packages, cleans, builds, publishes, and tests pwd.
+rem Supposed to be executed from the solution folder. 
+
 dotnet restore
 if NOT %ERRORLEVEL% == 0 GOTO :EOF
 

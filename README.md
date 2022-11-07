@@ -14,32 +14,47 @@ Main features:
 
 ## Requirements
 
-- Latest [.NET 6](https://dotnet.microsoft.com/download)
+Latest [.NET 6](https://dotnet.microsoft.com/download).
+
+## Install
+
+Download the portable executable for your platform from the
+[releases](https://github.com/AlexAtNet/pwd/releases) or
+clone this repository:
+
+    $ git clone https://github.com/AlexAtNet/pwd.git
+
+## Run
+
+In the terminal application ([terminal](https://github.com/microsoft/terminal),
+cmd, xterm, etc) navigate to the folder where you want to store your password
+files and either run the downloaded executable execute `pwd.sh` or `pwd.bat`
+from the cloned repository:
+
+    $ mkdir passwords && cd passwords
+    $ ../pwd/pwd.sh
 
 ## Quickstart
 
-1. Install [.NET](https://dotnet.microsoft.com/download)
-2. Download the portable executable for your platform from the releases or
-   clone this repository.
-3. Open terminal application ([terminal](https://github.com/microsoft/terminal),
-   cmd, xterm, etc).
-4. Navigate to the folder where you want to store your password files.
-5. Run the downloaded executable or the cloned project.
-6. When the tool asks, type the password and confirm it.
-7. Type `.add website.com` to add an encrypted file.
-8. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and
+In the terminal application ([terminal](https://github.com/microsoft/terminal),
+cmd, xterm, etc) navigate to the folder where you want to store your
+password-protected files and run the tool.
+
+1. When the tool asks, type the password and then confirm it.
+2. Type `.add website.com` to add an encrypted file.
+3. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and
    then press `Enter` on the empty line.
-9. Command prompt is changed to `website.com>`. Type `..` to go back to the list
+4. Command prompt is changed to `website.com>`. Type `..` to go back to the list
    of files.
-10. Type `websi` and press TAB to autocomplete, then press Enter.
-11. Now either copy the username by typing `.ccu`, copy the password by
+5. Type `websi` and press TAB to autocomplete, then press Enter.
+6. Now either copy the username by typing `.ccu`, copy the password by
     typing `.ccp`. The clipboard content will nbe cleared in 10 seconds.
-12. Go back to the file list by typing `..`.
-13. Type `.edit` to edit the file in the default text editor. If the environment
+7. Go back to the file list by typing `..`.
+8. Type `.edit` to edit the file in the default text editor. If the environment
     variable `EDITOR` is not set, specify the editor's executable after the
     command as follows: `.edit notepad` or `.edit vim`. Save and exit when you
     finish. Confirm overwriting.
-14. Quit anytime by typing `.quit`.
+9. Quit anytime by typing `.quit`.
 
 ## Details
 
@@ -75,7 +90,7 @@ one match the app will open the file. If you type a first few characters of the
 name and press Tab, the app will complete the name with the first match.
 Subsequent Tabs iterate over the matches.
 
-Commands:
+Some of the commands:
 
 - The app opens a file when there is a file with name that is equal to the
   command text or there is only with name that starts with the command text. The
@@ -98,15 +113,15 @@ Commands:
   shortcuts: `.ccu` for `.cc user` and `.ccp` for `.cc password`. The clipboard 
   is cleared in 5 seconds after copying.
 - `.clear` clears the console.
-- `.export path` writes the encrypted password files to a single HTML file.
+- `.html path` writes the encrypted password files to a single HTML file.
 
 ## Using on other devices
 
 Export your password files to HTML and open them with browser as follows:
 
-1) Start pwd and use `.export path` command to write your passwords to an HTML
+1) Start pwd and use `.html path` command to write your passwords to an HTML
    file.
-2) Copy this file to your phone, tablet, or laptop without `pwd`.
+2) Copy this file to your phone, tablet, or laptop.
 3) Open the copied HTML file in a browser and follow the onscreen instruction.
 
 ## Technicalities

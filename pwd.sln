@@ -10,8 +10,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{DFD2
 		encrypt.sh = encrypt.sh
 		list.sh = list.sh
 		add.sh = add.sh
-		pwd.sh = pwd.sh
-		publish.sh = publish.sh
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "files", "files", "{9A521188-4150-405D-9517-2F40BF083B29}"
@@ -21,7 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "files", "files", "{9A521188
 		pwd.bat = pwd.bat
 		pwd.sh = pwd.sh
 		pwd.tests.bat = pwd.tests.bat
-		publish.sh = publish.sh
+		release.sh = release.sh
 		pwd.tests.sh = pwd.tests.sh
 	EndProjectSection
 EndProject

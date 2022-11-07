@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Restores packages, cleans, builds, publishes, and tests pwd.
+# Supposed to be executed from the solution folder.
+
 dotnet restore
 if [ $? -ne 0 ]; then exit 1; fi
 
