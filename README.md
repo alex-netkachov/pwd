@@ -44,17 +44,15 @@ password-protected files and run the tool.
 2. Type `.add website.com` to add an encrypted file.
 3. Type `user: tom` press `Enter`, type `password: secret` press `Enter` and
    then press `Enter` on the empty line.
-4. Command prompt is changed to `website.com>`. Type `..` to go back to the list
-   of files.
-5. Type `websi` and press TAB to autocomplete, then press Enter.
-6. Now either copy the username by typing `.ccu`, copy the password by
-    typing `.ccp`. The clipboard content will nbe cleared in 10 seconds.
-7. Go back to the file list by typing `..`.
-8. Type `.edit` to edit the file in the default text editor. If the environment
+4. Type `web` and press TAB to autocomplete, then press `Enter`.
+5. Now copy the password by typing `.ccp` and pressing `Enter`.
+   The clipboard content will be cleared in 10 seconds.
+6. Go back to the file list by typing `..`.
+7. Type `.edit` to edit the file in the default text editor. If the environment
     variable `EDITOR` is not set, specify the editor's executable after the
     command as follows: `.edit notepad` or `.edit vim`. Save and exit when you
     finish. Confirm overwriting.
-9. Quit anytime by typing `.quit`.
+8. Quit anytime by typing `.quit`.
 
 ## Details
 
@@ -128,13 +126,6 @@ Export your password files to HTML and open them with browser as follows:
 
 While copying text to the clipboard `clip.exe` is used for Windows and WSL,
 `pbcopy` is for mac, and `xsel` is for Linux.
-
-## TODO
-
-- cleanup this file, use its content in helps
-- .export with new password
-- .html with new password
-- pin external references and protect them with hashsets
 
 ## Story of pwd
 

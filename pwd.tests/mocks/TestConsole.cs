@@ -138,13 +138,13 @@ public sealed class TestConsole
    private static IReadOnlyList<ConsoleKeyInfo> TestInputToKeyCodeInfos(
       string text)
    {
-      var list = new List<(char, ConsoleKey)>();
+      var list = new List<(char Symbol, bool Shift, ConsoleKey ConsoleKey)>();
       var index = 0;
       while (true)
       {
          if (index == text.Length)
             return list
-               .Select(item => new ConsoleKeyInfo(item.Item1, item.Item2, false, false, false))
+               .Select(item => new ConsoleKeyInfo(item.Symbol, item.ConsoleKey, item.Shift, false, false))
                .ToList();
 
          var ch = text[index];
@@ -158,7 +158,7 @@ public sealed class TestConsole
 
             index = close;
 
-            list.Add((' ', token switch
+            list.Add((' ', false, token switch
             {
                "<" => ConsoleKey.LeftArrow,
                "LA" => ConsoleKey.LeftArrow,
@@ -176,9 +176,13 @@ public sealed class TestConsole
                _ => throw new FormatException()
             }));
          }
+         else if (ch == ':')
+         {
+            list.Add((ch, true, ConsoleKey.Oem1));
+         }
          else
          {
-            list.Add((ch, ch switch
+            list.Add((ch, false, ch switch
             {
                '0' => ConsoleKey.D0,
                '1' => ConsoleKey.D1,

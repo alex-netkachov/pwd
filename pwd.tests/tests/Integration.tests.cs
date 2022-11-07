@@ -13,9 +13,97 @@ public class Integration_Tests
 
    [Test]
    [Timeout(5000)]
-   public async Task Initialise_from_empty_repository()
+   public async Task QuickStart()
    {
       var logger = new ConsoleLogger();
+
+      var fs = Shared.GetMockFs();
+      
+      var notifications = Channel.CreateUnbounded<IViewNotification>();
+      var input = Channel.CreateUnbounded<string>();
+
+      Shared.Run(async () =>
+      {
+         var reader = notifications.Reader;
+         var writer = input.Writer;
+
+         async Task WaitForReadAndType(
+            string instruction)
+         {
+            logger.Info("waiting for Read");
+            Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
+
+            logger.Info($"writing `{instruction}`");
+            await writer.WriteAsync(instruction + "\n");
+         }
+
+         try
+         {
+            logger.Info("waiting for ReadPassword");
+            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+
+            logger.Info("writing `secret`");
+            await writer.WriteAsync("secret\n");
+
+            logger.Info("waiting for ReadPassword (confirmation)");
+            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
+
+            logger.Info("writing `secret`");
+            await writer.WriteAsync("secret\n");
+
+            await WaitForReadAndType(".add website.com");
+            await WaitForReadAndType("user: tom");
+            await WaitForReadAndType("password: secret");
+            await WaitForReadAndType("");
+            await WaitForReadAndType("web{TAB}");
+            await WaitForReadAndType(".ccp");
+            await WaitForReadAndType("..");
+            await WaitForReadAndType(".quit");
+
+            logger.Info("done writing");
+         }
+         catch (Exception e)
+         {
+            logger.Error(e.ToString());
+         }
+      });
+      
+      using var console = new TestConsole(input.Reader);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+
+      using var host = Program.SetupHost(logger, console, fs, view);
+
+      logger.Info("Before Program.Run(...)");
+      await Program.Run(host, DefaultSettings);
+      logger.Info("After Program.Run(...)");
+
+      var expected = string.Join("\n",
+         "Password: ******",
+         "",
+         "repository contains 0 files",
+         "It seems that you are creating a new repository. Please confirm password: ******",
+         "> .add website.com",
+         "+> user: tom",
+         "+> password: secret",
+         "+> ",
+         "> website.com",
+         "user: tom\r",
+         "password: ************\r",
+         "",
+         "website.com> .ccp",
+         "website.com> ..",
+         "> .quit",
+         "");
+      var actual = console.GetScreen();
+      Assert.That(actual, Is.EqualTo(expected));
+   }
+
+   [Test]
+   [Timeout(5000)]
+   public async Task Initialise_from_empty_repository()
+   {
+      var logger = new NullLogger();
 
       var fs = Shared.GetMockFs();
 
