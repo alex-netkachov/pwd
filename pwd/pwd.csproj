@@ -22,5 +22,7 @@
       <EmbeddedResource Include="res\context_file_help.txt" />
       <EmbeddedResource Include="res\context_session_help.txt" />
       <EmbeddedResource Include="res\template.html" />
+      <None Remove="res\context_new_file_help.txt" />
+      <EmbeddedResource Include="res\context_new_file_help.txt" />
     </ItemGroup>
 </Project>

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -80,7 +82,7 @@ public sealed class NewFile
                   await _state.BackAsync();
                   return;
                case ".help":
-                  _view.WriteLine("Enter new file content line by line. Empty line completes the file.");
+                  await Help();
                   break;
                default:
                   _content.AppendLine(input).Replace("***", Shared.Password());
@@ -111,6 +113,20 @@ public sealed class NewFile
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
          .ToArray());
+   }
+   
+   private async Task Help()
+   {
+      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.context_new_file_help.txt");
+      if (stream == null)
+      {
+         _view.WriteLine("help file is missing");         
+         return;
+      }
+
+      using var reader = new StreamReader(stream);
+      var content = await reader.ReadToEndAsync();
+      _view.WriteLine(content.TrimEnd());
    }
 }
 

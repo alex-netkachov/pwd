@@ -1,6 +1,9 @@
 # pwd
 
-`pwd` is a simple cross-platform console password manager, written in .NET6/C#.
+`pwd` is a simple cross-platform console password manager, written in C# and
+powered by .NET 7. It is a contextual REPL (read–eval–print loop) tool, and
+the passwords (and other sensitive information, e.g. keys or notes) are
+stored in openssl-encrypted YAML files.
 
 Main features:
 
@@ -14,7 +17,7 @@ Main features:
 
 ## Requirements
 
-Latest [.NET 6](https://dotnet.microsoft.com/download).
+Latest [.NET](https://dotnet.microsoft.com/download).
 
 ## Install
 
@@ -28,7 +31,7 @@ clone this repository:
 
 In the terminal application ([terminal](https://github.com/microsoft/terminal),
 cmd, xterm, etc) navigate to the folder where you want to store your password
-files and either run the downloaded executable execute `pwd.sh` or `pwd.bat`
+files and either run the downloaded executable or run `pwd.sh` or `pwd.bat`
 from the cloned repository:
 
     $ mkdir passwords && cd passwords
@@ -76,42 +79,15 @@ The tool provides autocomplete for commands and paths.
 
 # Commands
 
-`pwd` is a contextual REPL (read–eval–print loop) tool for managing sensitive
-information (e.g. passwords, keys, notes) in openssl-encrypted YAML files. It is
-a console (i.e. works in terminal) application. List of available commands
-depends on the context, e.g. in the folder context the user can list files or
-open them. In the file context user can edit file's content or copy fields.
+List of available commands depends on the context, e.g. in the folder you can
+list files or open them. In the file context you can edit file's content or copy
+fields.
 
-To list the files in the folder just press Enter. Type a few characters
-and press Enter to view only the names that begin with them. If there is only
-one match the app will open the file. If you type a first few characters of the
-name and press Tab, the app will complete the name with the first match.
-Subsequent Tabs iterate over the matches.
+Contexts:
 
-Some of the commands:
-
-- The app opens a file when there is a file with name that is equal to the
-  command text or there is only with name that starts with the command text. The
-  command text should not start with ".".
-- `..` leaves the file mode and enters the list mode.
-- `.add path` creates a new encrypted password file by reading the lines until
-  empty line. Substitutes
-  `***` in the input with a newly generated password.
-- `.open path` opens the encrypted file.
-- `.pwd` prints a strong password.
-- `.edit [editor]` opens the `editor` (e.g. `notepad`) with the current file.
-  Omitting `editor`
-  makes `pwd` look for it in the environment variable `EDITOR`.
-- `.rm` removes the currently opened file.
-- `.archive` moves the currently opened file to the folder `.archive`. As this
-  folder begins with `.`, the directory reader will not display this folder in
-  the list of encrypted files. Archived files are checked when the tool starts
-  and can be opened with `.open`.
-- `.cc name` copies value of a `name: value` pair to clipboard. There are two 
-  shortcuts: `.ccu` for `.cc user` and `.ccp` for `.cc password`. The clipboard 
-  is cleared in 5 seconds after copying.
-- `.clear` clears the console.
-- `.html path` writes the encrypted password files to a single HTML file.
+- [session](pwd/res/context_session_help.txt)
+- [file](pwd/res/context_file_help.txt)
+- [new file](pwd/res/context_new_file_help.txt)
 
 ## Using on other devices
 

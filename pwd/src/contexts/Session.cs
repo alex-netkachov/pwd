@@ -24,7 +24,7 @@ public interface ISessionFactory
 
 /// <summary>Repository working session context.</summary>
 public sealed class Session
-   : ReplContext,
+   : Repl,
       ISession
 {
    private readonly ILogger _logger;

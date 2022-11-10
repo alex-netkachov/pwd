@@ -6,16 +6,16 @@ namespace pwd.tests.contexts;
 public class File_Tests
 {
    [Test]
-   public async Task saving_writes_a_file()
+   public async Task empty_input_prints_the_content_with_obscured_passwords()
    {
-      var repository = new Mock<IRepository>();
-      var file = Shared.CreateFileContext(repository: repository.Object);
-      await file.ProcessAsync(".save");
-      repository.Verify(m => m.WriteAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+      var view = new Mock<IView>();
+      var file = Shared.CreateFileContext(view: view.Object, content: "password: secret");
+      await file.ProcessAsync("");
+      view.Verify(m => m.WriteLine("password: ************"), Times.Once);
    }
-
+   
    [Test]
-   public async Task closing_changes_the_context()
+   public async Task close_changes_the_context()
    {
       var state = new Mock<IState>();
       var file = Shared.CreateFileContext(state: state.Object);
@@ -24,28 +24,10 @@ public class File_Tests
    }
 
    [Test]
-   public async Task printing_outputs_the_content()
+   public async Task help_prints_the_content_of_the_help_file()
    {
       var view = new Mock<IView>();
-      var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "test");
-      await file.ProcessAsync("");
-      view.Verify(m => m.WriteLine("test"), Times.Once);
-   }
-
-   [Test]
-   public async Task printing_hides_passwords()
-   {
-      var view = new Mock<IView>();
-      var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "password: secret");
-      await file.ProcessAsync("");
-      view.Verify(m => m.WriteLine("password: ************"), Times.Once);
-   }
-   
-   [Test]
-   public async Task prints_help()
-   {
-      var view = new Mock<IView>();
-      var file = (pwd.contexts.File) Shared.CreateFileContext(view: view.Object, content: "password: secret");
+      var file = Shared.CreateFileContext(view: view.Object, content: "password: secret");
       await file.ProcessAsync(".help");
       view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
    }

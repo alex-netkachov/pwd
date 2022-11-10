@@ -28,7 +28,7 @@ public interface IFileFactory
 
 /// <summary>Encrypted file context.</summary>
 public sealed class File
-   : ReplContext,
+   : Repl,
       IFile
 {
    private readonly IClipboard _clipboard;
@@ -104,9 +104,6 @@ public sealed class File
          case (_, "rm", _):
             await Delete(cancellationToken);
             break;
-         case (_, "save", _):
-            await Save();
-            break;
          case (_, "unobscured", _):
             Unobscured();
             break;
@@ -173,7 +170,6 @@ public sealed class File
             ".quit",
             ".rename",
             ".rm",
-            ".save",
             ".unobscured"
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))

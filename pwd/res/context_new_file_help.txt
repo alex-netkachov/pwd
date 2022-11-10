@@ -1,0 +1,1 @@
+﻿Enter new file content line by line. Empty line completes the file.
