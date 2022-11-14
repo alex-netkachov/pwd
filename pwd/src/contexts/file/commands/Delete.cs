@@ -2,12 +2,12 @@
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Up
+public sealed class Delete
    : ICommandFactory
 {
    private readonly IFile _file;
 
-   public Up(
+   public Delete(
       IFile file)
    {
       _file = file;
@@ -18,7 +18,7 @@ public sealed class Up
    {
       return input switch
       {
-         ".." => new DelegateCommand(_file.Up),
+         ".rm" => new DelegateCommand(_file.Delete),
          _ => null
       };
    }

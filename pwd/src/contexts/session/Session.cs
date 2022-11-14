@@ -8,12 +8,32 @@ using System.Threading.Tasks;
 using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file;
+using pwd.contexts.session.commands;
 
-namespace pwd.contexts;
+namespace pwd.contexts.session;
 
 public interface ISession
    : IContext
 {
+   Task Export(
+      string path);
+
+   Task Html(
+      string path);
+
+   Task Add(
+      string name,
+      CancellationToken cancellationToken);
+
+   Task Help();
+
+   Task List(
+      string input,
+      CancellationToken cancellationToken);
+
+   Task Open(
+      string name,
+      CancellationToken cancellationToken);
 }
 
 public interface ISessionFactory
@@ -38,6 +58,7 @@ public sealed class Session
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
+   private readonly IReadOnlyCollection<ICommandFactory> _factories;
 
    public Session(
       ILogger logger,
@@ -60,6 +81,21 @@ public sealed class Session
       _fileFactory = fileFactory;
       _newFileFactory = newFileFactory;
       _lock = @lock;
+
+      _factories =
+         Array.Empty<ICommandFactory>()
+            .Concat(
+               new ICommandFactory[]
+               {
+                  new Add(this),
+                  new Export(this),
+                  new Help(this),
+                  new Html(this),
+                  new Open(this)
+               })
+            .Concat(Shared.CommandFactories(_state, @lock, _view))
+            .Concat(new ICommandFactory[] { new List(this) })
+            .ToArray();
    }
 
    public override async Task ProcessAsync(
@@ -68,70 +104,12 @@ public sealed class Session
    {
       _logger.Info($"Session.ProcessAsync({input})");
 
-      await base.ProcessAsync(input, cancellationToken);
-
-      switch (Shared.ParseCommand(input))
-      {
-         case (_, "add", var path):
-            await Add(path, cancellationToken);
-            break;
-         case (_, "export", var path):
-            await Export(path);
-            break;
-         case (_, "html", var path):
-            await ExportToHtml(path);
-            break;
-         case (_, "help", _):
-            await Help();
-            break;
-         case (_, "open", var path):
-            await Open(path, cancellationToken);
-            break;
-         default:
-            _logger.Info($"Session.ProcessAsync({input}) : fallback to shared handlers");
-
-            if (await Shared.Process(input, _view, _state, _lock, cancellationToken))
-               break;
-
-            _logger.Info($"Session.ProcessAsync({input}) : fallback to file list handlers");
-
-            if (input == "")
-            {
-               // show all files if there is no user input
-               var items =
-                  _repository
-                     .List(".")
-                     .Select(item => item.Path)
-                     .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
-                     .ToList();
-
-               _view.WriteLine(string.Join("\n", items));
-            }
-            else
-            {
-               // show files and folders
-               var items =
-                  _repository.List(".", (false, true, false))
-                     .Where(item => item.Path.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-                     .ToList();
-
-               var match =
-                  items.FirstOrDefault(
-                     item => string.Equals(item.Path, input, StringComparison.OrdinalIgnoreCase));
-
-               var chosen =
-                  match == default
-                     ? items.Count == 1 && input != "" ? items[0].Path : default
-                     : match.Path;
-
-               if (chosen == null)
-                  _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
-               else
-                  await Open(chosen, cancellationToken);
-            }
-
-            break;
-      }
+      var command =
+         _factories
+            .Select(item => item.Parse(input))
+            .FirstOrDefault(item => item != null)
+         ?? new List(this).Command();
+      await command.DoAsync(cancellationToken);
    }
 
    public override (int, IReadOnlyList<string>) Get(
@@ -163,7 +141,49 @@ public sealed class Session
          .ToArray());
    }
 
-   private async Task Open(
+   public async Task List(
+      string input,
+      CancellationToken cancellationToken)
+   {
+      _logger.Info($"Session.ProcessAsync({input}) : fallback to file list handlers");
+
+      if (input == "")
+      {
+         // show all files if there is no user input
+         var items =
+            _repository
+               .List(".")
+               .Select(item => item.Path)
+               .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+               .ToList();
+
+         _view.WriteLine(string.Join("\n", items));
+      }
+      else
+      {
+         // show files and folders
+         var items =
+            _repository.List(".", (false, true, false))
+               .Where(item => item.Path.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+               .ToList();
+
+         var match =
+            items.FirstOrDefault(
+               item => string.Equals(item.Path, input, StringComparison.OrdinalIgnoreCase));
+
+         var chosen =
+            match == default
+               ? items.Count == 1 && input != "" ? items[0].Path : default
+               : match.Path;
+
+         if (chosen == null)
+            _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
+         else
+            await Open(chosen, cancellationToken);
+      }
+   }
+
+   public async Task Open(
       string name,
       CancellationToken cancellationToken)
    {
@@ -172,14 +192,14 @@ public sealed class Session
       await _state.OpenAsync(file).WaitAsync(cancellationToken);
    }
    
-   private Task Export(
+   public Task Export(
       string path)
    {
       _view.WriteLine("Not implemented");
       return Task.CompletedTask;
    }
 
-   private async Task ExportToHtml(
+   public async Task Html(
       string path)
    {
       await _exporter.Export(
@@ -188,14 +208,14 @@ public sealed class Session
             : path);
    }
 
-   private async Task Add(
+   public async Task Add(
       string name,
       CancellationToken cancellationToken)
    {
       await _state.OpenAsync(_newFileFactory.Create(_repository, name)).WaitAsync(cancellationToken);
    }
 
-   private async Task Help()
+   public async Task Help()
    {
       await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.context_session_help.txt");
       if (stream == null)

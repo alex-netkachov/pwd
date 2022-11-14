@@ -2,12 +2,12 @@
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Up
+public sealed class Print
    : ICommandFactory
 {
    private readonly IFile _file;
 
-   public Up(
+   public Print(
       IFile file)
    {
       _file = file;
@@ -18,8 +18,14 @@ public sealed class Up
    {
       return input switch
       {
-         ".." => new DelegateCommand(_file.Up),
+         ".print" => Command(),
+         "" => Command(),
          _ => null
       };
+   }
+
+   public ICommand Command()
+   {
+      return new DelegateCommand(() => _file.Print());
    }
 }

@@ -4,55 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
+using pwd.context.repl;
+using pwd.contexts.shared;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts;
 
 public static class Shared
 {
-   public static async Task<bool> Process(
-      string input,
-      IView view,
-      IState state,
-      ILock @lock,
-      CancellationToken cancellationToken)
-   {
-      switch (ParseCommand(input))
-      {
-         case (_, "pwd", _):
-            view.WriteLine(Password());
-            return true;
-         case (_, "clear", _):
-            view.Clear();
-            return true;
-         case (_, "lock", var type):
-            switch (type)
-            {
-               case "":
-                  view.Clear();
-                  await state.OpenAsync(@lock).WaitAsync(cancellationToken);
-                  break;
-               case "disable":
-                  @lock.Disable();
-                  break;
-               case "pin":
-                  await @lock.Pin();
-                  break;
-               case "pwd":
-                  @lock.Password();
-                  break;
-            }
-            return true;
-         case (_, "quit", _):
-            await state.DisposeAsync().AsTask().WaitAsync(cancellationToken);
-            return true;
-         default:
-            return false;
-      }
-   }
-
    public static (string, string, string) ParseCommand(
       string input)
    {
@@ -121,5 +80,19 @@ public static class Shared
          (list[n], list[k]) = (list[k], list[n]);
       }
       return list;
+   }
+
+   public static IReadOnlyCollection<ICommandFactory> CommandFactories(
+      IState state,
+      ILock @lock,
+      IView view)
+   {
+      return new ICommandFactory[]
+      {
+         new Clear(view),
+         new Pwd(view),
+         new shared.Lock(state, view, @lock),
+         new Quit(state)
+      };
    }
 }

@@ -6,6 +6,7 @@ using Moq;
 using pwd.ciphers;
 using pwd.contexts;
 using pwd.contexts.file;
+using pwd.contexts.session;
 using pwd.readline;
 using pwd.mocks;
 

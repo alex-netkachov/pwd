@@ -2,12 +2,12 @@
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Up
+public sealed class Edit
    : ICommandFactory
 {
    private readonly IFile _file;
 
-   public Up(
+   public Edit(
       IFile file)
    {
       _file = file;
@@ -16,9 +16,9 @@ public sealed class Up
    public ICommand? Parse(
       string input)
    {
-      return input switch
+      return Shared.ParseCommand(input) switch
       {
-         ".." => new DelegateCommand(_file.Up),
+         (_, "edit", var editor) => new DelegateCommand(cancellationToken => _file.Edit(editor, cancellationToken)),
          _ => null
       };
    }

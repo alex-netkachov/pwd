@@ -9,7 +9,9 @@ namespace pwd.contexts;
 public interface ILock
    : IContext
 {
-   Task Pin();
+   Task Pin(
+      CancellationToken cancellationToken);
+
    void Password();
    void Disable();
 }
@@ -79,10 +81,11 @@ public sealed class Lock
       });
    }
 
-   public async Task Pin()
+   public async Task Pin(
+      CancellationToken cancellationToken)
    {
-      var pin1 = await _view.ReadPasswordAsync("Pin: ");
-      var pin2 = await _view.ReadPasswordAsync("Confirm Pin: ");
+      var pin1 = await _view.ReadPasswordAsync("Pin: ", cancellationToken);
+      var pin2 = await _view.ReadPasswordAsync("Confirm Pin: ", cancellationToken);
       if (pin1 != pin2)
       {
          _view.WriteLine("Pins do not match");

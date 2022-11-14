@@ -2,12 +2,12 @@
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Up
+public sealed class Unobscured
    : ICommandFactory
 {
    private readonly IFile _file;
 
-   public Up(
+   public Unobscured(
       IFile file)
    {
       _file = file;
@@ -18,7 +18,7 @@ public sealed class Up
    {
       return input switch
       {
-         ".." => new DelegateCommand(_file.Up),
+         ".unobscured" => new DelegateCommand(_file.Unobscured),
          _ => null
       };
    }

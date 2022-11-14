@@ -28,6 +28,17 @@ public sealed class DelegateCommand
    {
       _action = action;
    }
+   
+   public DelegateCommand(
+      Action action)
+   {
+      _action = _ =>
+      {
+         action();
+         return Task.CompletedTask;
+      };
+   }
+
 
    public async Task DoAsync(
       CancellationToken cancellationToken)

@@ -17,6 +17,33 @@ namespace pwd.contexts.file;
 public interface IFile
    : IContext
 {
+   Task Archive(
+      CancellationToken cancellationToken);
+   
+   Task Rename(
+      string name);
+
+   void Check();
+
+   void Print();
+
+   void Unobscured();
+
+   string Field(
+      string name);
+
+   Task Delete(
+      CancellationToken cancellationToken);
+
+   Task Edit(
+      string? editor,
+      CancellationToken cancellationToken);
+
+   void CopyField(
+      string path);
+
+   Task Up(
+      CancellationToken cancellationToken);
 }
 
 public interface IFileFactory
@@ -33,15 +60,13 @@ public sealed class File
    : Repl,
       IFile
 {
-   private readonly ILogger _logger;
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
-   private readonly ILock _lock;
+   private readonly IReadOnlyCollection<ICommandFactory> _factories;
    private string _content;
-   private bool _modified;
    private string _name;
 
    public File(
@@ -58,77 +83,50 @@ public sealed class File
       logger,
       view)
    {
-      _logger = logger;
       _clipboard = clipboard;
       _fs = fs;
       _repository = repository;
       _state = state;
       _view = view;
-      _lock = @lock;
 
       _name = name;
       _content = content;
 
-      _modified = false;
+      _factories =
+         Array.Empty<ICommandFactory>()
+            .Concat(
+               new ICommandFactory[]
+               {
+                  new Archive(this),
+                  new Check(this),
+                  new CopyField(this),
+                  new Delete(this),
+                  new Edit(this),
+                  new Help(_view),
+                  new Rename(this),
+                  new Unobscured(this),
+                  new Up(this)
+               })
+            .Concat(Shared.CommandFactories(_state, @lock, _view))
+            .Concat(new ICommandFactory[] { new Print(this) })
+            .ToArray();
    }
 
    public override async Task ProcessAsync(
       string input,
       CancellationToken cancellationToken = default)
    {
-      var commandFactories =
-         new Func<string, ICommand?>[]
-         {
-            new UpFactory(_logger, _state).Parse,
-            new ArchiveFactory(_logger, _state, _repository, _name).Parse,
-            new HelpFactory(_logger, _view).Parse
-         };
-      
-      foreach (var factory in commandFactories)
-      {
-         if (factory(input) is not { } command)
-            continue;
-         await command.DoAsync(cancellationToken);
-         return;
-      }
-
-      switch (Shared.ParseCommand(input))
-      {
-         case (_, "cc", var name):
-            CopyField(name);
-            break;
-         case (_, "ccu", _):
-            CopyField("user");
-            break;
-         case (_, "ccp", _):
-            CopyField("password");
-            break;
-         case (_, "check", _):
-            Check();
-            break;
-         case (_, "edit", var editor):
-            await Edit(editor, cancellationToken);
-            break;
-         case (_, "rename", var name):
-            await Rename(name);
-            break;
-         case (_, "rm", _):
-            await Delete(cancellationToken);
-            break;
-         case (_, "unobscured", _):
-            Unobscured();
-            break;
-         default:
-            if (await Shared.Process(input, _view, _state, _lock, cancellationToken))
-               return;
-            Print();
-            break;
-      }
+      var command =
+         _factories
+            .Select(item => item.Parse(input))
+            .FirstOrDefault(item => item != null)
+         ?? new Print(this).Command();
+      await command.DoAsync(cancellationToken);
    }
 
    protected override string Prompt()
    {
-      return $"{(_modified ? "*" : "")}{_name}";
+      return _name;
    }
 
    public override Task StartAsync()
@@ -190,43 +188,43 @@ public sealed class File
    private async Task Save()
    {
       await _repository.WriteAsync(_name, _content);
-      _modified = false;
    }
 
-   private async Task Rename(
+   public async Task Up(
+      CancellationToken cancellationToken)
+   {
+      await _state.BackAsync().WaitAsync(cancellationToken);
+   }
+
+   public async Task Archive(
+      CancellationToken cancellationToken)
+   {
+      _repository.Archive(_name);
+      await _state.BackAsync().WaitAsync(cancellationToken);
+   }
+
+   public Task Rename(
       string name)
    {
-      if (_modified)
-      {
-         if (await _view.ConfirmAsync("The content is not saved. Save it and rename the file?", Answer.Yes))
-         {
-            await _repository.WriteAsync(_name, _content);
-         }
-         else
-         {
-            _view.WriteLine("Cancelled.");
-            return;
-         }
-      }
-
       _repository.Rename(_name, name);
       _name = name;
+      return Task.CompletedTask;
    }
 
-   private void Update(
+   private async Task Update(
       string content)
    {
-      _modified = _content != content;
       _content = content;
+      await Save();
    }
 
-   private void Check()
+   public void Check()
    {
       if (Shared.CheckYaml(_content) is {Message: var msg})
          _view.WriteLine(msg);
    }
 
-   private void Print()
+   public void Print()
    {
       var obscured =
          Regex.Replace(
@@ -237,12 +235,12 @@ public sealed class File
       _view.WriteLine(obscured);
    }
 
-   private void Unobscured()
+   public void Unobscured()
    {
       _view.WriteLine(_content);
    }
 
-   private string Field(
+   public string Field(
       string name)
    {
       using var input = new StringReader(_content);
@@ -257,7 +255,7 @@ public sealed class File
       return (node.Value as YamlScalarNode)?.Value ?? "";
    }
 
-   private async Task Delete(
+   public async Task Delete(
       CancellationToken cancellationToken)
    {
       if (!await _view.ConfirmAsync($"Delete '{_name}'?", Answer.No, cancellationToken))
@@ -268,7 +266,7 @@ public sealed class File
       await _state.BackAsync().WaitAsync(cancellationToken);
    }
 
-   private async Task Edit(
+   public async Task Edit(
       string? editor,
       CancellationToken cancellationToken)
    {
@@ -305,8 +303,7 @@ public sealed class File
             return;
          }
 
-         Update(content);
-         await Save();
+         await Update(content);
       }
       catch (TaskCanceledException)
       {
@@ -323,7 +320,7 @@ public sealed class File
       }
    }
 
-   private void CopyField(
+   public void CopyField(
       string path)
    {
       var value = Field(path);
