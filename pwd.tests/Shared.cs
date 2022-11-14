@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using pwd.ciphers;
 using pwd.contexts;
+using pwd.contexts.file;
 using pwd.readline;
 using pwd.mocks;
 
@@ -12,7 +13,7 @@ namespace pwd;
 
 public static class Shared
 {
-   public static contexts.File CreateFileContext(
+   public static contexts.file.File CreateFileContext(
       string path = "",
       string name = "",
       string content = "",
@@ -41,7 +42,7 @@ public static class Shared
 
       using var host = builder.Build();
 
-      return (contexts.File)host.Services
+      return (contexts.file.File)host.Services
          .GetRequiredService<IFileFactory>()
          .Create(
             repository,

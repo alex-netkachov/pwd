@@ -5,6 +5,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.context;
+using pwd.context.repl;
+using pwd.contexts.file;
 
 namespace pwd.contexts;
 

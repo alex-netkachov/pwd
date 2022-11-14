@@ -4,7 +4,37 @@ using System.Threading;
 using System.Threading.Tasks;
 using pwd.readline;
 
-namespace pwd.contexts;
+namespace pwd.context.repl;
+
+public interface ICommand
+{
+   Task DoAsync(
+      CancellationToken cancellationToken);
+}
+
+public interface ICommandFactory
+{
+   ICommand? Parse(
+      string input);
+}
+
+public sealed class DelegateCommand
+   : ICommand
+{
+   private readonly Func<CancellationToken, Task>  _action;
+
+   public DelegateCommand(
+      Func<CancellationToken, Task> action)
+   {
+      _action = action;
+   }
+
+   public async Task DoAsync(
+      CancellationToken cancellationToken)
+   {
+      await _action(cancellationToken);
+   }
+}
 
 public abstract class Repl
    : IContext,

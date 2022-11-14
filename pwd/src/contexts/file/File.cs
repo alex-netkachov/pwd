@@ -4,13 +4,15 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using YamlDotNet.RepresentationModel;
+using pwd.context;
+using pwd.context.repl;
+using pwd.contexts.file.commands;
 
-namespace pwd.contexts;
+namespace pwd.contexts.file;
 
 public interface IFile
    : IContext
@@ -31,6 +33,7 @@ public sealed class File
    : Repl,
       IFile
 {
+   private readonly ILogger _logger;
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
    private readonly IRepository _repository;
@@ -55,6 +58,7 @@ public sealed class File
       logger,
       view)
    {
+      _logger = logger;
       _clipboard = clipboard;
       _fs = fs;
       _repository = repository;
@@ -72,14 +76,24 @@ public sealed class File
       string input,
       CancellationToken cancellationToken = default)
    {
+      var commandFactories =
+         new Func<string, ICommand?>[]
+         {
+            new UpFactory(_logger, _state).Parse,
+            new ArchiveFactory(_logger, _state, _repository, _name).Parse,
+            new HelpFactory(_logger, _view).Parse
+         };
+      
+      foreach (var factory in commandFactories)
+      {
+         if (factory(input) is not { } command)
+            continue;
+         await command.DoAsync(cancellationToken);
+         return;
+      }
+
       switch (Shared.ParseCommand(input))
       {
-         case ("..", _, _):
-            await _state.BackAsync().WaitAsync(cancellationToken);
-            break;
-         case (_, "archive", _):
-            await Archive(cancellationToken);
-            break;
          case (_, "cc", var name):
             CopyField(name);
             break;
@@ -94,9 +108,6 @@ public sealed class File
             break;
          case (_, "edit", var editor):
             await Edit(editor, cancellationToken);
-            break;
-         case (_, "help", _):
-            await Help();
             break;
          case (_, "rename", var name):
             await Rename(name);
@@ -174,13 +185,6 @@ public sealed class File
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
          .ToArray());
-   }
-
-   private async Task Archive(
-      CancellationToken cancellationToken)
-   {
-      _repository.Archive(_name);
-      await _state.BackAsync().WaitAsync(cancellationToken);
    }
 
    private async Task Save()
@@ -327,20 +331,6 @@ public sealed class File
          _clipboard.Clear();
       else
          _clipboard.Put(value, TimeSpan.FromSeconds(10));
-   }
-
-   private async Task Help()
-   {
-      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.context_file_help.txt");
-      if (stream == null)
-      {
-         _view.WriteLine("help file is missing");         
-         return;
-      }
-
-      using var reader = new StreamReader(stream);
-      var content = await reader.ReadToEndAsync();
-      _view.WriteLine(content.TrimEnd());
    }
 }
 

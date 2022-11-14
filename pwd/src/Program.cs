@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using pwd.ciphers;
 using pwd.contexts;
+using pwd.contexts.file;
 using pwd.readline;
 
 [assembly: InternalsVisibleTo("pwd.tests")]

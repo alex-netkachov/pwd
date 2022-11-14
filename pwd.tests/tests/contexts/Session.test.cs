@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using Moq;
 using pwd.ciphers;
 using pwd.contexts;
+using pwd.contexts.file;
 using pwd.mocks;
 using pwd.readline;
 

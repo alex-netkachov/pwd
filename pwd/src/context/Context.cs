@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace pwd.contexts;
+namespace pwd.context;
 
 public interface IContext
 {
