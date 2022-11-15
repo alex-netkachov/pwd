@@ -29,9 +29,6 @@ public interface IFile
 
    void Unobscured();
 
-   string Field(
-      string name);
-
    Task Delete(
       CancellationToken cancellationToken);
 
@@ -240,7 +237,7 @@ public sealed class File
       _view.WriteLine(_content);
    }
 
-   public string Field(
+   private string Field(
       string name)
    {
       using var input = new StringReader(_content);

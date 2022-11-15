@@ -5,12 +5,12 @@ namespace pwd.contexts.session.commands;
 public sealed class Export
    : ICommandFactory
 {
-   private readonly ISession _session;
+   private readonly IView _view;
 
    public Export(
-      ISession session)
+      IView view)
    {
-      _session = session;
+      _view = view;
    }
 
    public ICommand? Parse(
@@ -19,7 +19,7 @@ public sealed class Export
       return Shared.ParseCommand(input) switch
       {
          (_, "export", var name) =>
-            new DelegateCommand(_ => _session.Export(name)),
+            new DelegateCommand(() => _view.WriteLine("Not implemented")),
          _ => null
       };
    }

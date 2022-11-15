@@ -1,16 +1,18 @@
-﻿using pwd.context.repl;
+﻿using System.IO;
+using System.Reflection;
+using pwd.context.repl;
 
 namespace pwd.contexts.session.commands;
 
 public sealed class Help
    : ICommandFactory
 {
-   private readonly ISession _session;
+   private readonly IView _view;
 
    public Help(
-      ISession session)
+      IView view)
    {
-      _session = session;
+      _view = view;
    }
 
    public ICommand? Parse(
@@ -18,7 +20,21 @@ public sealed class Help
    {
       return input switch
       {
-         ".help" => new DelegateCommand(_ => _session.Help()),
+         ".help" => new DelegateCommand(async _ =>
+         {
+            await using var stream =
+               Assembly.GetExecutingAssembly()
+                  .GetManifestResourceStream("pwd.res.context_session_help.txt");
+            if (stream == null)
+            {
+               _view.WriteLine("help file is missing");
+               return;
+            }
+
+            using var reader = new StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+            _view.WriteLine(content.TrimEnd());
+         }),
          _ => null
       };
    }

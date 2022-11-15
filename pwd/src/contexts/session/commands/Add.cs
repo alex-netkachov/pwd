@@ -5,12 +5,18 @@ namespace pwd.contexts.session.commands;
 public sealed class Add
    : ICommandFactory
 {
-   private readonly ISession _session;
+   private readonly IState _state;
+   private readonly INewFileFactory _newFileFactory;
+   private readonly IRepository _repository;
 
    public Add(
-      ISession session)
+      IState state,
+      INewFileFactory newFileFactory,
+      IRepository repository)
    {
-      _session = session;
+      _state = state;
+      _newFileFactory = newFileFactory;
+      _repository = repository;
    }
 
    public ICommand? Parse(
@@ -19,7 +25,10 @@ public sealed class Add
       return Shared.ParseCommand(input) switch
       {
          (_, "add", var name) =>
-            new DelegateCommand(cancellationToken => _session.Add(name, cancellationToken)),
+            new DelegateCommand(async cancellationToken =>
+            {
+               await _state.OpenAsync(_newFileFactory.Create(_repository, name)).WaitAsync(cancellationToken);
+            }),
          _ => null
       };
    }

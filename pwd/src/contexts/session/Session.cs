@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.context;
@@ -15,25 +13,6 @@ namespace pwd.contexts.session;
 public interface ISession
    : IContext
 {
-   Task Export(
-      string path);
-
-   Task Html(
-      string path);
-
-   Task Add(
-      string name,
-      CancellationToken cancellationToken);
-
-   Task Help();
-
-   Task List(
-      string input,
-      CancellationToken cancellationToken);
-
-   Task Open(
-      string name,
-      CancellationToken cancellationToken);
 }
 
 public interface ISessionFactory
@@ -51,51 +30,22 @@ public sealed class Session
       ISession
 {
    private readonly ILogger _logger;
-   private readonly IExporter _exporter;
-   private readonly IFileFactory _fileFactory;
-   private readonly INewFileFactory _newFileFactory;
-   private readonly ILock _lock;
    private readonly IRepository _repository;
-   private readonly IState _state;
-   private readonly IView _view;
    private readonly IReadOnlyCollection<ICommandFactory> _factories;
 
    public Session(
       ILogger logger,
-      IExporter exporter,
       IRepository repository,
-      IState state,
       IView view,
-      IFileFactory fileFactory,
-      INewFileFactory newFileFactory,
-      ILock @lock)
+      IReadOnlyCollection<ICommandFactory> factories)
       : base(
          logger,
          view)
    {
       _logger = logger;
-      _exporter = exporter;
       _repository = repository;
-      _state = state;
-      _view = view;
-      _fileFactory = fileFactory;
-      _newFileFactory = newFileFactory;
-      _lock = @lock;
 
-      _factories =
-         Array.Empty<ICommandFactory>()
-            .Concat(
-               new ICommandFactory[]
-               {
-                  new Add(this),
-                  new Export(this),
-                  new Help(this),
-                  new Html(this),
-                  new Open(this)
-               })
-            .Concat(Shared.CommandFactories(_state, @lock, _view))
-            .Concat(new ICommandFactory[] { new List(this) })
-            .ToArray();
+      _factories = factories;
    }
 
    public override async Task ProcessAsync(
@@ -107,8 +57,11 @@ public sealed class Session
       var command =
          _factories
             .Select(item => item.Parse(input))
-            .FirstOrDefault(item => item != null)
-         ?? new List(this).Command();
+            .FirstOrDefault(item => item != null);
+
+      if (command == null)
+         return;
+
       await command.DoAsync(cancellationToken);
    }
 
@@ -139,94 +92,6 @@ public sealed class Session
          }
          .Where(item => item.StartsWith(input))
          .ToArray());
-   }
-
-   public async Task List(
-      string input,
-      CancellationToken cancellationToken)
-   {
-      _logger.Info($"Session.ProcessAsync({input}) : fallback to file list handlers");
-
-      if (input == "")
-      {
-         // show all files if there is no user input
-         var items =
-            _repository
-               .List(".")
-               .Select(item => item.Path)
-               .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
-               .ToList();
-
-         _view.WriteLine(string.Join("\n", items));
-      }
-      else
-      {
-         // show files and folders
-         var items =
-            _repository.List(".", (false, true, false))
-               .Where(item => item.Path.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-               .ToList();
-
-         var match =
-            items.FirstOrDefault(
-               item => string.Equals(item.Path, input, StringComparison.OrdinalIgnoreCase));
-
-         var chosen =
-            match == default
-               ? items.Count == 1 && input != "" ? items[0].Path : default
-               : match.Path;
-
-         if (chosen == null)
-            _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
-         else
-            await Open(chosen, cancellationToken);
-      }
-   }
-
-   public async Task Open(
-      string name,
-      CancellationToken cancellationToken)
-   {
-      var content = await _repository.ReadAsync(name);
-      var file = _fileFactory.Create(_repository, _lock, name, content);
-      await _state.OpenAsync(file).WaitAsync(cancellationToken);
-   }
-   
-   public Task Export(
-      string path)
-   {
-      _view.WriteLine("Not implemented");
-      return Task.CompletedTask;
-   }
-
-   public async Task Html(
-      string path)
-   {
-      await _exporter.Export(
-         string.IsNullOrEmpty(path)
-            ? "_index.html"
-            : path);
-   }
-
-   public async Task Add(
-      string name,
-      CancellationToken cancellationToken)
-   {
-      await _state.OpenAsync(_newFileFactory.Create(_repository, name)).WaitAsync(cancellationToken);
-   }
-
-   public async Task Help()
-   {
-      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.context_session_help.txt");
-      if (stream == null)
-      {
-         _view.WriteLine("help file is missing");         
-         return;
-      }
-
-      using var reader = new StreamReader(stream);
-      var content = await reader.ReadToEndAsync();
-      _view.WriteLine(content.TrimEnd());
    }
 }
 
@@ -260,12 +125,20 @@ public sealed class SessionFactory
    {
       return new Session(
          _logger,
-         exporter,
          repository,
-         _state,
          _view,
-         _fileFactory,
-         _newFileFactory,
-         @lock);
+         Array.Empty<ICommandFactory>()
+            .Concat(
+               new ICommandFactory[]
+               {
+                  new Add(_state, _newFileFactory, repository),
+                  new Export(_view),
+                  new Help(_view),
+                  new Html(exporter),
+                  new Open(repository, _fileFactory, @lock, _state)
+               })
+            .Concat(Shared.CommandFactories(_state, @lock, _view))
+            .Concat(new ICommandFactory[] { new List(repository, _fileFactory, @lock, _state, _view) })
+            .ToArray());
    }
 }

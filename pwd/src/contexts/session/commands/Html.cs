@@ -5,12 +5,12 @@ namespace pwd.contexts.session.commands;
 public sealed class Html
    : ICommandFactory
 {
-   private readonly ISession _session;
+   private readonly IExporter _exporter;
 
    public Html(
-      ISession session)
+      IExporter exporter)
    {
-      _session = session;
+      _exporter = exporter;
    }
 
    public ICommand? Parse(
@@ -18,8 +18,14 @@ public sealed class Html
    {
       return Shared.ParseCommand(input) switch
       {
-         (_, "html", var name) =>
-            new DelegateCommand(_ => _session.Html(name)),
+         (_, "html", var path) =>
+            new DelegateCommand(async _ =>
+            {
+               await _exporter.Export(
+                  string.IsNullOrEmpty(path)
+                     ? "_index.html"
+                     : path);
+            }),
          _ => null
       };
    }
