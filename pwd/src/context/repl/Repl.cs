@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.readline;
@@ -60,21 +61,32 @@ public abstract class Repl
 
    private readonly ILogger _logger;
    private readonly IView _view;
+   private readonly IReadOnlyCollection<ICommandFactory> _commandFactories;
 
    protected Repl(
       ILogger logger,
-      IView view)
+      IView view,
+      IReadOnlyCollection<ICommandFactory> commandFactories)
    {
       _logger = logger;
       _view = view;
       _state = null;
+      _commandFactories = commandFactories;
    }
 
-   public virtual Task ProcessAsync(
+   public virtual async Task ProcessAsync(
       string input,
       CancellationToken cancellationToken = default)
    {
-      return Task.CompletedTask;
+      var command =
+         _commandFactories
+            .Select(item => item.Parse(input))
+            .FirstOrDefault(item => item != null);
+
+      if (command == null)
+         return;
+
+      await command.DoAsync(cancellationToken);
    }
 
    protected virtual string Prompt()

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file;
@@ -29,9 +27,7 @@ public sealed class Session
    : Repl,
       ISession
 {
-   private readonly ILogger _logger;
    private readonly IRepository _repository;
-   private readonly IReadOnlyCollection<ICommandFactory> _factories;
 
    public Session(
       ILogger logger,
@@ -40,29 +36,10 @@ public sealed class Session
       IReadOnlyCollection<ICommandFactory> factories)
       : base(
          logger,
-         view)
+         view,
+         factories)
    {
-      _logger = logger;
       _repository = repository;
-
-      _factories = factories;
-   }
-
-   public override async Task ProcessAsync(
-      string input,
-      CancellationToken cancellationToken = default)
-   {
-      _logger.Info($"Session.ProcessAsync({input})");
-
-      var command =
-         _factories
-            .Select(item => item.Parse(input))
-            .FirstOrDefault(item => item != null);
-
-      if (command == null)
-         return;
-
-      await command.DoAsync(cancellationToken);
    }
 
    public override (int, IReadOnlyList<string>) Get(

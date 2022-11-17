@@ -78,7 +78,8 @@ public sealed class File
       string content)
    : base(
       logger,
-      view)
+      view,
+      Array.Empty<ICommandFactory>())
    {
       _clipboard = clipboard;
       _fs = fs;
@@ -116,8 +117,11 @@ public sealed class File
       var command =
          _factories
             .Select(item => item.Parse(input))
-            .FirstOrDefault(item => item != null)
-         ?? new Print(this).Command();
+            .FirstOrDefault(item => item != null);
+
+      if (command == null)
+         return;
+
       await command.DoAsync(cancellationToken);
    }
 
