@@ -63,7 +63,7 @@ public sealed class File
 
    private readonly IRepositoryItem _item;
 
-   private string? _content = null;
+   private string _content = "";
 
    private IRepositoryUpdatesReader? _subscription;
    private CancellationTokenSource? _cts;
@@ -131,9 +131,9 @@ public sealed class File
       return _item.Name;
    }
 
-   public override Task StartAsync()
+   public override async Task StartAsync()
    {
-      Print();
+      await Print();
 
       _cts = new();
 
@@ -141,7 +141,7 @@ public sealed class File
       
       _subscription = _item.Subscribe();
 
-      Task.Run(async () =>
+      var _ = Task.Run(async () =>
       {
          if (_subscription == null)
             return;
@@ -157,7 +157,7 @@ public sealed class File
          }
       }, token);
 
-      return base.StartAsync();
+      await base.StartAsync();
    }
 
    public override Task StopAsync()
