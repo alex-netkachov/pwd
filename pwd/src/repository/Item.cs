@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace pwd.repository;
 
@@ -18,35 +19,46 @@ public interface IRepositoryItem
    /// <summary>Encrypted name.</summary>
    public string EncryptedName { get; }
 
-   /// <summary>Encrypted filenames path.</summary>
+   /// <summary>Encrypted path.</summary>
    public string EncryptedPath { get; }
 
    /// <summary>Whether the item is a folder or a file. Null when the item does not exist.</summary>
    public bool? IsFolder { get; }
 
-   /// <summary>Whether the corresponding file exists.</summary>
+   /// <summary>Whether the item exists or not.</summary>
    public bool Exists { get; }
 
-   /// <summary>Subscribe for the events related to this repository item.</summary>
+   /// <summary>Moves the specified file into the ".archive" folder.</summary>
+   /// <remarks>".archive" is a dotted folder so it will not be suggested or listed.</remarks>
+   void Archive();
+
+   /// <summary>Reads the file content.</summary>
+   Task<string> ReadAsync();
+
+   /// <summary>Subscribes for the events related to this repository item.</summary>
    IRepositoryUpdatesReader Subscribe();
 }
 
 public sealed class RepositoryItem
    : IRepositoryItem
 {
+   private readonly IRepository _repository;
    private ImmutableList<Channel<IRepositoryUpdate>> _subscribers;
    private string _path;
 
    private RepositoryItem(
       string name,
       string encryptedName,
-      IRepositoryItem? item = null)
+      IRepositoryItem? item,
+      IRepository repository)
    {
+      _repository = repository;
+      _repository = repository;
       Name = name;
       EncryptedName = encryptedName;
-      EncryptedPath = Repository.PathCombine(item?.EncryptedPath, encryptedName);
+      EncryptedPath = Repository.CombinePath(item?.EncryptedPath, encryptedName);
 
-      _path = Repository.PathCombine(item?.Path, name);
+      _path = Repository.CombinePath(item?.Path, name);
 
       _subscribers = ImmutableList<Channel<IRepositoryUpdate>>.Empty;
    }
@@ -94,12 +106,13 @@ public sealed class RepositoryItem
       string name,
       string encryptedName)
    {
-      return new(name, encryptedName, this);
+      return new(name, encryptedName, this, _repository);
    }
 
-   public static RepositoryItem Root()
+   public static RepositoryItem Root(
+      IRepository repository)
    {
-      return new("", "")
+      return new("", "", null, repository)
       {
          IsFolder = true,
          Exists = true
@@ -110,10 +123,20 @@ public sealed class RepositoryItem
    {
       foreach (var item in Items)
       {
-         item.Path = Repository.PathCombine(Path, item.Name);
-         item.EncryptedPath = Repository.PathCombine(EncryptedPath, item.EncryptedName);
+         item.Path = Repository.CombinePath(Path, item.Name);
+         item.EncryptedPath = Repository.CombinePath(EncryptedPath, item.EncryptedName);
          item.UpdatePaths();
       }
+   }
+
+   public void Archive()
+   {
+      _repository.Rename(_path, Repository.CombinePath(".archive", _path));
+   }
+
+   public Task<string> ReadAsync()
+   {
+      return _repository.ReadAsync(_path);
    }
 
    public IRepositoryUpdatesReader Subscribe()

@@ -33,17 +33,20 @@ public sealed class Open
       {
          (_, "open", var name) =>
             new DelegateCommand(async cancellationToken =>
-               await Exec(name, cancellationToken)),
+               await OpenInt(name, cancellationToken)),
          _ => null
       };
    }
 
-   private async Task Exec(
+   private async Task OpenInt(
       string name,
       CancellationToken cancellationToken)
    {
-      var content = await _repository.ReadAsync(name);
-      var file = _fileFactory.Create(_repository, _lock, name, content);
+      var item = _repository.Get(name);
+      if (item == null)
+         return;
+
+      var file = _fileFactory.Create(_repository, _lock, item);
       await _state.OpenAsync(file).WaitAsync(cancellationToken);
    }
 }

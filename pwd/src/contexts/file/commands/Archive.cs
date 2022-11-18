@@ -1,16 +1,20 @@
 ﻿using pwd.context.repl;
+using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Archive
    : ICommandFactory
 {
-   private readonly IFile _file;
+   private readonly IState _state;
+   private readonly IRepositoryItem _item;
 
    public Archive(
-      IFile file)
+      IState state,
+      IRepositoryItem item)
    {
-      _file = file;
+      _state = state;
+      _item = item;
    }
 
    public ICommand? Parse(
@@ -18,7 +22,12 @@ public sealed class Archive
    {
       return input switch
       {
-         ".archive" => new DelegateCommand(_file.Archive),
+         ".archive" => new DelegateCommand(
+            async cancellationToken =>
+            {
+               _item.Archive();
+               await _state.BackAsync().WaitAsync(cancellationToken);
+            }),
          _ => null
       };
    }

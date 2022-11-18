@@ -44,13 +44,20 @@ public static class Shared
 
       using var host = builder.Build();
 
+      var mockRepositoryItem = new Mock<IRepositoryItem>();
+      mockRepositoryItem
+         .SetupGet(m => m.Name)
+         .Returns(name);
+      mockRepositoryItem
+         .Setup(m => m.ReadAsync())
+         .Returns(() => Task.FromResult(content));
+
       return (contexts.file.File)host.Services
          .GetRequiredService<IFileFactory>()
          .Create(
             repository,
             @lock ?? Mock.Of<ILock>(),
-            name,
-            content);
+            mockRepositoryItem.Object);
    }
 
    public static Session CreateSessionContext(

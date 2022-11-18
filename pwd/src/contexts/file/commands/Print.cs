@@ -26,6 +26,6 @@ public sealed class Print
 
    public ICommand Command()
    {
-      return new DelegateCommand(() => _file.Print());
+      return new DelegateCommand(_ => _file.Print());
    }
 }

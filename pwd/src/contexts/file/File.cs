@@ -18,15 +18,12 @@ namespace pwd.contexts.file;
 public interface IFile
    : IContext
 {
-   Task Archive(
-      CancellationToken cancellationToken);
-   
    Task Rename(
       string name);
 
    void Check();
 
-   void Print();
+   Task Print();
 
    void Unobscured();
 
@@ -49,8 +46,7 @@ public interface IFileFactory
    IFile Create(
       IRepository repository,
       ILock @lock,
-      string name,
-      string content);
+      IRepositoryItem item);
 }
 
 /// <summary>Encrypted file context.</summary>
@@ -64,10 +60,10 @@ public sealed class File
    private readonly IState _state;
    private readonly IView _view;
    private readonly IReadOnlyCollection<ICommandFactory> _factories;
-   private string _content;
-   private string _name;
 
-   private readonly IRepositoryItem? _item;
+   private readonly IRepositoryItem _item;
+
+   private string? _content = null;
 
    private IRepositoryUpdatesReader? _subscription;
    private CancellationTokenSource? _cts;
@@ -80,8 +76,7 @@ public sealed class File
       IState state,
       IView view,
       ILock @lock,
-      string name,
-      string content)
+      IRepositoryItem item)
    : base(
       logger,
       view,
@@ -92,18 +87,16 @@ public sealed class File
       _repository = repository;
       _state = state;
       _view = view;
+      _item = item;
 
-      _name = name;
-      _content = content;
-
-      _item = _repository.List(_name).FirstOrDefault();
+      _item.ReadAsync().ContinueWith(task => _content = task.Result);
 
       _factories =
          Array.Empty<ICommandFactory>()
             .Concat(
                new ICommandFactory[]
                {
-                  new Archive(this),
+                  new Archive(_state, _item),
                   new Check(this),
                   new CopyField(this),
                   new Delete(this),
@@ -135,7 +128,7 @@ public sealed class File
 
    protected override string Prompt()
    {
-      return _name;
+      return _item.Name;
    }
 
    public override Task StartAsync()
@@ -146,7 +139,7 @@ public sealed class File
 
       var token = _cts.Token;
       
-      _subscription = _item?.Subscribe();
+      _subscription = _item.Subscribe();
 
       Task.Run(async () =>
       {
@@ -158,12 +151,6 @@ public sealed class File
             var update = await _subscription.ReadAsync(token);
             switch (update)
             {
-               case Moved moved:
-                  _name = moved.Path;
-                  break;
-               case Modified:
-                  _content = await _repository.ReadAsync(_name);
-                  break;
                case Deleted:
                   return;
             }
@@ -232,7 +219,7 @@ public sealed class File
 
    private async Task Save()
    {
-      await _repository.WriteAsync(_name, _content);
+      await _repository.WriteAsync(_item.Name, _content);
    }
 
    public async Task Up(
@@ -241,18 +228,10 @@ public sealed class File
       await _state.BackAsync().WaitAsync(cancellationToken);
    }
 
-   public async Task Archive(
-      CancellationToken cancellationToken)
-   {
-      _repository.Archive(_name);
-      await _state.BackAsync().WaitAsync(cancellationToken);
-   }
-
    public Task Rename(
       string name)
    {
-      _repository.Rename(_name, name);
-      _name = name;
+      _repository.Rename(_item.Name, name);
       return Task.CompletedTask;
    }
 
@@ -269,11 +248,11 @@ public sealed class File
          _view.WriteLine(msg);
    }
 
-   public void Print()
+   public async Task Print()
    {
       var obscured =
          Regex.Replace(
-            _content,
+            await _item.ReadAsync(),
             "password: [^\n\\s]+",
             "password: ************");
 
@@ -303,11 +282,11 @@ public sealed class File
    public async Task Delete(
       CancellationToken cancellationToken)
    {
-      if (!await _view.ConfirmAsync($"Delete '{_name}'?", Answer.No, cancellationToken))
+      if (!await _view.ConfirmAsync($"Delete '{_item.Name}'?", Answer.No, cancellationToken))
          return;
 
-      _repository.Delete(_name);
-      _view.WriteLine($"'{_name}' has been deleted.");
+      _repository.Delete(_item.Name);
+      _view.WriteLine($"'{_item.Name}' has been deleted.");
       await _state.BackAsync().WaitAsync(cancellationToken);
    }
 
@@ -402,8 +381,7 @@ public sealed class FileFactory
    public IFile Create(
       IRepository repository,
       ILock @lock,
-      string name,
-      string content)
+      IRepositoryItem item)
    {
       return new File(
          _logger,
@@ -413,7 +391,6 @@ public sealed class FileFactory
          _state,
          _view,
          @lock,
-         name,
-         content);
+         item);
    }
 }

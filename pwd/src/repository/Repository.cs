@@ -13,11 +13,6 @@ namespace pwd.repository;
 
 public interface IRepository
 {
-   /// <summary>Moves the specified file into the ".archive" folder.</summary>
-   /// <remarks>".archive" is a dotted folder so it will not be suggested or listed.</remarks>
-   void Archive(
-      string path);
-
    /// <summary>Deletes the file in the repository.</summary>
    void Delete(
       string path);
@@ -26,6 +21,10 @@ public interface IRepository
    IEnumerable<IRepositoryItem> List(
       string path,
       (bool Recursively, bool IncludeFolders, bool IncludeDottedFilesAndFolders) options = default);
+
+   /// <summary>Gets the item from the repository.</summary>
+   IRepositoryItem? Get(
+      string path);
 
    /// <summary>Reads from the encrypted file.</summary>
    Task<string> ReadAsync(
@@ -66,17 +65,11 @@ public sealed class Repository
       _contentCipher = contentCipher;
       _path = path;
 
-      _root = RepositoryItem.Root();
+      _root = RepositoryItem.Root(this);
    }
 
    public void Dispose()
    {
-   }
-
-   public void Archive(
-      string path)
-   {
-      Rename(path, PathCombine(".archive", path));
    }
 
    public void Delete(
@@ -109,6 +102,13 @@ public sealed class Repository
       }
 
       return List(item, options);
+   }
+
+   public IRepositoryItem? Get(
+      string path)
+   {
+      return PathItems(path).LastOrDefault();
+
    }
 
    public async Task<string> ReadAsync(
@@ -360,8 +360,8 @@ public sealed class Repository
                   new[] {file.Name},
                IDirectoryInfo dir when !IsDotted(dir) || options.IncludeDottedFilesAndFolders =>
                   (options.Recursively
-                     ? EnumerateFilesystemItems(PathCombine(path, dir.Name), options)
-                        .Select(item => PathCombine(dir.Name, item))
+                     ? EnumerateFilesystemItems(CombinePath(path, dir.Name), options)
+                        .Select(item => CombinePath(dir.Name, item))
                      : Array.Empty<string>())
                   .Concat(
                      options.IncludeFolders
@@ -449,7 +449,7 @@ public sealed class Repository
       return items;
    }
 
-   public static string PathCombine(
+   public static string CombinePath(
       string? path1,
       string? path2)
    {

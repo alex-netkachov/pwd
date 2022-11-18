@@ -86,8 +86,11 @@ public sealed class List
       string name,
       CancellationToken cancellationToken)
    {
-      var content = await _repository.ReadAsync(name);
-      var file = _fileFactory.Create(_repository, _lock, name, content);
+      var item = _repository.Get(name);
+      if (item == null)
+         return;
+
+      var file = _fileFactory.Create(_repository, _lock, item);
       await _state.OpenAsync(file).WaitAsync(cancellationToken);
    }
 }
