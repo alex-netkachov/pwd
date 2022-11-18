@@ -1,5 +1,6 @@
 using Moq;
 using pwd.mocks;
+using pwd.repository;
 
 namespace pwd.tests.contexts;
 

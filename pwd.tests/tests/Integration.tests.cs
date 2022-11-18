@@ -3,6 +3,7 @@ using Moq;
 using pwd.ciphers;
 using pwd.readline;
 using pwd.mocks;
+using pwd.repository;
 
 namespace pwd.tests;
 

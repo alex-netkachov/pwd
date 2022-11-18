@@ -11,6 +11,7 @@ using YamlDotNet.RepresentationModel;
 using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file.commands;
+using pwd.repository;
 
 namespace pwd.contexts.file;
 
@@ -66,6 +67,11 @@ public sealed class File
    private string _content;
    private string _name;
 
+   private readonly IRepositoryItem? _item;
+
+   private IRepositoryUpdatesReader? _subscription;
+   private CancellationTokenSource? _cts;
+
    public File(
       ILogger logger,
       IClipboard clipboard,
@@ -89,6 +95,8 @@ public sealed class File
 
       _name = name;
       _content = content;
+
+      _item = _repository.List(_name).FirstOrDefault();
 
       _factories =
          Array.Empty<ICommandFactory>()
@@ -133,7 +141,43 @@ public sealed class File
    public override Task StartAsync()
    {
       Print();
+
+      _cts = new();
+
+      var token = _cts.Token;
+      
+      _subscription = _item?.Subscribe();
+
+      Task.Run(async () =>
+      {
+         if (_subscription == null)
+            return;
+
+         while (!token.IsCancellationRequested)
+         {
+            var update = await _subscription.ReadAsync(token);
+            switch (update)
+            {
+               case Moved moved:
+                  _name = moved.Path;
+                  break;
+               case Modified:
+                  _content = await _repository.ReadAsync(_name);
+                  break;
+               case Deleted:
+                  return;
+            }
+         }
+      }, token);
+
       return base.StartAsync();
+   }
+
+   public override Task StopAsync()
+   {
+      _cts?.Cancel();
+      _subscription?.Dispose();
+      return base.StopAsync();
    }
 
    public override (int, IReadOnlyList<string>) Get(

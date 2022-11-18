@@ -9,28 +9,7 @@ using System.Threading.Tasks;
 using pwd.ciphers;
 using pwd.contexts;
 
-namespace pwd;
-
-public interface IRepositoryItem
-{
-   /// <summary>Plaintext name.</summary>
-   public string Name { get; }
-
-   /// <summary>Plaintext path.</summary>
-   public string Path { get; }
-
-   /// <summary>Encrypted name.</summary>
-   public string EncryptedName { get; }
-
-   /// <summary>Encrypted filenames path.</summary>
-   public string EncryptedPath { get; }
-
-   /// <summary>Whether the item is a folder or a file. Null when the item does not exist.</summary>
-   public bool? IsFolder { get; }
-
-   /// <summary>Whether the corresponding file exists.</summary>
-   public bool Exists { get; }
-}
+namespace pwd.repository;
 
 public interface IRepository
 {
@@ -61,70 +40,6 @@ public interface IRepository
    Task WriteAsync(
       string path,
       string text);
-}
-
-public interface IRepositoryFactory
-{
-   IRepository Create(
-      INameCipher nameCipher,
-      IContentCipher contentCipher,
-      string path);
-}
-
-public sealed class RepositoryItem
-   : IRepositoryItem
-{
-   private RepositoryItem(
-      string name,
-      string encryptedName,
-      IRepositoryItem? item = null)
-   {
-      Name = name;
-      Path = Repository.PathCombine(item?.Path, name);
-      EncryptedName = encryptedName;
-      EncryptedPath = Repository.PathCombine(item?.EncryptedPath, encryptedName);
-   }
-
-   public List<RepositoryItem> Items { get; } = new();
-
-   public string Name { get; set; }
-   public string Path { get; private set; }
-   public string EncryptedName { get; set; }
-   public string EncryptedPath { get; private set; }
-   public bool? IsFolder { get; set; }
-   public bool Exists { get; set; }
-
-   public RepositoryItem? Get(
-      string name)
-   {
-      return Items.FirstOrDefault(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-   }
-
-   public RepositoryItem Create(
-      string name,
-      string encryptedName)
-   {
-      return new RepositoryItem(name, encryptedName, this);
-   }
-
-   public static RepositoryItem Root()
-   {
-      return new("", "")
-      {
-         IsFolder = true,
-         Exists = true
-      };
-   }
-
-   public void UpdatePaths()
-   {
-      foreach (var item in Items)
-      {
-         item.Path = Repository.PathCombine(Path, item.Name);
-         item.EncryptedPath = Repository.PathCombine(EncryptedPath, item.EncryptedName);
-         item.UpdatePaths();
-      }
-   }
 }
 
 public sealed class Repository
@@ -173,6 +88,7 @@ public sealed class Repository
       var (_, container) = Tail(items);
       container.Items.Remove(item);
       _fs.File.Delete(_fs.Path.Combine(_path, item.EncryptedPath));
+      item.Deleted();
    }
 
    public IEnumerable<IRepositoryItem> List(
@@ -261,6 +177,8 @@ public sealed class Repository
          file.Exists = true;
          folder.Items.Add(file);
       }
+      
+      file.Modified();
    }
 
    /// <summary>
@@ -546,29 +464,5 @@ public sealed class Repository
       IReadOnlyList<T> list)
    {
       return (list.Take(list.Count - 1).ToList(), list[^1]);
-   }
-}
-
-public sealed class RepositoryFactory
-   : IRepositoryFactory
-{
-   private readonly IFileSystem _fs;
-
-   public RepositoryFactory(
-      IFileSystem fs)
-   {
-      _fs = fs;
-   }
-
-   public IRepository Create(
-      INameCipher nameCipher,
-      IContentCipher contentCipher,
-      string path)
-   {
-      return new Repository(
-         _fs,
-         nameCipher,
-         contentCipher,
-         path);
    }
 }

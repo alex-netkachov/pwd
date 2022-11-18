@@ -9,6 +9,7 @@ using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.readline;
 using pwd.mocks;
+using pwd.repository;
 
 namespace pwd;
 

@@ -1,8 +1,9 @@
 using System.Text;
 using pwd.ciphers;
 using pwd.mocks;
+using pwd.repository;
 
-namespace pwd.tests;
+namespace pwd.tests.repository;
 
 public sealed class Repository_Tests
 {

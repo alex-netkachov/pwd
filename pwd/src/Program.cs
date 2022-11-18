@@ -12,6 +12,7 @@ using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.readline;
+using pwd.repository;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
 

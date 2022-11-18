@@ -5,6 +5,7 @@ using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.contexts.session.commands;
+using pwd.repository;
 
 namespace pwd.contexts.session;
 

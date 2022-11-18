@@ -5,6 +5,7 @@ using pwd.contexts;
 using pwd.contexts.file;
 using pwd.mocks;
 using pwd.readline;
+using pwd.repository;
 
 namespace pwd.tests.contexts;
 
