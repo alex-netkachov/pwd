@@ -33,7 +33,8 @@ public interface IRepositoryItem
    void Archive();
 
    /// <summary>Reads the file content.</summary>
-   Task<string> ReadAsync();
+   Task<string> ReadAsync(
+      CancellationToken cancellationToken = default);
 
    /// <summary>Subscribes for the events related to this repository item.</summary>
    IRepositoryUpdatesReader Subscribe();
@@ -134,9 +135,10 @@ public sealed class RepositoryItem
       _repository.Rename(_path, Repository.CombinePath(".archive", _path));
    }
 
-   public Task<string> ReadAsync()
+   public Task<string> ReadAsync(
+      CancellationToken cancellationToken)
    {
-      return _repository.ReadAsync(_path);
+      return _repository.ReadAsync(_path, cancellationToken);
    }
 
    public IRepositoryUpdatesReader Subscribe()

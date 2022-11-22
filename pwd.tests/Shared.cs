@@ -20,6 +20,7 @@ public static class Shared
       string name = "",
       string content = "",
       IFileSystem? fs = null,
+      IRunner? runner = null,
       IRepository? repository = null,
       IClipboard? clipboard = null,
       IView? view = null,
@@ -35,6 +36,7 @@ public static class Shared
          services =>
             services
                .AddSingleton(Mock.Of<ILogger>())
+               .AddSingleton(runner ?? Mock.Of<IRunner>())
                .AddSingleton(clipboard ?? Mock.Of<IClipboard>())
                .AddSingleton(fs ?? Mock.Of<IFileSystem>())
                .AddSingleton(repository)
@@ -49,7 +51,7 @@ public static class Shared
          .SetupGet(m => m.Name)
          .Returns(name);
       mockRepositoryItem
-         .Setup(m => m.ReadAsync())
+         .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(() => Task.FromResult(content));
 
       return (contexts.file.File)host.Services

@@ -20,9 +20,9 @@ public sealed class Archive
    public ICommand? Parse(
       string input)
    {
-      return input switch
+      return Shared.ParseCommand(input) switch
       {
-         ".archive" => new DelegateCommand(
+         (_, "archive", _) => new DelegateCommand(
             async cancellationToken =>
             {
                _item.Archive();

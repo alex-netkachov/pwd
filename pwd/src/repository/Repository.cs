@@ -28,7 +28,8 @@ public interface IRepository
 
    /// <summary>Reads from the encrypted file.</summary>
    Task<string> ReadAsync(
-      string path);
+      string path,
+      CancellationToken cancellationToken);
 
    /// <summary>Renames (moves) the encrypted file.</summary>
    void Rename(
@@ -112,13 +113,14 @@ public sealed class Repository
    }
 
    public async Task<string> ReadAsync(
-      string path)
+      string path,
+      CancellationToken cancellationToken)
    {
       var (_, file) = Tail(PathItems(path));
       if (!file.Exists)
          throw new("The file does not exist.");
       await using var stream = _fs.File.OpenRead(file.EncryptedPath);
-      return await _contentCipher.DecryptStringAsync(stream);
+      return await _contentCipher.DecryptStringAsync(stream, cancellationToken);
    }
 
    public void Rename(

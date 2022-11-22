@@ -76,7 +76,8 @@ public sealed class File
       IState state,
       IView view,
       ILock @lock,
-      IRepositoryItem item)
+      IRepositoryItem item,
+      IReadOnlyCollection<ICommandFactory> factories)
    : base(
       logger,
       view,
@@ -92,16 +93,13 @@ public sealed class File
       _item.ReadAsync().ContinueWith(task => _content = task.Result);
 
       _factories =
-         Array.Empty<ICommandFactory>()
+         factories
             .Concat(
                new ICommandFactory[]
                {
-                  new Archive(_state, _item),
                   new Check(this),
                   new CopyField(this),
                   new Delete(this),
-                  new Edit(this),
-                  new Help(_view),
                   new Rename(this),
                   new Unobscured(this),
                   new Up(this)
@@ -359,6 +357,7 @@ public sealed class FileFactory
    : IFileFactory
 {
    private readonly ILogger _logger;
+   private readonly IRunner _runner;
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
    private readonly IState _state;
@@ -366,12 +365,14 @@ public sealed class FileFactory
 
    public FileFactory(
       ILogger logger,
+      IRunner runner,
       IClipboard clipboard,
       IFileSystem fs,
       IState state,
       IView view)
    {
       _logger = logger;
+      _runner = runner;
       _clipboard = clipboard;
       _fs = fs;
       _state = state;
@@ -391,6 +392,12 @@ public sealed class FileFactory
          _state,
          _view,
          @lock,
-         item);
+         item,
+         new ICommandFactory[]
+         {
+            new Archive(_state, item),
+            new Edit(_runner, _view, _fs, repository, item),
+            new Help(_view)
+         });
    }
 }

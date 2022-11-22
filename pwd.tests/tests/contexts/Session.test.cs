@@ -47,6 +47,7 @@ public sealed class Session_Tests
       var fileFactory =
          new FileFactory(
             logger,
+            Mock.Of<IRunner>(),
             Mock.Of<IClipboard>(),
             fs,
             state,

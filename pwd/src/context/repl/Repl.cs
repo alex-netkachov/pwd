@@ -10,7 +10,7 @@ namespace pwd.context.repl;
 public interface ICommand
 {
    Task DoAsync(
-      CancellationToken cancellationToken);
+      CancellationToken cancellationToken = default);
 }
 
 public interface ICommandFactory
@@ -42,8 +42,11 @@ public sealed class DelegateCommand
 
 
    public async Task DoAsync(
-      CancellationToken cancellationToken)
+      CancellationToken cancellationToken = default)
    {
+      if (cancellationToken.IsCancellationRequested)
+         return;
+
       await _action(cancellationToken);
    }
 }

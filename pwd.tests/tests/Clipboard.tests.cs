@@ -17,8 +17,13 @@ public sealed class Clipboard_Tests
 
       var mockRunner = new Mock<IRunner>();
       mockRunner
-         .Setup(m => m.Run(It.IsAny<string>(), It.IsAny<string>()))
-         .Callback<string, string>((cmd, input) => writer.WriteAsync(input));
+         .Setup(
+            m =>
+               m.Run(
+                  It.IsAny<string>(),
+                  It.IsAny<string>(),
+                  It.IsAny<string>()))
+         .Callback<string, string, string>((cmd, arguments, input) => writer.WriteAsync(input));
 
       var clipboard = new Clipboard(Mock.Of<ILogger>(), mockRunner.Object, timers);
       
@@ -44,10 +49,15 @@ public sealed class Clipboard_Tests
       var mockRunner = new Mock<IRunner>();
 
       var clipboard = new Clipboard(Mock.Of<ILogger>(), mockRunner.Object, timers);
-      
+
       mockRunner
-         .Setup(m => m.Run(It.IsAny<string>(), It.IsAny<string>()))
-         .Callback<string, string>((cmd, input) => writer.WriteAsync(input));
+         .Setup(
+            m =>
+               m.Run(
+                  It.IsAny<string>(),
+                  It.IsAny<string>(),
+                  It.IsAny<string>()))
+         .Callback<string, string, string>((cmd, arguments, input) => writer.WriteAsync(input));
 
       clipboard.Put("test", TimeSpan.FromMinutes(1));
       
