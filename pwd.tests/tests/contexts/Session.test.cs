@@ -1,7 +1,6 @@
 using System.Threading.Channels;
 using Moq;
 using pwd.ciphers;
-using pwd.contexts;
 using pwd.contexts.file;
 using pwd.mocks;
 using pwd.readline;
@@ -47,6 +46,7 @@ public sealed class Session_Tests
       var fileFactory =
          new FileFactory(
             logger,
+            Mock.Of<IEnvironmentVariables>(),
             Mock.Of<IRunner>(),
             Mock.Of<IClipboard>(),
             fs,

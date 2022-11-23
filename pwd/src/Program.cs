@@ -42,6 +42,7 @@ public static class Program
                .AddSingleton<ITimers, Timers>()
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IState, State>()
+               .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
                .AddSingleton<IRepositoryFactory, RepositoryFactory>()
                .AddSingleton<IExporterFactory, ExporterFactory>()
                .AddSingleton<INameCipherFactory, NameCipherFactory>()

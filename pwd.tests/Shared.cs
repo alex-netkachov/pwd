@@ -36,6 +36,7 @@ public static class Shared
          services =>
             services
                .AddSingleton(Mock.Of<ILogger>())
+               .AddSingleton(Mock.Of<IEnvironmentVariables>())
                .AddSingleton(runner ?? Mock.Of<IRunner>())
                .AddSingleton(clipboard ?? Mock.Of<IClipboard>())
                .AddSingleton(fs ?? Mock.Of<IFileSystem>())

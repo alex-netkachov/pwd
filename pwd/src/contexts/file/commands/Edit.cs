@@ -1,7 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO.Abstractions;
-using System.Threading.Tasks;
+﻿using System.IO.Abstractions;
 using pwd.context.repl;
 using pwd.repository;
 
@@ -10,23 +7,23 @@ namespace pwd.contexts.file.commands;
 public sealed class Edit
    : ICommandFactory
 {
+   private readonly IEnvironmentVariables _environmentVariables;
    private readonly IRunner _runner;
    private readonly IView _view;
    private readonly IFileSystem _fs;
-   private readonly IRepository _repository;
    private readonly IRepositoryItem _item;
 
    public Edit(
+      IEnvironmentVariables environmentVariables,
       IRunner runner,
       IView view,
       IFileSystem fs,
-      IRepository repository,
       IRepositoryItem item)
    {
+      _environmentVariables = environmentVariables;
       _runner = runner;
       _view = view;
       _fs = fs;
-      _repository = repository;
       _item = item;
    }
 
@@ -39,18 +36,21 @@ public sealed class Edit
          {
             var chosenEditor =
                string.IsNullOrEmpty(editor)
-                  ? Environment.GetEnvironmentVariable("EDITOR")
+                  ? _environmentVariables.Get("EDITOR")
                   : editor;
 
             if (string.IsNullOrEmpty(chosenEditor))
             {
                _view.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
+               return;
             }
-            else
-            {
-               var content = await _item.ReadAsync();
 
-               var path = _fs.Path.GetTempFileName();
+            var content = await _item.ReadAsync(cancellationToken);
+
+            var path = _fs.Path.GetTempFileName();
+
+            try
+            {
                await _fs.File.WriteAllTextAsync(path, content, cancellationToken);
 
                var exception =
@@ -69,41 +69,12 @@ public sealed class Edit
                }
                else
                {
-                  await _repository.WriteAsync(_item.Name, updated);
+                  await _item.WriteAsync(updated);
                }
-
-               Process? process = null;
-               try
-               {
-                  var startInfo = new ProcessStartInfo(chosenEditor, path);
-                  process = Process.Start(startInfo);
-                  if (process == null)
-                  {
-                     _view.WriteLine($"Starting the process '{startInfo.FileName}' failed.");
-                  }
-                  else
-                  {
-                     await process.WaitForExitAsync(cancellationToken);
-
-                  }
-               }
-               catch (TaskCanceledException)
-               {
-                  // this catch captures an exception in interrupted process.WaitForExitAsync(...)
-                  if (process == null || process.HasExited)
-                  {
-                  }
-                  else
-                  {
-                     process.Kill();
-                  }
-
-                  // kill the process
-               }
-               finally
-               {
-                  _fs.File.Delete(path);
-               }
+            }
+            finally
+            {
+               _fs.File.Delete(path);
             }
          }),
          _ => null

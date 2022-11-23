@@ -32,6 +32,10 @@ public interface IRepositoryItem
    /// <remarks>".archive" is a dotted folder so it will not be suggested or listed.</remarks>
    void Archive();
 
+   /// <summary>Writes the file content.</summary>
+   Task WriteAsync(
+      string value);
+   
    /// <summary>Reads the file content.</summary>
    Task<string> ReadAsync(
       CancellationToken cancellationToken = default);
@@ -139,6 +143,12 @@ public sealed class RepositoryItem
       CancellationToken cancellationToken)
    {
       return _repository.ReadAsync(_path, cancellationToken);
+   }
+
+   public Task WriteAsync(
+      string value)
+   {
+      return _repository.WriteAsync(_path, value);
    }
 
    public IRepositoryUpdatesReader Subscribe()

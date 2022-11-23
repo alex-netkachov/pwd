@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
@@ -21,17 +20,11 @@ public interface IFile
    Task Rename(
       string name);
 
-   void Check();
-
    Task Print();
 
    void Unobscured();
 
    Task Delete(
-      CancellationToken cancellationToken);
-
-   Task Edit(
-      string? editor,
       CancellationToken cancellationToken);
 
    void CopyField(
@@ -55,7 +48,6 @@ public sealed class File
       IFile
 {
    private readonly IClipboard _clipboard;
-   private readonly IFileSystem _fs;
    private readonly IRepository _repository;
    private readonly IState _state;
    private readonly IView _view;
@@ -71,7 +63,6 @@ public sealed class File
    public File(
       ILogger logger,
       IClipboard clipboard,
-      IFileSystem fs,
       IRepository repository,
       IState state,
       IView view,
@@ -84,7 +75,6 @@ public sealed class File
       Array.Empty<ICommandFactory>())
    {
       _clipboard = clipboard;
-      _fs = fs;
       _repository = repository;
       _state = state;
       _view = view;
@@ -97,7 +87,6 @@ public sealed class File
             .Concat(
                new ICommandFactory[]
                {
-                  new Check(this),
                   new CopyField(this),
                   new Delete(this),
                   new Rename(this),
@@ -215,11 +204,6 @@ public sealed class File
          .ToArray());
    }
 
-   private async Task Save()
-   {
-      await _repository.WriteAsync(_item.Name, _content);
-   }
-
    public async Task Up(
       CancellationToken cancellationToken)
    {
@@ -231,19 +215,6 @@ public sealed class File
    {
       _repository.Rename(_item.Name, name);
       return Task.CompletedTask;
-   }
-
-   private async Task Update(
-      string content)
-   {
-      _content = content;
-      await Save();
-   }
-
-   public void Check()
-   {
-      if (Shared.CheckYaml(_content) is {Message: var msg})
-         _view.WriteLine(msg);
    }
 
    public async Task Print()
@@ -266,14 +237,24 @@ public sealed class File
       string name)
    {
       using var input = new StringReader(_content);
+
       var yaml = new YamlStream();
+
       yaml.Load(input);
+
       if (yaml.Documents.First().RootNode is not YamlMappingNode mappingNode)
          return "";
+
       var node =
          mappingNode
             .Children
-            .FirstOrDefault(item => string.Equals(item.Key.ToString(), name, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(
+               item =>
+                  string.Equals(
+                     item.Key.ToString(), 
+                     name,
+                     StringComparison.OrdinalIgnoreCase));
+
       return (node.Value as YamlScalarNode)?.Value ?? "";
    }
 
@@ -286,60 +267,6 @@ public sealed class File
       _repository.Delete(_item.Name);
       _view.WriteLine($"'{_item.Name}' has been deleted.");
       await _state.BackAsync().WaitAsync(cancellationToken);
-   }
-
-   public async Task Edit(
-      string? editor,
-      CancellationToken cancellationToken)
-   {
-      editor = string.IsNullOrEmpty(editor)
-         ? Environment.GetEnvironmentVariable("EDITOR")
-         : editor;
-
-      if (string.IsNullOrEmpty(editor))
-      {
-         _view.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
-         return;
-      }
-
-      var path = _fs.Path.GetTempFileName();
-      await _fs.File.WriteAllTextAsync(path, _content, cancellationToken);
-
-      Process? process = null;
-      try
-      {
-         var startInfo = new ProcessStartInfo(editor, path);
-         process = Process.Start(startInfo);
-         if (process == null)
-         {
-            _view.WriteLine($"Starting the process '{startInfo.FileName}' failed.");
-            return;
-         }
-
-         await process.WaitForExitAsync(cancellationToken);
-
-         var content = await _fs.File.ReadAllTextAsync(path, cancellationToken);
-         if (content == _content ||
-             !await _view.ConfirmAsync("Update the content?", Answer.Yes, cancellationToken))
-         {
-            return;
-         }
-
-         await Update(content);
-      }
-      catch (TaskCanceledException)
-      {
-         // this catch captures an exception in interrupted process.WaitForExitAsync(...)
-         if (process == null || process.HasExited)
-            return;
-
-         // kill the process
-         process.Kill();
-      }
-      finally
-      {
-         _fs.File.Delete(path);
-      }
    }
 
    public void CopyField(
@@ -357,6 +284,7 @@ public sealed class FileFactory
    : IFileFactory
 {
    private readonly ILogger _logger;
+   private readonly IEnvironmentVariables _environmentVariables;
    private readonly IRunner _runner;
    private readonly IClipboard _clipboard;
    private readonly IFileSystem _fs;
@@ -365,6 +293,7 @@ public sealed class FileFactory
 
    public FileFactory(
       ILogger logger,
+      IEnvironmentVariables environmentVariables,
       IRunner runner,
       IClipboard clipboard,
       IFileSystem fs,
@@ -372,6 +301,7 @@ public sealed class FileFactory
       IView view)
    {
       _logger = logger;
+      _environmentVariables = environmentVariables;
       _runner = runner;
       _clipboard = clipboard;
       _fs = fs;
@@ -387,7 +317,6 @@ public sealed class FileFactory
       return new File(
          _logger,
          _clipboard,
-         _fs,
          repository,
          _state,
          _view,
@@ -396,7 +325,8 @@ public sealed class FileFactory
          new ICommandFactory[]
          {
             new Archive(_state, item),
-            new Edit(_runner, _view, _fs, repository, item),
+            new Check(_view, item),
+            new Edit(_environmentVariables, _runner, _view, _fs, item),
             new Help(_view)
          });
    }

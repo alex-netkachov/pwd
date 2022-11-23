@@ -1,24 +1,33 @@
 ﻿using pwd.context.repl;
+using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Check
    : ICommandFactory
 {
-   private readonly IFile _file;
+   private readonly IView _view;
+   private readonly IRepositoryItem _item;
 
    public Check(
-      IFile file)
+      IView view,
+      IRepositoryItem item)
    {
-      _file = file;
+      _view = view;
+      _item = item;
    }
 
    public ICommand? Parse(
       string input)
    {
-      return input switch
+      return Shared.ParseCommand(input) switch
       {
-         ".check" => new DelegateCommand(_file.Check),
+         (_, "check", _) => new DelegateCommand(async cancellationToken =>
+         {
+            var content = await _item.ReadAsync(cancellationToken);
+            if (Shared.CheckYaml(content) is { Message: var msg })
+               _view.WriteLine(msg);
+         }),
          _ => null
       };
    }
