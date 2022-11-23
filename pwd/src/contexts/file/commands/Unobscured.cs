@@ -1,16 +1,20 @@
 ﻿using pwd.context.repl;
+using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Unobscured
    : ICommandFactory
 {
-   private readonly IFile _file;
+   private readonly IView _view;
+   private readonly IRepositoryItem _item;
 
    public Unobscured(
-      IFile file)
+      IView view,
+      IRepositoryItem item)
    {
-      _file = file;
+      _view = view;
+      _item = item;
    }
 
    public ICommand? Parse(
@@ -18,7 +22,11 @@ public sealed class Unobscured
    {
       return input switch
       {
-         ".unobscured" => new DelegateCommand(_file.Unobscured),
+         ".unobscured" => new DelegateCommand(async cancellationToken =>
+         {
+            var content = await _item.ReadAsync(cancellationToken);
+            _view.WriteLine(content);
+         }),
          _ => null
       };
    }

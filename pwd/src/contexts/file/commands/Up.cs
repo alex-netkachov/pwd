@@ -5,12 +5,12 @@ namespace pwd.contexts.file.commands;
 public sealed class Up
    : ICommandFactory
 {
-   private readonly IFile _file;
+   private readonly IState _state;
 
    public Up(
-      IFile file)
+      IState state)
    {
-      _file = file;
+      _state = state;
    }
 
    public ICommand? Parse(
@@ -18,7 +18,7 @@ public sealed class Up
    {
       return input switch
       {
-         ".." => new DelegateCommand(_file.Up),
+         ".." => new DelegateCommand(async cancellationToken => await _state.BackAsync().WaitAsync(cancellationToken)),
          _ => null
       };
    }

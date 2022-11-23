@@ -1,31 +1,47 @@
-﻿using pwd.context.repl;
+﻿using System.Text.RegularExpressions;
+using pwd.context.repl;
+using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Print
    : ICommandFactory
 {
-   private readonly IFile _file;
+   private readonly IView _view;
+   private readonly IRepositoryItem _item;
 
    public Print(
-      IFile file)
+      IView view,
+      IRepositoryItem item)
    {
-      _file = file;
+      _view = view;
+      _item = item;
    }
 
    public ICommand? Parse(
       string input)
    {
-      return input switch
+      return Shared.ParseCommand(input) switch
       {
-         ".print" => Command(),
-         "" => Command(),
+         (_, "print", _) => Command(),
+         _ when string.IsNullOrWhiteSpace(input) => Command(),
          _ => null
       };
    }
 
-   public ICommand Command()
+   private ICommand Command()
    {
-      return new DelegateCommand(_ => _file.Print());
+      return new DelegateCommand(async cancellationToken =>
+      {
+         var content = await _item.ReadAsync(cancellationToken);
+
+         var obscured =
+            Regex.Replace(
+               content,
+               "password: [^\n\\s]+",
+               "password: ************");
+
+         _view.WriteLine(obscured);
+      });
    }
 }

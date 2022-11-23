@@ -1,16 +1,26 @@
 ﻿using pwd.context.repl;
+using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Delete
    : ICommandFactory
 {
-   private readonly IFile _file;
+   private readonly IState _state;
+   private readonly IView _view;
+   private readonly IRepository _repository;
+   private readonly IRepositoryItem _item;
 
    public Delete(
-      IFile file)
+      IState state,
+      IView view,
+      IRepository repository,
+      IRepositoryItem item)
    {
-      _file = file;
+      _state = state;
+      _view = view;
+      _repository = repository;
+      _item = item;
    }
 
    public ICommand? Parse(
@@ -18,7 +28,15 @@ public sealed class Delete
    {
       return input switch
       {
-         ".rm" => new DelegateCommand(_file.Delete),
+         ".rm" => new DelegateCommand(async cancellationToken =>
+         {
+            if (!await _view.ConfirmAsync($"Delete '{_item.Name}'?", Answer.No, cancellationToken))
+               return;
+
+            _repository.Delete(_item.Name);
+            _view.WriteLine($"'{_item.Name}' has been deleted.");
+            await _state.BackAsync().WaitAsync(cancellationToken);
+         }),
          _ => null
       };
    }
