@@ -38,7 +38,7 @@ public sealed class Print
          var obscured =
             Regex.Replace(
                content,
-               "password: [^\n\\s]+",
+               "password:\\s*[^\n\\s]+",
                "password: ************");
 
          _view.WriteLine(obscured);

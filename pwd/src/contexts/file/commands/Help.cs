@@ -18,9 +18,9 @@ public sealed class Help
    public ICommand? Parse(
       string input)
    {
-      return input switch
+      return Shared.ParseCommand(input) switch
       {
-         ".help" => new DelegateCommand(async _ =>
+         (_, "help", _) => new DelegateCommand(async _ =>
          {
             await using var stream =
                Assembly.GetExecutingAssembly()
@@ -28,7 +28,7 @@ public sealed class Help
 
             if (stream == null)
             {
-               _view.WriteLine("help file is missing");         
+               _view.WriteLine("help file is missing");
                return;
             }
 

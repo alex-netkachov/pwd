@@ -20,9 +20,9 @@ public sealed class Unobscured
    public ICommand? Parse(
       string input)
    {
-      return input switch
+      return Shared.ParseCommand(input) switch
       {
-         ".unobscured" => new DelegateCommand(async cancellationToken =>
+         (_, "unobscured", _) => new DelegateCommand(async cancellationToken =>
          {
             var content = await _item.ReadAsync(cancellationToken);
             _view.WriteLine(content);

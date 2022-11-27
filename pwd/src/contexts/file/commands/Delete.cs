@@ -26,9 +26,9 @@ public sealed class Delete
    public ICommand? Parse(
       string input)
    {
-      return input switch
+      return Shared.ParseCommand(input) switch
       {
-         ".rm" => new DelegateCommand(async cancellationToken =>
+         (_, "rm", _) => new DelegateCommand(async cancellationToken =>
          {
             if (!await _view.ConfirmAsync($"Delete '{_item.Name}'?", Answer.No, cancellationToken))
                return;
