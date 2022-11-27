@@ -29,7 +29,7 @@ public sealed class CopyField
       {
          (_, "ccp", _) => new DelegateCommand(async _ => await Copy("password")),
          (_, "ccu", _) => new (async _ => await Copy("user")),
-         (_, "cc", var name) => new (async _ => await Copy(name)),
+         (_, "cc", var name) when !string.IsNullOrEmpty(name) => new (async _ => await Copy(name)),
          _ => null
       };
    }

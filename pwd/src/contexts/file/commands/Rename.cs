@@ -22,7 +22,8 @@ public sealed class Rename
    {
       return Shared.ParseCommand(input) switch
       {
-         (_, "rename", var name) => new DelegateCommand(() => _repository.Rename(_item.Name, name)),
+         (_, "rename", var name) when !string.IsNullOrEmpty(name) =>
+            new DelegateCommand(() => _repository.Rename(_item.Name, name)),
          _ => null
       };
    }
