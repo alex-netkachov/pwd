@@ -1,10 +1,12 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 using pwd.repository;
 
 namespace pwd.contexts.session.commands;
 
 public sealed class Add
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IState _state;
    private readonly INewFileFactory _newFileFactory;
@@ -32,5 +34,11 @@ public sealed class Add
             }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

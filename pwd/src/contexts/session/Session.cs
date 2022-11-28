@@ -34,7 +34,7 @@ public sealed class Session
       ILogger logger,
       IRepository repository,
       IView view,
-      IReadOnlyCollection<ICommandFactory> factories)
+      IReadOnlyCollection<ICommandServices> factories)
       : base(
          logger,
          view,
@@ -105,9 +105,9 @@ public sealed class SessionFactory
          _logger,
          repository,
          _view,
-         Array.Empty<ICommandFactory>()
+         Array.Empty<ICommandServices>()
             .Concat(
-               new ICommandFactory[]
+               new ICommandServices[]
                {
                   new Add(_state, _newFileFactory, repository),
                   new Export(_view),
@@ -116,7 +116,7 @@ public sealed class SessionFactory
                   new Open(repository, _fileFactory, @lock, _state)
                })
             .Concat(Shared.CommandFactories(_state, @lock, _view))
-            .Concat(new ICommandFactory[] { new List(repository, _fileFactory, @lock, _state, _view) })
+            .Concat(new ICommandServices[] { new List(repository, _fileFactory, @lock, _state, _view) })
             .ToArray());
    }
 }

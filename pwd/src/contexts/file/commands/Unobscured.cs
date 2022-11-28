@@ -1,10 +1,12 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Unobscured
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IView _view;
    private readonly IRepositoryItem _item;
@@ -29,5 +31,11 @@ public sealed class Unobscured
          }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

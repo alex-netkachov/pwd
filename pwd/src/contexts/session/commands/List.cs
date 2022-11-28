@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ using pwd.repository;
 namespace pwd.contexts.session.commands;
 
 public sealed class List
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IRepository _repository;
    private readonly IFileFactory _fileFactory;
@@ -91,5 +92,11 @@ public sealed class List
 
       var file = _fileFactory.Create(_repository, _lock, item);
       var _ = _state.OpenAsync(file);
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

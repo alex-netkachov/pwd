@@ -1,9 +1,11 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 
 namespace pwd.contexts.session.commands;
 
 public sealed class Export
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IView _view;
 
@@ -22,5 +24,11 @@ public sealed class Export
             new DelegateCommand(() => _view.WriteLine("Not implemented")),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

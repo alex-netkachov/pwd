@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ using YamlDotNet.RepresentationModel;
 namespace pwd.contexts.file.commands;
 
 public sealed class CopyField
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IClipboard _clipboard;
    private readonly IRepositoryItem _item;
@@ -69,5 +70,11 @@ public sealed class CopyField
                      StringComparison.OrdinalIgnoreCase));
 
       return (node.Value as YamlScalarNode)?.Value ?? "";
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

@@ -1,9 +1,11 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 
 namespace pwd.contexts.shared;
 
 public sealed class Pwd
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IView _view;
 
@@ -21,5 +23,11 @@ public sealed class Pwd
          ".pwd" => new DelegateCommand(() => _view.WriteLine(Shared.Password())),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

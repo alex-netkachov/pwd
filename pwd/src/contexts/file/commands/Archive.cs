@@ -1,10 +1,12 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Archive
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IState _state;
    private readonly IRepositoryItem _item;
@@ -30,5 +32,11 @@ public sealed class Archive
             }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

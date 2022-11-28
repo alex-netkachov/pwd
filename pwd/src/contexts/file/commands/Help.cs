@@ -1,11 +1,13 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using pwd.context.repl;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Help
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IView _view;
 
@@ -38,5 +40,11 @@ public sealed class Help
          }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

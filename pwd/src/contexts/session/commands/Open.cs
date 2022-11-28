@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.repository;
@@ -6,7 +8,7 @@ using pwd.repository;
 namespace pwd.contexts.session.commands;
 
 public sealed class Open
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IRepository _repository;
    private readonly IFileFactory _fileFactory;
@@ -42,5 +44,11 @@ public sealed class Open
             }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

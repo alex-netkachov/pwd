@@ -1,11 +1,13 @@
-﻿using System.IO.Abstractions;
+﻿using System;
+using System.Collections.Generic;
+using System.IO.Abstractions;
 using pwd.context.repl;
 using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Edit
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IEnvironmentVariables _environmentVariables;
    private readonly IRunner _runner;
@@ -79,5 +81,11 @@ public sealed class Edit
          }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

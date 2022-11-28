@@ -7,9 +7,12 @@ using pwd.readline;
 
 namespace pwd.context.repl;
 
-public interface ICommandFactory
+public interface ICommandServices
 {
    ICommand? Create(
+      string input);
+
+   IReadOnlyList<string> Suggestions(
       string input);
 }
 
@@ -26,12 +29,12 @@ public abstract class Repl
 
    private readonly ILogger _logger;
    private readonly IView _view;
-   private readonly IReadOnlyCollection<ICommandFactory> _commandFactories;
+   private readonly IReadOnlyCollection<ICommandServices> _commandFactories;
 
    protected Repl(
       ILogger logger,
       IView view,
-      IReadOnlyCollection<ICommandFactory> commandFactories)
+      IReadOnlyCollection<ICommandServices> commandFactories)
    {
       _logger = logger;
       _view = view;

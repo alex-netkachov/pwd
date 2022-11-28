@@ -1,9 +1,11 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 
 namespace pwd.contexts.shared;
 
 public sealed class Quit
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IState _state;
 
@@ -22,5 +24,11 @@ public sealed class Quit
             cancellationToken => _state.DisposeAsync().AsTask().WaitAsync(cancellationToken)),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

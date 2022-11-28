@@ -1,9 +1,11 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 
 namespace pwd.contexts.session.commands;
 
 public sealed class Html
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IExporter _exporter;
 
@@ -28,5 +30,11 @@ public sealed class Html
             }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

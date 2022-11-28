@@ -1,11 +1,13 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using pwd.context.repl;
 using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Print
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IView _view;
    private readonly IRepositoryItem _item;
@@ -43,5 +45,11 @@ public sealed class Print
 
          _view.WriteLine(obscured);
       });
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

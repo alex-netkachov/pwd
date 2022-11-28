@@ -44,7 +44,7 @@ public sealed class File
       ILogger logger,
       IView view,
       IRepositoryItem item,
-      IReadOnlyCollection<ICommandFactory> factories)
+      IReadOnlyCollection<ICommandServices> factories)
    : base(
       logger,
       view,
@@ -188,8 +188,8 @@ public sealed class FileFactory
          _logger,
          _view,
          item,
-         Array.Empty<ICommandFactory>()
-            .Concat(new ICommandFactory[]
+         Array.Empty<ICommandServices>()
+            .Concat(new ICommandServices[]
             {
                new Archive(_state, item),
                new Check(_view, item),
@@ -202,7 +202,7 @@ public sealed class FileFactory
                new Up(_state)
             })
             .Concat(Shared.CommandFactories(_state, @lock, _view))
-            .Concat(new ICommandFactory[] { new Print(_view, item) })
+            .Concat(new ICommandServices[] { new Print(_view, item) })
             .ToArray());
 
    }

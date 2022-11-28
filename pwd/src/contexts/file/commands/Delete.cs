@@ -1,10 +1,12 @@
-﻿using pwd.context.repl;
+﻿using System;
+using System.Collections.Generic;
+using pwd.context.repl;
 using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Delete
-   : ICommandFactory
+   : ICommandServices
 {
    private readonly IState _state;
    private readonly IView _view;
@@ -39,5 +41,11 @@ public sealed class Delete
          }),
          _ => null
       };
+   }
+
+   public IReadOnlyList<string> Suggestions(
+      string input)
+   {
+      return Array.Empty<string>();
    }
 }

@@ -82,12 +82,12 @@ public static class Shared
       return list;
    }
 
-   public static IReadOnlyCollection<ICommandFactory> CommandFactories(
+   public static IReadOnlyCollection<ICommandServices> CommandFactories(
       IState state,
       ILock @lock,
       IView view)
    {
-      return new ICommandFactory[]
+      return new ICommandServices[]
       {
          new Clear(view),
          new Pwd(view),
