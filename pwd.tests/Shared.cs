@@ -134,14 +134,14 @@ public static class Shared
       var repository = new Repository(fs, new ZeroCipher(), new ContentCipher("secret"), ".");
       await repository.Initialise();
       var session = CreateSessionContext(repository, view: view);
-      Assert.That(string.Join(";", session.Get("../")), Is.EqualTo("../test"));
-      Assert.That(string.Join(";", session.Get("")), Is.EqualTo("encrypted;regular_dir"));
-      Assert.That(string.Join(";", session.Get("enc")), Is.EqualTo("encrypted"));
-      Assert.That(string.Join(";", session.Get("encrypted")), Is.EqualTo("encrypted"));
-      Assert.That(string.Join(";", session.Get("regular_dir")), Is.EqualTo("regular_dir"));
-      Assert.That(string.Join(";", session.Get("regular_dir/")), Is.EqualTo("regular_dir/encrypted"));
-      Assert.That(string.Join(";", session.Get("regular_dir/enc")), Is.EqualTo("regular_dir/encrypted"));
-      Assert.That(string.Join(";", session.Get("regular_dir/encrypted")), Is.EqualTo("regular_dir/encrypted"));
+      Assert.That(string.Join(";", session.Suggestions("../")), Is.EqualTo("../test"));
+      Assert.That(string.Join(";", session.Suggestions("")), Is.EqualTo("encrypted;regular_dir"));
+      Assert.That(string.Join(";", session.Suggestions("enc")), Is.EqualTo("encrypted"));
+      Assert.That(string.Join(";", session.Suggestions("encrypted")), Is.EqualTo("encrypted"));
+      Assert.That(string.Join(";", session.Suggestions("regular_dir")), Is.EqualTo("regular_dir"));
+      Assert.That(string.Join(";", session.Suggestions("regular_dir/")), Is.EqualTo("regular_dir/encrypted"));
+      Assert.That(string.Join(";", session.Suggestions("regular_dir/enc")), Is.EqualTo("regular_dir/encrypted"));
+      Assert.That(string.Join(";", session.Suggestions("regular_dir/encrypted")), Is.EqualTo("regular_dir/encrypted"));
    }
    
    public static void Run(

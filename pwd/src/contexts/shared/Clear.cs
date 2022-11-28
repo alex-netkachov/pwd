@@ -13,7 +13,7 @@ public sealed class Clear
       _view = view;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return input switch

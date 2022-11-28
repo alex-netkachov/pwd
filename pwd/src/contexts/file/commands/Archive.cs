@@ -17,16 +17,16 @@ public sealed class Archive
       _item = item;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
       {
          (_, "archive", _) => new DelegateCommand(
-            async cancellationToken =>
+            () =>
             {
                _item.Archive();
-               await _state.BackAsync().WaitAsync(cancellationToken);
+               _state.BackAsync();
             }),
          _ => null
       };

@@ -186,7 +186,7 @@ public sealed class RepositoryItem
 
       foreach (var subscriber in subscribers)
       {
-         while (subscriber.Writer.TryWrite(update))
+         while (!subscriber.Writer.TryWrite(update))
          {
          }
       }

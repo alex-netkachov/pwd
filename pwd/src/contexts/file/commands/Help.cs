@@ -15,7 +15,7 @@ public sealed class Help
       _view = view;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch

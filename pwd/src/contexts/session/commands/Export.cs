@@ -13,7 +13,7 @@ public sealed class Export
       _view = view;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch

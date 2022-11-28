@@ -22,7 +22,7 @@ public class Unobscured_Tests
             Mock.Of<IView>(),
             Mock.Of<IRepositoryItem>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -44,14 +44,14 @@ public class Unobscured_Tests
             mockView.Object,
             mockItem.Object);
 
-      var command = factory.Parse(".unobscured");
+      var command = factory.Create(".unobscured");
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
       
       mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
       mockView.Verify(m => m.WriteLine(content), Times.Once);

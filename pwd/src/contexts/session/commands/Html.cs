@@ -13,7 +13,7 @@ public sealed class Html
       _exporter = exporter;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch

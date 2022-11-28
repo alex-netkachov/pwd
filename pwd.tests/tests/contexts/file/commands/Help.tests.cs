@@ -21,7 +21,7 @@ public class Help_Tests
          new Help(
             Mock.Of<IView>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -35,14 +35,14 @@ public class Help_Tests
          new Help(
             mockView.Object);
 
-      var command = factory.Parse(".help");
+      var command = factory.Create(".help");
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
 
       mockView.Verify(m => m.WriteLine(It.IsAny<string>()), Times.Once);
    }

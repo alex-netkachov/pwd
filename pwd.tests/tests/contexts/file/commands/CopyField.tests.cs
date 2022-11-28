@@ -28,7 +28,7 @@ public class CopyField_Tests
             Mock.Of<IClipboard>(),
             Mock.Of<IRepositoryItem>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -56,14 +56,14 @@ public class CopyField_Tests
             mockClipboard.Object,
             mockItem.Object);
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
       
       mockClipboard
          .Verify(m => m.Put(expected, It.IsAny<TimeSpan>()));

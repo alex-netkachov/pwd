@@ -22,7 +22,7 @@ public class Print_Tests
             Mock.Of<IView>(),
             Mock.Of<IRepositoryItem>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -45,14 +45,14 @@ public class Print_Tests
             mockView.Object,
             mockItem.Object);
 
-      var command = factory.Parse(".print");
+      var command = factory.Create(".print");
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
       
       mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
       mockView.Verify(m => m.WriteLine(output), Times.Once);

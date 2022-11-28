@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.repository;
@@ -26,27 +25,22 @@ public sealed class Open
       _state = state;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
       {
          (_, "open", var name) =>
-            new DelegateCommand(async cancellationToken =>
-               await OpenInt(name, cancellationToken)),
+            new DelegateCommand(() =>
+            {
+               var item = _repository.Get(name);
+               if (item == null)
+                  return;
+
+               var file = _fileFactory.Create(_repository, _lock, item);
+               var _ = _state.OpenAsync(file);
+            }),
          _ => null
       };
-   }
-
-   private async Task OpenInt(
-      string name,
-      CancellationToken cancellationToken)
-   {
-      var item = _repository.Get(name);
-      if (item == null)
-         return;
-
-      var file = _fileFactory.Create(_repository, _lock, item);
-      await _state.OpenAsync(file).WaitAsync(cancellationToken);
    }
 }

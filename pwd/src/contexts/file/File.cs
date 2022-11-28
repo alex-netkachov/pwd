@@ -63,9 +63,9 @@ public sealed class File
 
    public override async Task StartAsync()
    {
-      var print = new Print(_view, _item).Parse("");
+      var print = new Print(_view, _item).Create("");
       if (print != null)
-         await print.DoAsync();
+         await print.ExecuteAsync();
 
       _cts = new();
 
@@ -99,7 +99,7 @@ public sealed class File
       return base.StopAsync();
    }
 
-   public override (int, IReadOnlyList<string>) Get(
+   public override (int, IReadOnlyList<string>) Suggestions(
       string input)
    {
       if (!input.StartsWith('.'))

@@ -17,7 +17,7 @@ public sealed class Unobscured
       _item = item;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch

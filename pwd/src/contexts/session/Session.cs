@@ -43,7 +43,7 @@ public sealed class Session
       _repository = repository;
    }
 
-   public override (int, IReadOnlyList<string>) Get(
+   public override (int, IReadOnlyList<string>) Suggestions(
       string input)
    {
       if (!input.StartsWith('.'))

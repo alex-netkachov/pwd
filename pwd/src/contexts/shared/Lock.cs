@@ -19,7 +19,7 @@ public sealed class Lock
       _lock = @lock;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch

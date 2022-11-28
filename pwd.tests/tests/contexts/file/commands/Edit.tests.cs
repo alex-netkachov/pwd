@@ -27,7 +27,7 @@ public class Edit_Tests
             Mock.Of<IFileSystem>(),
             Mock.Of<IRepositoryItem>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -83,14 +83,14 @@ public class Edit_Tests
             mockFileSystem,
             mockItem.Object);
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
 
       switch (outcome)
       {

@@ -23,7 +23,7 @@ public sealed class Delete
       _item = item;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -35,7 +35,7 @@ public sealed class Delete
 
             _repository.Delete(_item.Name);
             _view.WriteLine($"'{_item.Name}' has been deleted.");
-            await _state.BackAsync().WaitAsync(cancellationToken);
+            var _ = _state.BackAsync();
          }),
          _ => null
       };

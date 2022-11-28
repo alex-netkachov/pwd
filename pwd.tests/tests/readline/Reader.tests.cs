@@ -61,7 +61,7 @@ public sealed class Reader_Tests
       var reader = new Reader(new TestConsole(channel.Reader));
       var mockSuggestionsProvider = new Mock<ISuggestionsProvider?>();
       mockSuggestionsProvider
-         .Setup(m => m!.Get(It.IsAny<string>()))
+         .Setup(m => m!.Suggestions(It.IsAny<string>()))
          .Returns<string>(input =>
          {
             return (

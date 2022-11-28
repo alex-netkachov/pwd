@@ -4,6 +4,6 @@ namespace pwd.readline;
 
 public interface ISuggestionsProvider
 {
-   public (int offset, IReadOnlyList<string>) Get(
+   public (int offset, IReadOnlyList<string>) Suggestions(
       string input);
 }

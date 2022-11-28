@@ -31,7 +31,7 @@ public sealed class List
       _view = view;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return new DelegateCommand(cancellationToken => Exec(input, cancellationToken));
@@ -78,19 +78,18 @@ public sealed class List
          if (chosen == null)
             _view.WriteLine(string.Join("\n", items.Select(item => item.Path).OrderBy(item => item)));
          else
-            await Open(chosen, cancellationToken);
+            Open(chosen);
       }
    }
    
-   private async Task Open(
-      string name,
-      CancellationToken cancellationToken)
+   private void Open(
+      string name)
    {
       var item = _repository.Get(name);
       if (item == null)
          return;
 
       var file = _fileFactory.Create(_repository, _lock, item);
-      await _state.OpenAsync(file).WaitAsync(cancellationToken);
+      var _ = _state.OpenAsync(file);
    }
 }

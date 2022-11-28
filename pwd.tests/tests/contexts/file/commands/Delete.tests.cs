@@ -24,7 +24,7 @@ public class Delete_Tests
             Mock.Of<IRepository>(),
             Mock.Of<IRepositoryItem>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -57,14 +57,14 @@ public class Delete_Tests
             mockRepository.Object,
             mockItem.Object);
 
-      var command = factory.Parse(".rm");
+      var command = factory.Create(".rm");
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
       
       mockRepository
          .Verify(m => m.Delete("test"));

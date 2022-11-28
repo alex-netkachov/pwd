@@ -17,7 +17,7 @@ public class Up_Tests
          new Up(
             Mock.Of<IState>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -31,14 +31,14 @@ public class Up_Tests
          new Up(
             mockState.Object);
 
-      var command = factory.Parse("..");
+      var command = factory.Create("..");
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
 
       mockState.Verify(m => m.BackAsync(), Times.Once);
    }

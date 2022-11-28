@@ -22,7 +22,7 @@ public class Rename_Tests
             Mock.Of<IRepository>(),
             Mock.Of<IRepositoryItem>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -42,14 +42,14 @@ public class Rename_Tests
             mockRepository.Object,
             mockItem.Object);
 
-      var command = factory.Parse(".rename ok");
+      var command = factory.Create(".rename ok");
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
       
       mockRepository
          .Verify(m => m.Rename("test", "ok"));

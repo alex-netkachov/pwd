@@ -13,12 +13,12 @@ public sealed class Up
       _state = state;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return input switch
       {
-         ".." => new DelegateCommand(async cancellationToken => await _state.BackAsync().WaitAsync(cancellationToken)),
+         ".." => new DelegateCommand(() => _state.BackAsync()),
          _ => null
       };
    }

@@ -179,7 +179,9 @@ public class Integration_Tests
          Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
          await writer.WriteAsync("file1\n");
          Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         await writer.WriteAsync("..\n");
+         await writer.WriteAsync(".rm\n");
+         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Confirm>());
+         await writer.WriteAsync("y\n");
          Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
          await writer.WriteAsync(".quit\n");
       });
@@ -202,7 +204,9 @@ public class Integration_Tests
          "repository contains 1 file",
          "> file1",
          "content1",
-         "file1> ..",
+         "file1> .rm",
+         "Delete 'file1'? (y/N) y",
+         "'file1' has been deleted.",
          "> .quit\n");
       var actual = console.GetScreen();
       Assert.That(actual, Is.EqualTo(expected));

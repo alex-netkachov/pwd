@@ -13,7 +13,7 @@ public sealed class Quit
       _state = state;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return input switch

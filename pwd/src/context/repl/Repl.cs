@@ -7,48 +7,10 @@ using pwd.readline;
 
 namespace pwd.context.repl;
 
-public interface ICommand
-{
-   Task DoAsync(
-      CancellationToken cancellationToken = default);
-}
-
 public interface ICommandFactory
 {
-   ICommand? Parse(
+   ICommand? Create(
       string input);
-}
-
-public sealed class DelegateCommand
-   : ICommand
-{
-   private readonly Func<CancellationToken, Task>  _action;
-
-   public DelegateCommand(
-      Func<CancellationToken, Task> action)
-   {
-      _action = action;
-   }
-   
-   public DelegateCommand(
-      Action action)
-   {
-      _action = _ =>
-      {
-         action();
-         return Task.CompletedTask;
-      };
-   }
-
-
-   public async Task DoAsync(
-      CancellationToken cancellationToken = default)
-   {
-      if (cancellationToken.IsCancellationRequested)
-         return;
-
-      await _action(cancellationToken);
-   }
 }
 
 public abstract class Repl
@@ -77,19 +39,19 @@ public abstract class Repl
       _commandFactories = commandFactories;
    }
 
-   public virtual async Task ProcessAsync(
+   public async Task ProcessAsync(
       string input,
       CancellationToken cancellationToken = default)
    {
       var command =
          _commandFactories
-            .Select(item => item.Parse(input))
+            .Select(item => item.Create(input))
             .FirstOrDefault(item => item != null);
 
       if (command == null)
          return;
 
-      await command.DoAsync(cancellationToken);
+      await command.ExecuteAsync(cancellationToken);
    }
 
    protected virtual string Prompt()
@@ -183,7 +145,7 @@ public abstract class Repl
       return state.Stopped.Task;
    }
 
-   public virtual (int offset, IReadOnlyList<string>) Get(
+   public virtual (int offset, IReadOnlyList<string>) Suggestions(
       string input)
    {
       return (0, Array.Empty<string>());

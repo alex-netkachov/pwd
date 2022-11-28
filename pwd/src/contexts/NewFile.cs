@@ -104,7 +104,7 @@ public sealed class NewFile
       return Task.CompletedTask;
    }
 
-   public (int, IReadOnlyList<string>) Get(
+   public (int, IReadOnlyList<string>) Suggestions(
       string input)
    {
       return (input.Length, new[]

@@ -22,7 +22,7 @@ public class Archive_Tests
             Mock.Of<IState>(),
             Mock.Of<IRepositoryItem>());
 
-      var command = factory.Parse(input);
+      var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
@@ -38,14 +38,14 @@ public class Archive_Tests
             mockState.Object,
             mockItem.Object);
 
-      var command = factory.Parse(".archive");
+      var command = factory.Create(".archive");
       if (command == null)
       {
          Assert.Fail("command is null");
          return;
       }
 
-      await command.DoAsync();
+      await command.ExecuteAsync();
 
       mockItem.Verify(m => m.Archive(), Times.Once);
       mockState.Verify(m => m.BackAsync(), Times.Once);

@@ -20,7 +20,7 @@ public sealed class Add
       _repository = repository;
    }
 
-   public ICommand? Parse(
+   public ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
