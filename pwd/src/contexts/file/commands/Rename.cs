@@ -6,7 +6,7 @@ using pwd.repository;
 namespace pwd.contexts.file.commands;
 
 public sealed class Rename
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IRepository _repository;
    private readonly IRepositoryItem _item;
@@ -19,7 +19,7 @@ public sealed class Rename
       _item = item;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -30,7 +30,7 @@ public sealed class Rename
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       return Array.Empty<string>();

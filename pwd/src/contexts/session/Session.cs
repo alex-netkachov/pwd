@@ -43,22 +43,21 @@ public sealed class Session
       _repository = repository;
    }
 
-   public override (int, IReadOnlyList<string>) Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       if (!input.StartsWith('.'))
       {
          var p = input.LastIndexOf('/');
          var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-         return (
-            input.Length,
+         return
             _repository.List(folder == "" ? "." : folder)
                .Where(item => item.Path.StartsWith(input))
                .Select(item => item.Path)
-               .ToArray());
+               .ToArray();
       }
 
-      return (input.Length, new[]
+      return new[]
          {
             ".add",
             ".archive",
@@ -69,7 +68,7 @@ public sealed class Session
             ".quit"
          }
          .Where(item => item.StartsWith(input))
-         .ToArray());
+         .ToArray();
    }
 }
 

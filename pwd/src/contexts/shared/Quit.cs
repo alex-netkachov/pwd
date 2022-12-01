@@ -5,7 +5,7 @@ using pwd.context.repl;
 namespace pwd.contexts.shared;
 
 public sealed class Quit
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IState _state;
 
@@ -15,7 +15,7 @@ public sealed class Quit
       _state = state;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return input switch
@@ -26,7 +26,7 @@ public sealed class Quit
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       return Array.Empty<string>();

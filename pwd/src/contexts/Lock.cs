@@ -151,6 +151,10 @@ public sealed class Lock
    {
       return Task.CompletedTask;
    }
+   
+   public void Dispose()
+   {
+   }
 }
 
 public sealed class LockFactory

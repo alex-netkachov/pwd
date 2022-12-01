@@ -7,7 +7,7 @@ using pwd.context.repl;
 namespace pwd.contexts.session.commands;
 
 public sealed class Help
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IView _view;
 
@@ -17,7 +17,7 @@ public sealed class Help
       _view = view;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -41,7 +41,7 @@ public sealed class Help
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       return Array.Empty<string>();

@@ -10,7 +10,7 @@ using pwd.repository;
 namespace pwd.contexts.session.commands;
 
 public sealed class List
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IRepository _repository;
    private readonly IFileFactory _fileFactory;
@@ -32,7 +32,7 @@ public sealed class List
       _view = view;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return new DelegateCommand(cancellationToken => Exec(input, cancellationToken));
@@ -94,7 +94,7 @@ public sealed class List
       var _ = _state.OpenAsync(file);
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       return Array.Empty<string>();

@@ -17,7 +17,7 @@ public class Help_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Help(
             Mock.Of<IView>());
 
@@ -31,7 +31,7 @@ public class Help_Tests
    {
       var mockView = new Mock<IView>();
 
-      var factory =
+      using var factory =
          new Help(
             mockView.Object);
 
@@ -45,5 +45,28 @@ public class Help_Tests
       await command.ExecuteAsync();
 
       mockView.Verify(m => m.WriteLine(It.IsAny<string>()), Times.Once);
+   }
+
+   [TestCase("", ".help")]
+   [TestCase(".", ".help")]
+   [TestCase(".HE", ".help")]
+   [TestCase(".He", ".help")]
+   [TestCase(".help", "")]
+   [TestCase(".help ", "")]
+   [TestCase(".help test", "")]
+   public void Suggestions_works_as_expected(
+      string input,
+      string suggestions)
+   {
+      using var factory =
+         new Help(
+            Mock.Of<IView>());
+
+      Assert.That(
+         factory.Suggestions(input),
+         Is.EqualTo(
+            string.IsNullOrEmpty(suggestions)
+               ? Array.Empty<string>()
+               : suggestions.Split(';')));
    }
 }

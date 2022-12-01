@@ -7,7 +7,7 @@ using pwd.repository;
 namespace pwd.contexts.file.commands;
 
 public sealed class Print
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IView _view;
    private readonly IRepositoryItem _item;
@@ -20,7 +20,7 @@ public sealed class Print
       _item = item;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -47,9 +47,13 @@ public sealed class Print
       });
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
-      return Array.Empty<string>();
+      const string key = ".print";
+      return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
+             key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
+         ? new[] { key }
+         : Array.Empty<string>();
    }
 }

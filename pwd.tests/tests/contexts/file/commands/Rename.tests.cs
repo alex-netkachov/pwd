@@ -17,7 +17,7 @@ public class Rename_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Rename(
             Mock.Of<IRepository>(),
             Mock.Of<IRepositoryItem>());
@@ -37,7 +37,7 @@ public class Rename_Tests
 
       var mockRepository = new Mock<IRepository>();
       
-      var factory =
+      using var factory =
          new Rename(
             mockRepository.Object,
             mockItem.Object);

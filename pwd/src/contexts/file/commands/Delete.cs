@@ -6,7 +6,7 @@ using pwd.repository;
 namespace pwd.contexts.file.commands;
 
 public sealed class Delete
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IState _state;
    private readonly IView _view;
@@ -25,7 +25,7 @@ public sealed class Delete
       _item = item;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -43,9 +43,13 @@ public sealed class Delete
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
-      return Array.Empty<string>();
+      const string key = ".rm";
+      return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
+             key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
+         ? new[] { key }
+         : Array.Empty<string>();
    }
 }

@@ -17,7 +17,7 @@ public class Check_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Check(
             Mock.Of<IView>(),
             Mock.Of<IRepositoryItem>());
@@ -37,7 +37,7 @@ public class Check_Tests
          .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(""));
       
-      var factory =
+      using var factory =
          new Check(
             mockView.Object,
             mockItem.Object);
@@ -50,5 +50,30 @@ public class Check_Tests
       }
 
       await command.ExecuteAsync();
+   }
+
+   [TestCase("", ".check")]
+   [TestCase(".", ".check")]
+   [TestCase(".CH", ".check")]
+   [TestCase(".Ch", ".check")]
+   [TestCase(".ch", ".check")]
+   [TestCase(".check", "")]
+   [TestCase(".check ", "")]
+   [TestCase(".check test", "")]
+   public void Suggestions_works_as_expected(
+      string input,
+      string suggestions)
+   {
+      using var factory =
+         new Check(
+            Mock.Of<IView>(),
+            Mock.Of<IRepositoryItem>());
+
+      Assert.That(
+         factory.Suggestions(input),
+         Is.EqualTo(
+            string.IsNullOrEmpty(suggestions)
+               ? Array.Empty<string>()
+               : suggestions.Split(';')));
    }
 }

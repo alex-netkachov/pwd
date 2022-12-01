@@ -19,7 +19,7 @@ public class Edit_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Edit(
             Mock.Of<IEnvironmentVariables>(),
             Mock.Of<IRunner>(),
@@ -75,7 +75,7 @@ public class Edit_Tests
          .Callback<string>(value => content = value)
          .Returns(Task.CompletedTask);
 
-      var factory =
+      using var factory =
          new Edit(
             mockEnvironmentVariables.Object,
             mockRunner.Object,

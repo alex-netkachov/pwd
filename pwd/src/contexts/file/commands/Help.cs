@@ -7,7 +7,7 @@ using pwd.context.repl;
 namespace pwd.contexts.file.commands;
 
 public sealed class Help
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IView _view;
 
@@ -17,7 +17,7 @@ public sealed class Help
       _view = view;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -42,9 +42,13 @@ public sealed class Help
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
-      return Array.Empty<string>();
+      const string key = ".help";
+      return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
+             key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
+         ? new[] { key }
+         : Array.Empty<string>();
    }
 }

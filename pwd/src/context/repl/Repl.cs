@@ -8,12 +8,28 @@ using pwd.readline;
 namespace pwd.context.repl;
 
 public interface ICommandServices
+   : IDisposable
 {
    ICommand? Create(
       string input);
 
    IReadOnlyList<string> Suggestions(
       string input);
+}
+
+public abstract class CommandServicesBase
+   : ICommandServices
+{
+   public abstract ICommand? Create(string input);
+
+   public virtual IReadOnlyList<string> Suggestions(string input)
+   {
+      return Array.Empty<string>();
+   }
+
+   public virtual void Dispose()
+   {
+   }
 }
 
 public abstract class Repl
@@ -148,9 +164,17 @@ public abstract class Repl
       return state.Stopped.Task;
    }
 
-   public virtual (int offset, IReadOnlyList<string>) Suggestions(
+   public virtual IReadOnlyList<string> Suggestions(
       string input)
    {
-      return (0, Array.Empty<string>());
+      return _commandFactories
+         .SelectMany(item => item.Suggestions(input))
+         .ToList();
+   }
+
+   public void Dispose()
+   {
+      foreach (var factory in _commandFactories)
+         factory.Dispose();
    }
 }

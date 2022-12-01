@@ -5,7 +5,7 @@ using pwd.context.repl;
 namespace pwd.contexts.file.commands;
 
 public sealed class Up
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IState _state;
 
@@ -15,7 +15,7 @@ public sealed class Up
       _state = state;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return input switch
@@ -25,9 +25,13 @@ public sealed class Up
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
-      return Array.Empty<string>();
+      const string key = "..";
+      return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
+             key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
+         ? new[] { key }
+         : Array.Empty<string>();
    }
 }

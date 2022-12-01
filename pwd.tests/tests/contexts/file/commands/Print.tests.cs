@@ -17,7 +17,7 @@ public class Print_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Print(
             Mock.Of<IView>(),
             Mock.Of<IRepositoryItem>());
@@ -40,7 +40,7 @@ public class Print_Tests
          .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(content));
       
-      var factory =
+      using var factory =
          new Print(
             mockView.Object,
             mockItem.Object);
@@ -56,5 +56,29 @@ public class Print_Tests
       
       mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
       mockView.Verify(m => m.WriteLine(output), Times.Once);
+   }
+
+   [TestCase("", ".print")]
+   [TestCase(".", ".print")]
+   [TestCase(".PR", ".print")]
+   [TestCase(".Pr", ".print")]
+   [TestCase(".print", "")]
+   [TestCase(".print ", "")]
+   [TestCase(".print test", "")]
+   public void Suggestions_works_as_expected(
+      string input,
+      string suggestions)
+   {
+      using var factory =
+         new Print(
+            Mock.Of<IView>(),
+            Mock.Of<IRepositoryItem>());
+
+      Assert.That(
+         factory.Suggestions(input),
+         Is.EqualTo(
+            string.IsNullOrEmpty(suggestions)
+               ? Array.Empty<string>()
+               : suggestions.Split(';')));
    }
 }

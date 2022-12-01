@@ -17,7 +17,7 @@ public class Delete_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Delete(
             Mock.Of<IState>(),
             Mock.Of<IView>(),
@@ -50,7 +50,7 @@ public class Delete_Tests
 
       var mockRepository = new Mock<IRepository>();
       
-      var factory =
+      using var factory =
          new Delete(
             mockState.Object,
             mockView.Object,
@@ -68,5 +68,31 @@ public class Delete_Tests
       
       mockRepository
          .Verify(m => m.Delete("test"));
+   }
+
+   [TestCase("", ".rm")]
+   [TestCase(".", ".rm")]
+   [TestCase(".R", ".rm")]
+   [TestCase(".r", ".rm")]
+   [TestCase(".rm", "")]
+   [TestCase(".rm ", "")]
+   [TestCase(".rm test", "")]
+   public void Suggestions_works_as_expected(
+      string input,
+      string suggestions)
+   {
+      using var factory =
+         new Delete(
+            Mock.Of<IState>(),
+            Mock.Of<IView>(),
+            Mock.Of<IRepository>(),
+            Mock.Of<IRepositoryItem>());
+
+      Assert.That(
+         factory.Suggestions(input),
+         Is.EqualTo(
+            string.IsNullOrEmpty(suggestions)
+               ? Array.Empty<string>()
+               : suggestions.Split(';')));
    }
 }

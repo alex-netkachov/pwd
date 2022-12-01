@@ -22,4 +22,8 @@ public sealed class NullContext
          value?.SetResult();
       return Task.CompletedTask;
    }
+
+   public void Dispose()
+   {
+   }
 }

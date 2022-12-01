@@ -13,7 +13,7 @@ public class Up_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Up(
             Mock.Of<IState>());
 
@@ -27,7 +27,7 @@ public class Up_Tests
    {
       var mockState = new Mock<IState>();
 
-      var factory =
+      using var factory =
          new Up(
             mockState.Object);
 
@@ -41,5 +41,26 @@ public class Up_Tests
       await command.ExecuteAsync();
 
       mockState.Verify(m => m.BackAsync(), Times.Once);
+   }
+
+   [TestCase("", "..")]
+   [TestCase(".", "..")]
+   [TestCase("..", "")]
+   [TestCase(".. ", "")]
+   [TestCase("...", "")]
+   public void Suggestions_works_as_expected(
+      string input,
+      string suggestions)
+   {
+      using var factory =
+         new Up(
+            Mock.Of<IState>());
+
+      Assert.That(
+         factory.Suggestions(input),
+         Is.EqualTo(
+            string.IsNullOrEmpty(suggestions)
+               ? Array.Empty<string>()
+               : suggestions.Split(';')));
    }
 }

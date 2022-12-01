@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
@@ -142,6 +143,7 @@ public class State
       }
 
       await removed.StopAsync();
+      removed.Dispose();
       if (active != null)
          await active.StartAsync();
    }
@@ -176,6 +178,7 @@ public class State
 
    public async ValueTask DisposeAsync()
    {
+      List<IContext> contexts;
       IContext? active;
       ImmutableList<Channel<IStateChange>> channels;
 
@@ -190,6 +193,7 @@ public class State
             Subscribers: ImmutableList<Channel<IStateChange>>.Empty);
          if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
             continue;
+         contexts = new(initial.Stack);
          active = initial.Stack.IsEmpty ? null : initial.Stack.Peek();
          channels = initial.Subscribers;
          break;
@@ -197,6 +201,9 @@ public class State
 
       if (active != null)
          await active.StopAsync();
+
+      foreach (var context in contexts)
+         context.Dispose();
 
       var stateDisposed = new StateDisposed();
       foreach (var channel in channels)

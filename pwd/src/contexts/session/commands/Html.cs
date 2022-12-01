@@ -5,7 +5,7 @@ using pwd.context.repl;
 namespace pwd.contexts.session.commands;
 
 public sealed class Html
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IExporter _exporter;
 
@@ -15,7 +15,7 @@ public sealed class Html
       _exporter = exporter;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -32,7 +32,7 @@ public sealed class Html
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       return Array.Empty<string>();

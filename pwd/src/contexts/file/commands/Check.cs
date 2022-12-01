@@ -6,7 +6,7 @@ using pwd.repository;
 namespace pwd.contexts.file.commands;
 
 public sealed class Check
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IView _view;
    private readonly IRepositoryItem _item;
@@ -19,7 +19,7 @@ public sealed class Check
       _item = item;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -34,9 +34,13 @@ public sealed class Check
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
-      return Array.Empty<string>();
+      const string key = ".check";
+      return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
+             key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
+         ? new[] { key }
+         : Array.Empty<string>();
    }
 }

@@ -5,7 +5,7 @@ using pwd.context.repl;
 namespace pwd.contexts.shared;
 
 public sealed class Clear
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IView _view;
 
@@ -15,7 +15,7 @@ public sealed class Clear
       _view = view;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return input switch
@@ -25,7 +25,7 @@ public sealed class Clear
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       return Array.Empty<string>();

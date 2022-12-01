@@ -241,9 +241,9 @@ public sealed class Reader
                   var suggestion = "";
                   if (suggestions == null)
                   {
-                     var (offset, list) = suggestionsProvider.Suggestions(new(input.ToArray()[..position]));
+                     var list = suggestionsProvider.Suggestions(new(input.ToArray()[..position]));
                      suggestions = list;
-                     suggestionsOffset = offset;
+                     suggestionsOffset = position;
                      suggestionsIndex = -1;
                      suggestionsQueriedPosition = position;
                   }

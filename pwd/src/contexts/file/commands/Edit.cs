@@ -7,7 +7,7 @@ using pwd.repository;
 namespace pwd.contexts.file.commands;
 
 public sealed class Edit
-   : ICommandServices
+   : CommandServicesBase
 {
    private readonly IEnvironmentVariables _environmentVariables;
    private readonly IRunner _runner;
@@ -29,7 +29,7 @@ public sealed class Edit
       _item = item;
    }
 
-   public ICommand? Create(
+   public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -83,7 +83,7 @@ public sealed class Edit
       };
    }
 
-   public IReadOnlyList<string> Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       return Array.Empty<string>();

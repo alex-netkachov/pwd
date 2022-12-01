@@ -23,7 +23,7 @@ public class CopyField_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new CopyField(
             Mock.Of<IClipboard>(),
             Mock.Of<IRepositoryItem>());
@@ -51,7 +51,7 @@ public class CopyField_Tests
 
       var mockClipboard = new Mock<IClipboard>();
       
-      var factory =
+      using var factory =
          new CopyField(
             mockClipboard.Object,
             mockItem.Object);

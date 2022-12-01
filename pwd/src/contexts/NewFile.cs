@@ -104,17 +104,17 @@ public sealed class NewFile
       return Task.CompletedTask;
    }
 
-   public (int, IReadOnlyList<string>) Suggestions(
+   public IReadOnlyList<string> Suggestions(
       string input)
    {
-      return (input.Length, new[]
+      return new[]
          {
             ".help",
             "user",
             "password"
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-         .ToArray());
+         .ToArray();
    }
    
    private async Task Help()
@@ -129,6 +129,10 @@ public sealed class NewFile
       using var reader = new StreamReader(stream);
       var content = await reader.ReadToEndAsync();
       _view.WriteLine(content.TrimEnd());
+   }
+
+   public void Dispose()
+   {
    }
 }
 

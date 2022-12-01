@@ -13,7 +13,7 @@ public interface ICommand
 public sealed class DelegateCommand
    : ICommand
 {
-   private readonly Func<CancellationToken, Task>  _action;
+   private readonly Func<CancellationToken, Task> _action;
 
    public DelegateCommand(
       Func<CancellationToken, Task> action)

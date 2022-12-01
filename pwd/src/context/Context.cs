@@ -1,8 +1,10 @@
+using System;
 using System.Threading.Tasks;
 
 namespace pwd.context;
 
 public interface IContext
+   : IDisposable
 {
    /// <summary>Starts the context. The returned task completes when the context is started.</summary>
    /// <remarks>The context can be started and stopped multiple times. Multiple calls to the method returns the same

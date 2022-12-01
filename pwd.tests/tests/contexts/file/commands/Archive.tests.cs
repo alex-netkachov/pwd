@@ -17,7 +17,7 @@ public class Archive_Tests
       string input,
       bool creates)
    {
-      var factory =
+      using var factory =
          new Archive(
             Mock.Of<IState>(),
             Mock.Of<IRepositoryItem>());
@@ -33,7 +33,7 @@ public class Archive_Tests
       var mockItem = new Mock<IRepositoryItem>();
       var mockState = new Mock<IState>();
       
-      var factory =
+      using var factory =
          new Archive(
             mockState.Object,
             mockItem.Object);
@@ -49,5 +49,30 @@ public class Archive_Tests
 
       mockItem.Verify(m => m.Archive(), Times.Once);
       mockState.Verify(m => m.BackAsync(), Times.Once);
+   }
+
+   [TestCase("", ".archive")]
+   [TestCase(".", ".archive")]
+   [TestCase(".ARCH", ".archive")]
+   [TestCase(".Arch", ".archive")]
+   [TestCase(".arch", ".archive")]
+   [TestCase(".archive", "")]
+   [TestCase(".archive ", "")]
+   [TestCase(".archive test", "")]
+   public void Suggestions_works_as_expected(
+      string input,
+      string suggestions)
+   {
+      using var factory =
+         new Archive(
+            Mock.Of<IState>(),
+            Mock.Of<IRepositoryItem>());
+
+      Assert.That(
+         factory.Suggestions(input),
+         Is.EqualTo(
+            string.IsNullOrEmpty(suggestions)
+               ? Array.Empty<string>()
+               : suggestions.Split(';')));
    }
 }

@@ -99,54 +99,24 @@ public sealed class File
       return base.StopAsync();
    }
 
-   public override (int, IReadOnlyList<string>) Suggestions(
+   public override IReadOnlyList<string> Suggestions(
       string input)
    {
       if (!input.StartsWith('.'))
-         return (0, Array.Empty<string>());
+         return Array.Empty<string>();
 
-      if (input == "..")
-         return (0, Array.Empty<string>());
-
-      if (input.StartsWith(".cc ", StringComparison.Ordinal))
-      {
-         using var reader = new StringReader(_content);
-         var yaml = new YamlStream();
-         yaml.Load(reader);
-         if (yaml.Documents.First().RootNode is not YamlMappingNode mappingNode)
-            return (0, Array.Empty<string>());
-
-         // 4 is the length of the ".cc " string
-         var prefix = input[4..];
-
-         return (
-            input.Length,
-            mappingNode
-               .Children
-               .Select(item => item.Key.ToString())
-               .Where(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-               .Select(item => $".cc {item}")
-               .ToArray());
-      }
-
-      return (input.Length, new[]
+      return new[]
          {
-            ".archive",
-            ".cc",
-            ".ccp",
-            ".ccu",
-            ".check",
             ".clear",
             ".edit",
             ".lock",
             ".pwd",
             ".quit",
             ".rename",
-            ".rm",
-            ".unobscured"
          }
          .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-         .ToArray());
+         .Concat(base.Suggestions(input))
+         .ToArray();
    }
 }
 
