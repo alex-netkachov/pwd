@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using YamlDotNet.RepresentationModel;
 using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file.commands;
@@ -35,8 +33,6 @@ public sealed class File
 
    private readonly IRepositoryItem _item;
 
-   private string _content = "";
-
    private IRepositoryUpdatesReader? _subscription;
    private CancellationTokenSource? _cts;
 
@@ -52,8 +48,6 @@ public sealed class File
    {
       _view = view;
       _item = item;
-
-      _item.ReadAsync().ContinueWith(task => _content = task.Result);
    }
 
    protected override string Prompt()
@@ -97,26 +91,6 @@ public sealed class File
       _cts?.Cancel();
       _subscription?.Dispose();
       return base.StopAsync();
-   }
-
-   public override IReadOnlyList<string> Suggestions(
-      string input)
-   {
-      if (!input.StartsWith('.'))
-         return Array.Empty<string>();
-
-      return new[]
-         {
-            ".clear",
-            ".edit",
-            ".lock",
-            ".pwd",
-            ".quit",
-            ".rename",
-         }
-         .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-         .Concat(base.Suggestions(input))
-         .ToArray();
    }
 }
 
@@ -174,6 +148,5 @@ public sealed class FileFactory
             .Concat(Shared.CommandFactories(_state, @lock, _view))
             .Concat(new ICommandServices[] { new Print(_view, item) })
             .ToArray());
-
    }
 }

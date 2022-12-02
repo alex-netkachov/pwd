@@ -61,13 +61,10 @@ public sealed class Session
          {
             ".add",
             ".archive",
-            ".clear",
             ".export",
-            ".lock",
-            ".pwd",
-            ".quit"
          }
          .Where(item => item.StartsWith(input))
+         .Concat(base.Suggestions(input))
          .ToArray();
    }
 }

@@ -43,7 +43,7 @@ public sealed class List
       return new DelegateCommand(cancellationToken => Exec("", cancellationToken));
    }
    
-   private async Task Exec(
+   private Task Exec(
       string input,
       CancellationToken cancellationToken)
    {
@@ -81,6 +81,8 @@ public sealed class List
          else
             Open(chosen);
       }
+
+      return Task.CompletedTask;
    }
    
    private void Open(
