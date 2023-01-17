@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <DebugType>embedded</DebugType>
         <UseAppHost>true</UseAppHost>
         <LangVersion>default</LangVersion>
