@@ -1,4 +1,6 @@
+##
 # Builds a self-contained executables for windows and linix.
+#
 
 $command = "dotnet publish .\\pwd\\pwd.csproj -p:Version=2023.11.4.1 --configuration Release --self-contained"
 

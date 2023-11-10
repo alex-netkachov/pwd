@@ -1,5 +1,7 @@
+##
 # Restores packages, cleans, builds, publishes, and tests pwd.
 # Supposed to be executed from the solution folder.
+#
 
 dotnet restore
 if ($LastExitCode -ne 0) { exit $LastExitCode }
