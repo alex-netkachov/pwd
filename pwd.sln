@@ -1,27 +1,7 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd", "pwd\pwd.csproj", "{81FC405C-A886-4BD3-A731-8EE9ADF66FE5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.tests", "pwd.tests\pwd.tests.csproj", "{93F2FF93-15AD-427C-A7BD-BA90101030BF}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{DFD2D72D-3231-4021-B880-C4727570CD2E}"
-	ProjectSection(SolutionItems) = preProject
-		decrypt.sh = decrypt.sh
-		encrypt.sh = encrypt.sh
-		list.sh = list.sh
-		add.sh = add.sh
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "files", "files", "{9A521188-4150-405D-9517-2F40BF083B29}"
-	ProjectSection(SolutionItems) = preProject
-		README.md = README.md
-		NuGet.config = NuGet.config
-		pwd.bat = pwd.bat
-		pwd.sh = pwd.sh
-		pwd.tests.bat = pwd.tests.bat
-		release.sh = release.sh
-		pwd.tests.sh = pwd.tests.sh
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
