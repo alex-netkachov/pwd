@@ -43,7 +43,7 @@ async function main() {
         continue;
       try {
         const name = (await cf.decrypt(Buffer.from(file))).toString('utf-8');
-        console.log(`${file} -> ${name}`);
+        console.log(`${file} : ${name}`);
       } catch (err) {
         console.error('Error during decryption:', err.message);
       }

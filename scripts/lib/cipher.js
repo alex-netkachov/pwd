@@ -51,14 +51,6 @@ async function encrypt(password, input) {
   return Buffer.from(encoded, 'ascii');
 }
 
-function isEncrypted(input) {
-  return /^[\w\-]+=*$/.test(input)
-         && (input.length === 32
-             || input.length === 54
-             || input.length === 75
-             || input.length > 75);
-}
-
 function findEncryptedRegion(input, offset) {
   offset = offset || 0;
 
@@ -105,7 +97,6 @@ function cipher(password) {
            encrypt : input => encrypt(password, input) };
 }
 
-cipher.isEncrypted = isEncrypted;
 cipher.findEncryptedRegion = findEncryptedRegion;
 
 module.exports = cipher;

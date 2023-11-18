@@ -25,7 +25,8 @@ function readPassword(query, done) {
   });
 
   rl.question(query, value => {
-    rl.history = rl.history.slice(1);
+    rl.history = [];
+    rl.close();
     done(value);
   });
 }
