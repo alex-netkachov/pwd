@@ -1,7 +1,7 @@
 Commands:
 
 ..
-   closes the file
+   closes the current file
 .archive
    archives the current file
 .cc field
