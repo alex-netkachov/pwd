@@ -1,10 +1,11 @@
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using Moq;
-using pwd.ciphers;
+using NUnit.Framework;
 using pwd.contexts.file;
 using pwd.mocks;
 using pwd.readline;
-using pwd.repository;
+using pwd.repository.implementation;
 
 namespace pwd.tests.contexts;
 
@@ -31,12 +32,11 @@ public sealed class Session_Tests
 
       var logger = Mock.Of<ILogger>();
 
-      var cipher = new ContentCipher(password);
+      var cipher = new Cipher(password);
 
       var fs = Shared.FileLayout1(Shared.GetMockFs());
       var state = new State(logger);
-      var repository = new Repository(fs, new ZeroCipher(), cipher, ".");
-      await repository.Initialise();
+      var repository = new Repository(fs, cipher, Base64Url.Instance, ".");
 
       var channel = Channel.CreateUnbounded<string>();
       var console = new TestConsole(channel.Reader);

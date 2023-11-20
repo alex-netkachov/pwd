@@ -1,6 +1,11 @@
-﻿using System.IO.Abstractions;
+﻿using System;
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
+using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.repository;
 
@@ -25,7 +30,7 @@ public class Edit_Tests
             Mock.Of<IRunner>(),
             Mock.Of<IView>(),
             Mock.Of<IFileSystem>(),
-            Mock.Of<IRepositoryItem>());
+            Mock.Of<pwd.repository.IFile>());
 
       var command = factory.Create(input);
 
@@ -66,12 +71,12 @@ public class Edit_Tests
 
       var mockView = new Mock<IView>();
 
-      var mockItem = new Mock<IRepositoryItem>();
+      var mockItem = new Mock<pwd.repository.IFile>();
       mockItem
          .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(content));
       mockItem
-         .Setup(m => m.WriteAsync(It.IsAny<string>()))
+         .Setup(m => m.WriteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
          .Callback<string>(value => content = value)
          .Returns(Task.CompletedTask);
 

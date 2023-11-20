@@ -6,6 +6,7 @@ using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.contexts.session.commands;
 using pwd.repository;
+using pwd.repository.implementation;
 
 namespace pwd.contexts.session;
 
@@ -50,11 +51,20 @@ public sealed class Session
       {
          var p = input.LastIndexOf('/');
          var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-         return
-            _repository.List(folder == "" ? "." : folder)
-               .Where(item => item.Path.StartsWith(input))
-               .Select(item => item.Path)
-               .ToArray();
+         if (!_repository.TryParsePath(folder, out var path)
+             || path == null)
+         {
+            return [];
+         }
+
+         if (_repository.Get(path) is not IContainer container)
+            return [];
+
+         return container
+            .List()
+            .Where(item => ((repository.implementation.File)item).GetPath().ToString().StartsWith(input))
+            .Select((object item) => ((repository.implementation.File)item).GetPath().ToString()!)
+            .ToArray();
       }
 
       return new[]
@@ -112,7 +122,7 @@ public sealed class SessionFactory
                   new Open(repository, _fileFactory, @lock, _state)
                })
             .Concat(Shared.CommandFactories(_state, @lock, _view))
-            .Concat(new ICommandServices[] { new List(repository, _fileFactory, @lock, _state, _view) })
+            .Concat(new ICommandServices[] { new List(_logger, repository, _fileFactory, @lock, _state, _view) })
             .ToArray());
    }
 }

@@ -9,11 +9,11 @@ public sealed class Archive
    : CommandServicesBase
 {
    private readonly IState _state;
-   private readonly IRepositoryItem _item;
+   private readonly IItem _item;
 
    public Archive(
       IState state,
-      IRepositoryItem item)
+      IItem item)
    {
       _state = state;
       _item = item;
@@ -27,7 +27,7 @@ public sealed class Archive
          (_, "archive", _) => new DelegateCommand(
             () =>
             {
-               _item.Archive();
+               //_item.Repository.Archive(_item);
                _state.BackAsync();
             }),
          _ => null

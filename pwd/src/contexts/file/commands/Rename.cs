@@ -5,27 +5,24 @@ using pwd.repository;
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Rename
+public sealed class Rename(
+      IRepository repository,
+      INamedItem item)
    : CommandServicesBase
 {
-   private readonly IRepository _repository;
-   private readonly IRepositoryItem _item;
+   private readonly IRepository _repository = repository;
+   private readonly IItem _item = item;
 
-   public Rename(
-      IRepository repository,
-      IRepositoryItem item)
-   {
-      _repository = repository;
-      _item = item;
-   }
-
-   public override ICommand? Create(
+    public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
       {
          (_, "rename", var name) when !string.IsNullOrEmpty(name) =>
-            new DelegateCommand(() => _repository.Rename(_item.Name, name)),
+            new DelegateCommand(() => /*
+               _repository.Rename(
+                  _item.Name.ToPath(),
+                  Name.Parse(_item.Name.FileSystem, name).ToPath())*/ {}),
          _ => null
       };
    }
@@ -36,7 +33,7 @@ public sealed class Rename
       const string key = ".rename";
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
-         ? new[] { key }
+         ? [ key ]
          : Array.Empty<string>();
    }
 }

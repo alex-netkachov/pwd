@@ -9,14 +9,14 @@ public sealed class Unobscured
    : CommandServicesBase
 {
    private readonly IView _view;
-   private readonly IRepositoryItem _item;
+   private readonly repository.IFile _file;
 
    public Unobscured(
       IView view,
-      IRepositoryItem item)
+      repository.IFile file)
    {
       _view = view;
-      _item = item;
+      _file = file;
    }
 
    public override ICommand? Create(
@@ -26,7 +26,7 @@ public sealed class Unobscured
       {
          (_, "unobscured", _) => new DelegateCommand(async cancellationToken =>
          {
-            var content = await _item.ReadAsync(cancellationToken);
+            var content = await _file.ReadAsync(cancellationToken);
             _view.WriteLine(content);
          }),
          _ => null

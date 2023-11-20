@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <DebugType>embedded</DebugType>
-    <LangVersion>default</LangVersion>
+    <LangVersion>preview</LangVersion>
     <Nullable>enable</Nullable>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>

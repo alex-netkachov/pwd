@@ -34,7 +34,13 @@ public sealed class Open
          (_, "open", var name) =>
             new DelegateCommand(() =>
             {
-               var item = _repository.Get(name);
+               if (!_repository.TryParsePath(name, out var path)
+                   || path == null)
+               {
+                  return;
+               }
+
+               var item = _repository.Get(path) as repository.IFile;
                if (item == null)
                   return;
 

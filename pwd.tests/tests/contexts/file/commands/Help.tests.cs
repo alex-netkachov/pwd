@@ -1,4 +1,6 @@
-﻿using Moq;
+﻿using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.repository;
 
@@ -66,7 +68,7 @@ public class Help_Tests
          factory.Suggestions(input),
          Is.EqualTo(
             string.IsNullOrEmpty(suggestions)
-               ? Array.Empty<string>()
+               ? []
                : suggestions.Split(';')));
    }
 }

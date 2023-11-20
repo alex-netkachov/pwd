@@ -1,4 +1,8 @@
-﻿using Moq;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.repository;
 
@@ -26,7 +30,7 @@ public class CopyField_Tests
       using var factory =
          new CopyField(
             Mock.Of<IClipboard>(),
-            Mock.Of<IRepositoryItem>());
+            Mock.Of<IFile>());
 
       var command = factory.Create(input);
 
@@ -44,7 +48,7 @@ public class CopyField_Tests
       string expected,
       string content)
    {
-      var mockItem = new Mock<IRepositoryItem>();
+      var mockItem = new Mock<IFile>();
       mockItem
          .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(content));

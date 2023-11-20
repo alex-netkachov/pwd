@@ -1,47 +1,41 @@
-﻿using System.Text;
-using pwd.ciphers;
+﻿using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace pwd.mocks;
 
 public sealed class ZeroCipher
-   : INameCipher,
-      IContentCipher
+   : ICipher
 {
    public static readonly ZeroCipher Instance = new();
 
-   public int EncryptString(
-      string text,
-      Stream stream)
+   public void Decrypt(
+      Stream input,
+      Stream output)
    {
-      var data = Encoding.UTF8.GetBytes(text);
-      stream.Write(data);
-      return data.Length;
+      input.CopyToAsync(output);
    }
 
-   public Task<int> EncryptStringAsync(
-      string text,
-      Stream stream,
+   public Task DecryptAsync(
+      Stream input,
+      Stream output,
       CancellationToken cancellationToken = default)
    {
-      cancellationToken.ThrowIfCancellationRequested();
-      var data = Encoding.UTF8.GetBytes(text);
-      stream.Write(data);
-      return Task.FromResult(data.Length);
+      return input.CopyToAsync(output, cancellationToken);
    }
 
-   public string DecryptString(
-      Stream stream)
+   public void Encrypt(
+      Stream input,
+      Stream output)
    {
-      using var reader = new StreamReader(stream);
-      return reader.ReadToEnd();
+      input.CopyToAsync(output);
    }
 
-   public async Task<string> DecryptStringAsync(
-      Stream stream,
+   public Task EncryptAsync(
+      Stream input,
+      Stream output,
       CancellationToken cancellationToken = default)
    {
-      cancellationToken.ThrowIfCancellationRequested();
-      using var reader = new StreamReader(stream);
-      return await reader.ReadToEndAsync();
+      return input.CopyToAsync(output, cancellationToken);
    }
 }

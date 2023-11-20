@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -57,5 +58,23 @@ public static class StreamExtensions
       using var memoryStream = new MemoryStream();
       await stream.CopyToAsync(memoryStream, cancellationToken);
       return memoryStream.ToArray();
+   }
+
+   public static MemoryStream AsStream(
+      this string text)
+   {
+      return new MemoryStream(Encoding.UTF8.GetBytes(text));
+   }
+
+      public static MemoryStream AsStream(
+      this byte[] bytes)
+   {
+      return new MemoryStream(bytes);
+   }
+
+   public static string AsString(
+      this MemoryStream stream)
+   {
+      return Encoding.UTF8.GetString(stream.ToArray());
    }
 }

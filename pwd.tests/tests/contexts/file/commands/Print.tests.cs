@@ -1,4 +1,8 @@
-﻿using Moq;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.repository;
 
@@ -20,7 +24,7 @@ public class Print_Tests
       using var factory =
          new Print(
             Mock.Of<IView>(),
-            Mock.Of<IRepositoryItem>());
+            Mock.Of<IFile>());
 
       var command = factory.Create(input);
 
@@ -35,7 +39,7 @@ public class Print_Tests
 
       var mockView = new Mock<IView>();
 
-      var mockItem = new Mock<IRepositoryItem>();
+      var mockItem = new Mock<IFile>();
       mockItem
          .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(content));
@@ -72,13 +76,13 @@ public class Print_Tests
       using var factory =
          new Print(
             Mock.Of<IView>(),
-            Mock.Of<IRepositoryItem>());
+            Mock.Of<IFile>());
 
       Assert.That(
          factory.Suggestions(input),
          Is.EqualTo(
             string.IsNullOrEmpty(suggestions)
-               ? Array.Empty<string>()
+               ? []
                : suggestions.Split(';')));
    }
 }

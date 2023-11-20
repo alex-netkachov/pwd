@@ -1,15 +1,18 @@
+using System;
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
-using pwd.ciphers;
+using NUnit.Framework;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.readline;
-using pwd.mocks;
 using pwd.repository;
+using pwd.repository.implementation;
 
 namespace pwd;
 
@@ -27,11 +30,8 @@ public static class Shared
       IState? state = null,
       ILock? @lock = null)
    {
-      path = string.IsNullOrEmpty(path) ? Path.GetFileName(Path.GetTempFileName()) : path;
-      name = string.IsNullOrEmpty(path) ? Path.GetFileName(path) : name;
-      repository ??= Mock.Of<IRepository>();
-      
       var builder = Host.CreateDefaultBuilder();
+      
       builder.ConfigureServices(
          services =>
             services
@@ -40,27 +40,48 @@ public static class Shared
                .AddSingleton(runner ?? Mock.Of<IRunner>())
                .AddSingleton(clipboard ?? Mock.Of<IClipboard>())
                .AddSingleton(fs ?? Mock.Of<IFileSystem>())
-               .AddSingleton(repository)
+               .AddSingleton(repository ?? Mock.Of<IRepository>())
                .AddSingleton(state ?? Mock.Of<IState>())
                .AddSingleton(view ?? Mock.Of<IView>())
                .AddSingleton<IFileFactory, FileFactory>());
 
       using var host = builder.Build();
 
-      var mockRepositoryItem = new Mock<IRepositoryItem>();
+      return CreateFileContext(path, name, content, host);
+
+   }
+
+   private static contexts.file.File CreateFileContext(
+      string path,
+      string name,
+      string content,
+      IHost host)
+   {
+      path =
+         string.IsNullOrEmpty(path)
+            ? System.IO.Path.GetFileName(System.IO.Path.GetTempFileName())
+            : path;
+
+      var fs = host.Services.GetRequiredService<IFileSystem>();
+      var repository = host.Services.GetRequiredService<IRepository>();
+      var @lock = host.Services.GetRequiredService<ILock>();
+
+      var fileName =
+         Name.Parse(fs, string.IsNullOrEmpty(path)
+         ? System.IO.Path.GetFileName(path)
+         : name);
+
+      var mockRepositoryItem = new Mock<repository.IFile>();
       mockRepositoryItem
          .SetupGet(m => m.Name)
-         .Returns(name);
+         .Returns(fileName);
       mockRepositoryItem
          .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(() => Task.FromResult(content));
 
       return (contexts.file.File)host.Services
          .GetRequiredService<IFileFactory>()
-         .Create(
-            repository,
-            @lock ?? Mock.Of<ILock>(),
-            mockRepositoryItem.Object);
+         .Create(repository, @lock, mockRepositoryItem.Object);
    }
 
    public static Session CreateSessionContext(
@@ -98,7 +119,7 @@ public static class Shared
    {
       var fs = new MockFileSystem();
       fs.Directory.CreateDirectory("container/test");
-      var dir = fs.DirectoryInfo.FromDirectoryName("container/test").FullName;
+      var dir = fs.DirectoryInfo.New("container/test").FullName;
       fs.Directory.SetCurrentDirectory(dir);
       return fs;
    }
@@ -106,7 +127,7 @@ public static class Shared
    public static IFileSystem FileLayout1(IFileSystem fs)
    {
       const string text = "test"; 
-      var cipher = new ContentCipher("secret");
+      var cipher = new Cipher("secret");
       var encrypted = cipher.Encrypt(text);
 
       fs.File.WriteAllText("file", text);
@@ -131,8 +152,7 @@ public static class Shared
       var fs = FileLayout1(GetMockFs());
       var console = new StandardConsole();
       var view = new View(console, new Reader(console));
-      var repository = new Repository(fs, new ZeroCipher(), new ContentCipher("secret"), ".");
-      await repository.Initialise();
+      var repository = new Repository(fs, new Cipher("secret"), Base64Url.Instance, ".");
       var session = CreateSessionContext(repository, view: view);
       Assert.That(string.Join(";", session.Suggestions("../")), Is.EqualTo("../test"));
       Assert.That(string.Join(";", session.Suggestions("")), Is.EqualTo("encrypted;regular_dir"));

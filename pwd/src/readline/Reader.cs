@@ -14,11 +14,11 @@ public interface IReader
    Task<string> ReadAsync(
       string prompt = "",
       ISuggestionsProvider? suggestionsProvider = null,
-      CancellationToken cancellationToken = default);
+      CancellationToken token = default);
 
    Task<string> ReadPasswordAsync(
       string prompt = "",
-      CancellationToken cancellationToken = default);
+      CancellationToken token = default);
 }
 
 public sealed class Reader

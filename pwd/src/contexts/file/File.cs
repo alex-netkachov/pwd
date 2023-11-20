@@ -21,7 +21,7 @@ public interface IFileFactory
    IFile Create(
       IRepository repository,
       ILock @lock,
-      IRepositoryItem item);
+      repository.IFile file);
 }
 
 /// <summary>Encrypted file context.</summary>
@@ -31,15 +31,15 @@ public sealed class File
 {
    private readonly IView _view;
 
-   private readonly IRepositoryItem _item;
+   private readonly repository.IFile _file;
 
-   private IRepositoryUpdatesReader? _subscription;
+   //private IRepositoryUpdatesReader? _subscription;
    private CancellationTokenSource? _cts;
 
    public File(
       ILogger logger,
       IView view,
-      IRepositoryItem item,
+      repository.IFile file,
       IReadOnlyCollection<ICommandServices> factories)
    : base(
       logger,
@@ -47,25 +47,25 @@ public sealed class File
       factories)
    {
       _view = view;
-      _item = item;
+      _file = file;
    }
 
    protected override string Prompt()
    {
-      return _item.Name;
+      return _file.Name.ToString();
    }
 
    public override async Task StartAsync()
    {
-      var print = new Print(_view, _item).Create("");
+      var print = new Print(_view, _file).Create("");
       if (print != null)
          await print.ExecuteAsync();
 
       _cts = new();
 
       var token = _cts.Token;
-      
-      _subscription = _item.Subscribe();
+/*
+      _subscription = _file.Subscribe();
 
       var _ = Task.Run(async () =>
       {
@@ -82,14 +82,14 @@ public sealed class File
             }
          }
       }, token);
-
+*/
       await base.StartAsync();
    }
 
    public override Task StopAsync()
    {
       _cts?.Cancel();
-      _subscription?.Dispose();
+      //_subscription?.Dispose();
       return base.StopAsync();
    }
 }
@@ -126,27 +126,27 @@ public sealed class FileFactory
    public IFile Create(
       IRepository repository,
       ILock @lock,
-      IRepositoryItem item)
+      repository.IFile file)
    {
       return new File(
          _logger,
          _view,
-         item,
+         file,
          Array.Empty<ICommandServices>()
             .Concat(new ICommandServices[]
             {
-               new Archive(_state, item),
-               new Check(_view, item),
-               new CopyField(_clipboard, item),
-               new Delete(_state, _view, repository, item),
-               new Edit(_environmentVariables, _runner, _view, _fs, item),
+               new Archive(_state, file),
+               new Check(_view, file),
+               new CopyField(_clipboard, file),
+               new Delete(_state, _view, repository, file),
+               new Edit(_environmentVariables, _runner, _view, _fs, file),
                new Help(_view),
-               new Rename(repository, item),
-               new Unobscured(_view, item),
+               new Rename(repository, file),
+               new Unobscured(_view, file),
                new Up(_state)
             })
             .Concat(Shared.CommandFactories(_state, @lock, _view))
-            .Concat(new ICommandServices[] { new Print(_view, item) })
+            .Concat(new ICommandServices[] { new Print(_view, file) })
             .ToArray());
    }
 }

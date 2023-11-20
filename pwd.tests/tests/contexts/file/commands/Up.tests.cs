@@ -1,4 +1,6 @@
-﻿using Moq;
+﻿using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
 using pwd.contexts.file.commands;
 
 namespace pwd.tests.contexts.file.commands;
@@ -60,7 +62,7 @@ public class Up_Tests
          factory.Suggestions(input),
          Is.EqualTo(
             string.IsNullOrEmpty(suggestions)
-               ? Array.Empty<string>()
+               ? []
                : suggestions.Split(';')));
    }
 }

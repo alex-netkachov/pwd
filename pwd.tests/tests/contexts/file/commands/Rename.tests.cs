@@ -1,4 +1,7 @@
-﻿using Moq;
+﻿using System.IO.Abstractions;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.repository;
 
@@ -20,7 +23,7 @@ public class Rename_Tests
       using var factory =
          new Rename(
             Mock.Of<IRepository>(),
-            Mock.Of<IRepositoryItem>());
+            Mock.Of<INamedItem>());
 
       var command = factory.Create(input);
 
@@ -30,10 +33,10 @@ public class Rename_Tests
    [Test]
    public async Task DoAsync_calls_repository_delete()
    {
-      var mockItem = new Mock<IRepositoryItem>();
+      var mockItem = new Mock<INamedItem>();
       mockItem
          .SetupGet(m => m.Name)
-         .Returns("test");
+         .Returns(Name.Parse(Mock.Of<IFileSystem>(), "test"));
 
       var mockRepository = new Mock<IRepository>();
       
@@ -52,6 +55,6 @@ public class Rename_Tests
       await command.ExecuteAsync();
       
       mockRepository
-         .Verify(m => m.Rename("test", "ok"));
+         .Verify(m => m.Move(It.IsAny<pwd.repository.IFile>(), It.IsAny<Path>()));
    }
 }

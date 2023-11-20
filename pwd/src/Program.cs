@@ -7,12 +7,12 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using pwd.ciphers;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.readline;
 using pwd.repository;
+using pwd.repository.implementation;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
 
@@ -27,6 +27,7 @@ public static class Program
          ILogger logger,
          IConsole console,
          IFileSystem fs,
+         ICipherFactory cipherFactory,
          IView view)
    {
       var builder = Host.CreateDefaultBuilder();
@@ -38,15 +39,15 @@ public static class Program
                .AddSingleton(fs)
                .AddSingleton(view)
                .AddSingleton(console)
+               .AddSingleton(cipherFactory)
                .AddSingleton<IRunner, Runner>()
                .AddSingleton<ITimers, Timers>()
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IState, State>()
                .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
-               .AddSingleton<IRepositoryFactory, RepositoryFactory>()
+               .AddSingleton<IFactory, RepositoryFactory>()
                .AddSingleton<IExporterFactory, ExporterFactory>()
-               .AddSingleton<INameCipherFactory, NameCipherFactory>()
-               .AddSingleton<IContentCipherFactory, ContentCipherFactory>()
+               .AddSingleton<IEncoder, Base64Url>()
                .AddSingleton<ISessionFactory, SessionFactory>()
                .AddSingleton<IFileFactory, FileFactory>()
                .AddSingleton<INewFileFactory, NewFileFactory>()
@@ -74,31 +75,18 @@ public static class Program
       var @lock = services.GetRequiredService<ILockFactory>().Create(password, settings.LockTimeout);
       @lock.Password();
 
-      var contentCipher = services.GetRequiredService<IContentCipherFactory>().Create(password);
-      var nameCipher = services.GetRequiredService<INameCipherFactory>().Create(password);
-      var repository = services.GetRequiredService<IRepositoryFactory>().Create(nameCipher, contentCipher, path);
+      var cipher = services.GetRequiredService<ICipherFactory>().Create(password);
+      var repository = services.GetRequiredService<IFactory>().Create(password, path);
 
       try
       {
          var decryptErrors = new List<string>();
          var yamlErrors = new List<string>();
-         await ((Repository) repository).Initialise((file, name, decryptError, yamlError) =>
+
+         await foreach (var item in repository.Root.ListAsync())
          {
-            if (decryptError != null)
-            {
-               view.Write("*");
-               decryptErrors.Add(file);
-            }
-            else if (yamlError != null)
-            {
-               view.Write("+");
-               yamlErrors.Add(name ?? file);
-            }
-            else
-            {
-               view.Write(".");
-            }
-         });
+            view.Write(".");
+         }
 
          view.WriteLine("");
 
@@ -118,7 +106,8 @@ public static class Program
          return;
       }
 
-      var files = repository.List(".", (true, false, true)).ToList();
+      /*
+      var files = repository.Root.List(new ListOptions(true, false, true)).ToList();
       view.WriteLine($"repository contains {files.Count} file{files.Count switch {1 => "", _ => "s"}}");
 
       if (files.Count == 0)
@@ -131,8 +120,9 @@ public static class Program
             return;
          }
       }
+      */
 
-      var exporter = services.GetRequiredService<IExporterFactory>().Create(contentCipher, repository);
+      var exporter = services.GetRequiredService<IExporterFactory>().Create(cipher, repository);
       var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter, @lock);
 
       var state = services.GetRequiredService<IState>();
@@ -148,6 +138,7 @@ public static class Program
       var console = new StandardConsole();
       var view = new View(console, new Reader(console));
       var fs = new FileSystem();
+      var cipherFactory = new CipherFactory();
 
       var isGitRepository =
          fs.Directory.Exists(".git") ||
@@ -166,7 +157,7 @@ public static class Program
          }
       }
 
-      using var host = SetupHost(logger, console, fs, view);
+      using var host = SetupHost(logger, console, fs, cipherFactory, view);
 
       await Run(host, new(TimeSpan.FromMinutes(5)));
 

@@ -13,20 +13,20 @@ public sealed class Edit
    private readonly IRunner _runner;
    private readonly IView _view;
    private readonly IFileSystem _fs;
-   private readonly IRepositoryItem _item;
+   private readonly repository.IFile _file;
 
    public Edit(
       IEnvironmentVariables environmentVariables,
       IRunner runner,
       IView view,
       IFileSystem fs,
-      IRepositoryItem item)
+      repository.IFile file)
    {
       _environmentVariables = environmentVariables;
       _runner = runner;
       _view = view;
       _fs = fs;
-      _item = item;
+      _file = file;
    }
 
    public override ICommand? Create(
@@ -47,7 +47,7 @@ public sealed class Edit
                return;
             }
 
-            var content = await _item.ReadAsync(cancellationToken);
+            var content = await _file.ReadAsync(cancellationToken);
 
             var path = _fs.Path.GetTempFileName();
 
@@ -71,7 +71,7 @@ public sealed class Edit
                }
                else
                {
-                  await _item.WriteAsync(updated);
+                  await _file.WriteAsync(updated);
                }
             }
             finally

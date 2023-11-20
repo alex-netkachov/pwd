@@ -4,8 +4,8 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using pwd.ciphers;
 using pwd.repository;
+using pwd.repository.implementation;
 
 namespace pwd;
 
@@ -18,23 +18,23 @@ public interface IExporter
 public interface IExporterFactory
 {
    IExporter Create(
-      IContentCipher contentCipher,
+      ICipher cipher,
       IRepository repository);
 }
 
 public sealed class Exporter
    : IExporter
 {
-   private readonly IContentCipher _contentCipher;
+   private readonly ICipher _cipher;
    private readonly IFileSystem _fs;
    private readonly IRepository _repository;
 
    public Exporter(
-      IContentCipher contentCipher,
+      ICipher cipher,
       IRepository repository,
       IFileSystem fs)
    {
-      _contentCipher = contentCipher;
+      _cipher = cipher;
       _repository = repository;
       _fs = fs;
    }
@@ -42,28 +42,30 @@ public sealed class Exporter
    public async Task Export(
       string path)
    {
-      await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pwd.res.template.html");
+      await using var stream =
+         Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("pwd.res.template.html");
+
       if (stream == null)
          return;
+
       using var reader = new StreamReader(stream);
+
       var template = await reader.ReadToEndAsync();
 
       // for now, only the files in the main folder
-      var files =
-         _repository
-            .List(".")
-            .ToList();
+      var files = _repository.Root.List().ToList();
 
       var script = "{ " + string.Join(",\n  ",
          files
             .OrderBy(item => item.Name)
             .Select(item =>
             {
-               var content = _fs.File.ReadAllBytes(item.EncryptedPath);
+               var content = _fs.File.ReadAllBytes(((repository.implementation.File)item).GetEncryptedPath().ToString());
                return (item.Name, Content: string.Join("", Convert.ToHexString(content)));
             })
             .Select(item => $"\"{item.Name}\" : \"{item.Content}\"")) + " }";
-      var encrypted = Convert.ToHexString(await _contentCipher.EncryptAsync(script));
+      var encrypted = Convert.ToHexString(await _cipher.EncryptAsync(script));
       var content = template.Replace("const data = await testData();", $"const data = '{encrypted}';");
       await _fs.File.WriteAllTextAsync(path, content);
    }
@@ -81,11 +83,11 @@ public sealed class ExporterFactory
    }
 
    public IExporter Create(
-      IContentCipher contentCipher,
+      ICipher cipher,
       IRepository repository)
    {
       return new Exporter(
-         contentCipher,
+         cipher,
          repository,
          _fs);
    }

@@ -10,14 +10,14 @@ public sealed class Print
    : CommandServicesBase
 {
    private readonly IView _view;
-   private readonly IRepositoryItem _item;
+   private readonly repository.IFile _file;
 
    public Print(
       IView view,
-      IRepositoryItem item)
+      repository.IFile file)
    {
       _view = view;
-      _item = item;
+      _file = file;
    }
 
    public override ICommand? Create(
@@ -35,7 +35,7 @@ public sealed class Print
    {
       return new DelegateCommand(async cancellationToken =>
       {
-         var content = await _item.ReadAsync(cancellationToken);
+         var content = await _file.ReadAsync(cancellationToken);
 
          var obscured =
             Regex.Replace(

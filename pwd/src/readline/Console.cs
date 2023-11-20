@@ -6,15 +6,17 @@ using System.Threading.Tasks;
 
 namespace pwd.readline;
 
-/// <summary>Provides reading access to the buffered stream of console input-related events.</summary>
+/// <summary>Represents an interface for reading console input asynchronously.</summary>
 /// <remarks>The reader should be disposed when the client is no longer interested in the events.</remarks>
 public interface IConsoleReader
    : IDisposable
 {
+   /// <summary>Asynchronously reads a single console key, without echoing the key to the console.</summary>
    ValueTask<ConsoleKeyInfo> ReadAsync(
-      CancellationToken cancellationToken = default);
+      CancellationToken token = default);
 }
 
+/// <summary>Provides a method for asynchronously reading keys from the console.</summary>
 public sealed class ConsoleReader
    : IConsoleReader
 {
@@ -36,7 +38,7 @@ public sealed class ConsoleReader
       return _reader.ReadAsync(cancellationToken);
    }
 
-   public void Dispose()
+      public void Dispose()
    {
       if (Interlocked.Increment(ref _disposed) != 1)
          return;

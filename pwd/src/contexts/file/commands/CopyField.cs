@@ -14,19 +14,19 @@ public sealed class CopyField
    : CommandServicesBase
 {
    private readonly IClipboard _clipboard;
-   private readonly IRepositoryItem _item;
-   private readonly IRepositoryUpdatesReader? _subscription;
+   private readonly repository.IFile _file;
+   //private readonly IRepositoryUpdatesReader? _subscription;
    private readonly CancellationTokenSource _cts;
    
    private string _content = "";
 
    public CopyField(
       IClipboard clipboard,
-      IRepositoryItem item)
+      repository.IFile file)
    {
       _clipboard = clipboard;
-      _item = item;
-
+      _file = file;
+/*
       _subscription = _item.Subscribe();
       
       _cts = new();
@@ -44,6 +44,7 @@ public sealed class CopyField
             _content = await _item.ReadAsync(token);
          }
       }, token);
+      */
    }
 
    public override ICommand? Create(
@@ -71,7 +72,7 @@ public sealed class CopyField
    private async Task<string> Field(
       string name)
    {
-      var content = await _item.ReadAsync();
+      var content = await _file.ReadAsync();
 
       using var input = new StringReader(content);
 
@@ -130,7 +131,7 @@ public sealed class CopyField
    public override void Dispose()
    {
       _cts.Cancel();
-      _subscription?.Dispose();
+      //_subscription?.Dispose();
       base.Dispose();
    }
 }

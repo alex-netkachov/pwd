@@ -47,14 +47,16 @@ public sealed class Clipboard
 
       Task.Run(async () =>
       {
-         while (!reader.Completion.IsCompleted && !token.IsCancellationRequested)
+         while (!reader.Completion.IsCompleted
+                && !token.IsCancellationRequested)
          {
             string text;
             try
             {
                text = await reader.ReadAsync(token);
             }
-            catch (OperationCanceledException e) when (e.CancellationToken == token)
+            catch (OperationCanceledException e)
+               when (e.CancellationToken == token)
             {
                break;
             }
@@ -81,7 +83,9 @@ public sealed class Clipboard
       {
       }
 
-      _cleaner.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+      _cleaner.Change(
+         Timeout.InfiniteTimeSpan,
+         Timeout.InfiniteTimeSpan);
    }
 
    public void Dispose()

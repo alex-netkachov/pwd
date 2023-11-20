@@ -3,14 +3,10 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace pwd.repository;
-
-public interface IRepositoryUpdate
-{
-}
+namespace pwd.repository.implementation;
 
 public sealed class Moved
-   : IRepositoryUpdate
+   : IUpdate
 {
    public Moved(
       string path)
@@ -22,38 +18,38 @@ public sealed class Moved
 }
 
 public sealed class Modified
-   : IRepositoryUpdate
+   : IUpdate
 {
 }
 
 public sealed class Deleted
-   : IRepositoryUpdate
+   : IUpdate
 {
 }
 
 public interface IRepositoryUpdatesReader
    : IDisposable
 {
-   ValueTask<IRepositoryUpdate> ReadAsync(
+   ValueTask<IUpdate> ReadAsync(
       CancellationToken cancellationToken = default);
 }
 
 public sealed class RepositoryUpdatesReader
    : IRepositoryUpdatesReader
 {
-   private readonly ChannelReader<IRepositoryUpdate> _reader;
+   private readonly ChannelReader<IUpdate> _reader;
    private readonly Action _disposing;
    private int _disposed;
 
    public RepositoryUpdatesReader(
-      ChannelReader<IRepositoryUpdate> reader,
+      ChannelReader<IUpdate> reader,
       Action? disposing = null)
    {
       _reader = reader;
       _disposing = disposing ?? new Action(() => { });
    }
 
-   public ValueTask<IRepositoryUpdate> ReadAsync(
+   public ValueTask<IUpdate> ReadAsync(
       CancellationToken cancellationToken = default)
    {
       return _reader.ReadAsync(cancellationToken);

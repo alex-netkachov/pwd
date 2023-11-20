@@ -1,4 +1,7 @@
-﻿using System.Threading.Channels;
+﻿using System;
+using System.Threading;
+using System.Threading.Channels;
+using NUnit.Framework;
 using pwd.readline;
 
 namespace pwd.tests.readline;

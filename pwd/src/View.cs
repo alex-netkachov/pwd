@@ -98,7 +98,7 @@ public sealed class View
       string input;
       try
       {
-         input = await _reader.ReadAsync($"{question} ({yes}/{no}) ", cancellationToken: cts.Token);
+         input = await _reader.ReadAsync($"{question} ({yes}/{no}) ", token: cts.Token);
       }
       finally
       {

@@ -1,13 +1,16 @@
 ﻿using System.Threading.Channels;
 using Moq;
-using pwd.ciphers;
 using pwd.readline;
 using pwd.mocks;
 using pwd.repository;
+using NUnit.Framework;
+using System.Threading.Tasks;
+using System.Threading;
+using System;
+using pwd.repository.implementation;
 
 namespace pwd.tests;
 
-[TestFixture]
 public class Integration_Tests
 {
    private static readonly Settings DefaultSettings = new(Timeout.InfiniteTimeSpan);
@@ -72,8 +75,9 @@ public class Integration_Tests
       using var console = new TestConsole(input.Reader);
       using var reader = new Reader(console);
       var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(logger, console, fs, view);
+      using var host = Program.SetupHost(logger, console, fs, cipherFactory, view);
 
       logger.Info("Before Program.Run(...)");
       await Program.Run(host, DefaultSettings);
@@ -104,7 +108,7 @@ public class Integration_Tests
    [Timeout(5000)]
    public async Task Initialise_from_empty_repository()
    {
-      var logger = new NullLogger();
+      var logger = new ConsoleLogger();
 
       var fs = Shared.GetMockFs();
 
@@ -146,8 +150,9 @@ public class Integration_Tests
       using var console = new TestConsole(input.Reader);
       using var reader = new Reader(console);
       var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(logger, console, fs, view);
+      using var host = Program.SetupHost(logger, console, fs, cipherFactory, view);
 
       logger.Info("Before Program.Run(...)");
       await Program.Run(host, DefaultSettings);
@@ -187,16 +192,17 @@ public class Integration_Tests
       });
 
       var fs = Shared.GetMockFs();
-      var nameCipher = new NameCipher("secret");
-      var contentCipher = new ContentCipher("secret");
-      var repository = new Repository(fs, nameCipher, contentCipher, ".");
-      await repository.WriteAsync("file1", "content1");
+      var cipher = new Cipher("secret");
+      var repository = new Repository(fs, cipher, Base64Url.Instance, ".");
+      var file1 = repository.CreateFile(Path.From(Name.Parse(fs, "file1")));
+      await repository.WriteAsync(file1, "content1");
       
       using var console = new TestConsole(input.Reader);
       using var reader = new Reader(console);
       var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
-      
-      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, view);
+      var cipherFactory = new FastTestCipherFactory();
+
+      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
       await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
@@ -240,8 +246,9 @@ public class Integration_Tests
       using var console = new TestConsole(input.Reader);
       using var reader = new Reader(console);
       var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
-      
-      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, view);
+      var cipherFactory = new FastTestCipherFactory();
+
+      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
       await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
@@ -280,8 +287,9 @@ public class Integration_Tests
       using var console = new TestConsole(input.Reader);
       using var reader = new Reader(console);
       var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, view);
+      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
 
       await Program.Run(host, new(TimeSpan.FromSeconds(1)));
 

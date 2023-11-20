@@ -32,6 +32,42 @@ public abstract class CommandServicesBase
    }
 }
 
+/// <summary>
+///   Repl is a Read-Eval-Print-Loop (REPL) context. It serves as a foundational
+///   context for other command-line user interface contexts.
+/// </summary>
+/// <remarks>
+///   A REPL context reads the user's input, evaluates it, and then prints
+///   the result.
+///
+///   The basic elements of this REPL interface include a prompt, a command,
+///   command parameters, and a result.
+///
+///   The prompt is a string that is displayed before the user's input to
+///   indicate readiness for input.
+///
+///   The command is a string entered by the user that typically starts with
+///   a period ('.').
+///
+///   The default command is assumed when the user's input does not start
+///   with a period. This default command takes a single argument: the user's
+///   input.
+///
+///   Command parameters are space-separated values. Spaces within parameters
+///   can be escaped with quotes. To include quotes within a parameter, they
+///   must be doubled up. Both single ('') and double ("") quotes are supported.
+///
+///   The result of a command is a string that is displayed after the command
+///   has been processed and executed.
+///
+///   The REPL context can be stopped any time. It restarts with the current
+///   user input and the view.
+///
+///   Stopping the context does not stop the command, it continues to update
+///   the view.
+///
+///   The command can be stopped by pressing Ctrl+C.
+/// </remarks>
 public abstract class Repl
    : IContext,
       ISuggestionsProvider
@@ -68,8 +104,12 @@ public abstract class Repl
             .FirstOrDefault(item => item != null);
 
       if (command == null)
+      {
+         _logger.Info($"no commands for input '{input}'");
          return;
+      }
 
+      _logger.Info($"executing command {command}");
       await command.ExecuteAsync(cancellationToken);
    }
 

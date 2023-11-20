@@ -1,6 +1,9 @@
+using System;
+using System.Threading.Tasks;
 using Moq;
+using NUnit.Framework;
 using pwd.mocks;
-using pwd.repository;
+using pwd.repository.implementation;
 
 namespace pwd.tests.contexts.file;
 
@@ -39,8 +42,7 @@ public class File_Tests
    {
       var fs = Shared.GetMockFs();
       await fs.File.WriteAllBytesAsync("test1", Array.Empty<byte>());
-      var repository = new Repository(fs, new ZeroCipher(), new ZeroCipher(), ".");
-      await repository.Initialise();
+      var repository = new Repository(fs, ZeroCipher.Instance, Base64Url.Instance, ".");
       var file = Shared.CreateFileContext(repository: repository, name: "test1");
       await file.ProcessAsync(".rename test2");
       Assert.That(fs.File.Exists("test2"));

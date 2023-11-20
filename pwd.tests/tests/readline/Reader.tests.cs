@@ -2,6 +2,10 @@
 using Moq;
 using pwd.readline;
 using pwd.mocks;
+using NUnit.Framework;
+using System.Threading.Tasks;
+using System.Linq;
+using System;
 
 namespace pwd.tests.readline;
 
@@ -55,7 +59,7 @@ public sealed class Reader_Tests
    {
       var channel = Channel.CreateUnbounded<string>();
       var reader = new Reader(new TestConsole(channel.Reader));
-      var mockSuggestionsProvider = new Mock<ISuggestionsProvider?>();
+      var mockSuggestionsProvider = new Mock<ISuggestionsProvider>();
       mockSuggestionsProvider
          .Setup(m => m!.Suggestions(It.IsAny<string>()))
          .Returns<string>(input =>
