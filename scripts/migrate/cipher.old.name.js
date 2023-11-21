@@ -63,7 +63,7 @@ function findEncryptedRegion(input, offset) {
     const start = position;
     const end = start + text.length;
 
-    const padding = (text.match(/=*$/)[0] || '').length;
+    const padding = (text.match(/~*$/)[0] || '').length;
 
     const tailLength = (text.length - 32) % 64;
   

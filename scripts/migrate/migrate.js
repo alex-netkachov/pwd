@@ -57,16 +57,16 @@ async function main() {
   const folders = {};
 
   const entries = await mods.fsp.readdir(source, { withFileTypes: true, recursive: true });
-  for (const item of entries) {
-    if (mods.cipher.findEncryptedRegion(item.name) === null)
+  console.log(`Found ${entries.length} items`);
+
+  const encryptedEntries = entries.filter(item => mods.nameCipher.findEncryptedRegion(item.name) !== null);
+  console.log(`Found ${encryptedEntries.length} encrypted items`);
+
+  for (const item of encryptedEntries) {
+    if (item.isDirectory())
       continue;
 
     try {
-      const sourcePath = mods.path.join(source, item.path, item.name);
-      const encrypted = await mods.fsp.readFile(sourcePath);
-      const decryptedContent = await contentCipher.decrypt(encrypted);
-      const decryptedName = await nameCipher.decrypt(Buffer.from(item.name));
-
       let destinationPath = '';
       if (item.path === '.') {
         destinationPath = destination;
@@ -84,10 +84,14 @@ async function main() {
         destinationPath = mods.path.join(destination, folders[item.path]);
       }
 
+      const decryptedName = await nameCipher.decrypt(Buffer.from(item.name));
       const newName = (await cipher.encrypt(Buffer.from(decryptedName))).toString('ascii');
 
       console.log(mods.path.join(item.path, item.name), '->', mods.path.join(destinationPath, newName));
 
+      const sourcePath = mods.path.join(source, item.path, item.name);
+      const encrypted = await mods.fsp.readFile(sourcePath);
+      const decryptedContent = await contentCipher.decrypt(encrypted);
       const newContent = (await cipher.encrypt(Buffer.from(decryptedContent))).toString('ascii');
       await mods.fsp.writeFile(mods.path.join(destinationPath, newName), newContent);
     } catch (err) {
