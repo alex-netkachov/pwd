@@ -2,52 +2,23 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using pwd.context.repl;
-using pwd.repository;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts.file.commands;
 
-public sealed class CopyField
-   : CommandServicesBase
-{
-   private readonly IClipboard _clipboard;
-   private readonly repository.IFile _file;
-   //private readonly IRepositoryUpdatesReader? _subscription;
-   private readonly CancellationTokenSource _cts;
-   
-   private string _content = "";
-
-   public CopyField(
+public sealed class CopyField(
       IClipboard clipboard,
       repository.IFile file)
-   {
-      _clipboard = clipboard;
-      _file = file;
-/*
-      _subscription = _item.Subscribe();
-      
-      _cts = new();
+   : CommandServicesBase
+{
+   private readonly IClipboard _clipboard = clipboard;
+   private readonly repository.IFile _file = file;
 
-      var token = _cts.Token;
-      Task.Run(async () =>
-      {
-         _content = await _item.ReadAsync(token);
+   private string _content = "";
 
-         while (!token.IsCancellationRequested)
-         {
-            var @event = await _subscription.ReadAsync(token);
-            if (@event is not Modified)
-               continue;
-            _content = await _item.ReadAsync(token);
-         }
-      }, token);
-      */
-   }
-
-   public override ICommand? Create(
+    public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
@@ -126,12 +97,5 @@ public sealed class CopyField
          .Where(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
          .Select(item => $".cc {item}")
          .ToArray();
-   }
-
-   public override void Dispose()
-   {
-      _cts.Cancel();
-      //_subscription?.Dispose();
-      base.Dispose();
    }
 }

@@ -6,49 +6,63 @@ using pwd.repository;
 
 namespace pwd.contexts.session.commands;
 
-public sealed class Open
-   : CommandServicesBase
-{
-   private readonly IRepository _repository;
-   private readonly IFileFactory _fileFactory;
-   private readonly ILock _lock;
-   private readonly IState _state;
-
-   public Open(
+/// <summary>
+///   Opens repository file, if the path is relative,
+///   or filesystem file, if the path is absolute (TODO).
+/// </summary>
+public sealed class Open(
+      ILogger logger,
       IRepository repository,
       IFileFactory fileFactory,
       ILock @lock,
       IState state)
-   {
-      _repository = repository;
-      _fileFactory = fileFactory;
-      _lock = @lock;
-      _state = state;
-   }
+   : CommandServicesBase
+{
+   private readonly ILogger _logger = logger;
+   private readonly IRepository _repository = repository;
+   private readonly IFileFactory _fileFactory = fileFactory;
+   private readonly ILock _lock = @lock;
+   private readonly IState _state = state;
 
-   public override ICommand? Create(
+    public override ICommand? Create(
       string input)
    {
-      return Shared.ParseCommand(input) switch
+      switch (Shared.ParseCommand(input))
       {
-         (_, "open", var name) =>
-            new DelegateCommand(() =>
+         case (_, "open", var name):
+            _logger.Info($"{nameof(Open)}.{nameof(Create)}: created command from '{input}'");
+
+            return new DelegateCommand(() =>
             {
                if (!_repository.TryParsePath(name, out var path)
                    || path == null)
                {
+                  _logger.Info($"{nameof(Open)}.{nameof(DelegateCommand)}: '{name}' is not a path");
                   return;
                }
 
-               var item = _repository.Get(path) as repository.IFile;
+               var item = _repository.Get(path);
                if (item == null)
+               {
+                  _logger.Info($"{nameof(Open)}.{nameof(DelegateCommand)}: '{path}' does not exist");
                   return;
+               }
 
-               var file = _fileFactory.Create(_repository, _lock, item);
-               var _ = _state.OpenAsync(file);
-            }),
-         _ => null
-      };
+               var file = item as repository.IFile;
+               if (file == null)
+               {
+                  _logger.Info($"{nameof(Open)}.{nameof(DelegateCommand)}: '{path}' is not a file");
+                  return;
+               }
+
+               _logger.Info($"{nameof(Open)}.{nameof(DelegateCommand)}: opening file context for '{path}'");
+
+               var fileContext = _fileFactory.Create(_repository, _lock, file);
+               var _ = _state.OpenAsync(fileContext);
+            });
+         default:
+            return null;
+      }
    }
 
    public override IReadOnlyList<string> Suggestions(

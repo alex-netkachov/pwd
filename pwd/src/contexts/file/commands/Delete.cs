@@ -9,13 +9,13 @@ public sealed class Delete(
       IState state,
       IView view,
       IRepository repository,
-      IItem item)
+      repository.IFile file)
    : CommandServicesBase
 {
    private readonly IState _state = state;
    private readonly IView _view = view;
    private readonly IRepository _repository = repository;
-   private readonly IItem _item = item;
+   private readonly repository.IFile _file = file;
 
     public override ICommand? Create(
       string input)
@@ -24,14 +24,14 @@ public sealed class Delete(
       {
          (_, "rm", _) => new DelegateCommand(async cancellationToken =>
          {
-            /*
-            if (!await _view.ConfirmAsync($"Delete '{_item.Name}'?", Answer.No, cancellationToken))
+            if (!await _view.ConfirmAsync($"Delete '{_file.Name}'?", Answer.No, cancellationToken))
                return;
 
-            _repository.Delete(_item.Name.ToPath());
-            _view.WriteLine($"'{_item.Name}' has been deleted.");
-            var _ = _state.BackAsync();
-            */
+            _repository.Delete(_file);
+
+            _view.WriteLine($"'{_file.Name}' has been deleted.");
+
+            _ = _state.BackAsync();
          }),
          _ => null
       };
@@ -43,7 +43,7 @@ public sealed class Delete(
       const string key = ".rm";
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
-         ? new[] { key }
+         ? [ key ]
          : Array.Empty<string>();
    }
 }

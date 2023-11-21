@@ -14,6 +14,7 @@ public sealed partial class Repository
 {
    private readonly ICipher _cipher;
    private readonly IEncoder _encoder;
+   private readonly ILogger _logger;
    private readonly IFileSystem _fs;
    private readonly string _path;
 
@@ -22,11 +23,13 @@ public sealed partial class Repository
    private readonly ContentCache _cache;
 
    public Repository(
-     IFileSystem fs,
-     ICipher cipher,
-     IEncoder encoder,
-     string path)
+      ILogger logger,
+      IFileSystem fs,
+      ICipher cipher,
+      IEncoder encoder,
+      string path)
    {
+      _logger = logger;
       _fs = fs;
       _cipher = cipher;
       _path = path;
@@ -163,7 +166,7 @@ public sealed partial class Repository
 
       foreach (var containerName in containerNames.Items)
       {
-         var items = container.List();
+         var items = container.List(new ListOptions(false, true, true));
          var item = items.FirstOrDefault(item => item.Name.Equals(containerName));
 
          // specified path is not created
@@ -174,7 +177,7 @@ public sealed partial class Repository
       }
 
       return container
-         .List()
+         .List(new ListOptions(false, true, true))
          .FirstOrDefault(item => item.Name.Equals(itemName));
    }
 
@@ -270,6 +273,10 @@ public sealed partial class Repository
       IItem item,
       ListOptions? options = default)
    {
+      const string context = $"{nameof(Repository)}.{nameof(List)}";
+
+      _logger.Info($"{context}: start with '{item}'");
+
       var fsPath =
          item switch
          {
@@ -278,17 +285,36 @@ public sealed partial class Repository
             _ => throw new InvalidOperationException("The item is not a folder.")
          };
 
-      var fsItems = _fs.Directory.EnumerateFileSystemEntries(fsPath);
+      var fsItems =
+         _fs.Directory
+            .EnumerateFileSystemEntries(fsPath)
+            .ToList();
+
+      _logger.Info($"{context}: found {fsItems.Count} item(s)");
+
+      var entries = new HashSet<string>();
+
       foreach (var fsItem in fsItems)
       {
-         var name = Name.Parse(_fs, _fs.Path.GetFileName(fsItem));
+         var fsFileName = _fs.Path.GetFileName(fsItem);
+
+         var name = Name.Parse(_fs, fsFileName);
          if (!_cache.TryDecrypt(name.Value, out var decrypted))
             continue;
 
          var decryptedName = Name.Parse(_fs, decrypted);
 
+         if (entries.Contains(decryptedName.Value))
+            throw new Exception($"Duplicate entry '{decryptedName}'.");
+
+         entries.Add(decryptedName.Value);
+
          if (_fs.File.Exists(fsItem))
          {
+            var content = _fs.File.ReadAllText(fsItem);
+            if (!_cache.TryDecrypt(content, out _))
+               continue;
+
             var file = new File(this, decryptedName, name, (IContainer)item);
             if (!file.Name.IsDotted()
                 || (options?.IncludeDottedFilesAndFolders == true))
@@ -301,8 +327,8 @@ public sealed partial class Repository
             var folder = new Folder(this, decryptedName, name, (IContainer)item);
 
             if (options?.IncludeFolders == true
-               && !folder.Name.IsDotted()
-               || (options?.IncludeDottedFilesAndFolders == true))
+               && (!folder.Name.IsDotted()
+                   || (options?.IncludeDottedFilesAndFolders == true)))
             {
                yield return folder;
             }

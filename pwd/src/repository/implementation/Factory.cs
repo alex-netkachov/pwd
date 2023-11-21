@@ -3,9 +3,10 @@
 namespace pwd.repository.implementation;
 
 public sealed class RepositoryFactory(
-   IFileSystem fs,
-   ICipherFactory cipherFactory,
-   IEncoder encoder)
+      ILogger logger,
+      IFileSystem fs,
+      ICipherFactory cipherFactory,
+      IEncoder encoder)
    : IFactory
 {
    public IRepository Create(
@@ -13,6 +14,7 @@ public sealed class RepositoryFactory(
       string path)
    {
       return new Repository(
+         logger,
          fs,
          cipherFactory.Create(password),
          encoder,

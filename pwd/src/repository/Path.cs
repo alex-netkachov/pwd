@@ -26,8 +26,8 @@ public sealed class Path
    }
 
    public static Path Parse(
-     IFileSystem fs,
-     string value)
+      IFileSystem fs,
+      string value)
    {
       if (value == null)
          throw new ArgumentNullException(nameof(value));
@@ -36,20 +36,21 @@ public sealed class Path
          return new(fs, []);
 
       var items =
-        value
-          .Split(
-            fs.Path.DirectorySeparatorChar,
-            fs.Path.AltDirectorySeparatorChar)
-          .Select(item => Name.Parse(fs, item))
-          .ToList();
+         value
+            .Split(
+               fs.Path.DirectorySeparatorChar,
+               fs.Path.AltDirectorySeparatorChar)
+            .Where(item => item != ".")
+            .Select(item => Name.Parse(fs, item))
+            .ToList();
 
       return new(fs, items);
    }
 
    public static bool TryParse(
-     IFileSystem fs,
-     string value,
-     out Path? path)
+      IFileSystem fs,
+      string value,
+      out Path? path)
    {
       path = null;
 

@@ -36,6 +36,8 @@ public class Delete_Tests
    [Test]
    public async Task DoAsync_calls_repository_delete()
    {
+      var fs = Shared.GetMockFs();
+
       var mockState = new Mock<IState>();
 
       var mockView = new Mock<IView>();
@@ -50,7 +52,7 @@ public class Delete_Tests
       var mockItem = new Mock<pwd.repository.IFile>();
       mockItem
          .SetupGet(m => m.Name)
-         .Returns(Name.Parse(Mock.Of<IFileSystem>(), "test"));
+         .Returns(Name.Parse(fs, "test"));
 
       var mockRepository = new Mock<IRepository>();
       

@@ -1,43 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.repository;
-using pwd.repository.implementation;
 
 namespace pwd.contexts.session.commands;
 
-public sealed class List
-   : CommandServicesBase
-{
-    private readonly ILogger _logger;
-    private readonly IRepository _repository;
-   private readonly IFileFactory _fileFactory;
-   private readonly ILock _lock;
-   private readonly IState _state;
-   private readonly IView _view;
-
-   public List(
+public sealed class List(
       ILogger logger,
       IRepository repository,
       IFileFactory fileFactory,
       ILock @lock,
       IState state,
       IView view)
-   {
-      _logger = logger;
-      _repository = repository;
-      _fileFactory = fileFactory;
-      _lock = @lock;
-      _state = state;
-      _view = view;
-   }
+   : CommandServicesBase
+{
+   private readonly ILogger _logger = logger;
+   private readonly IRepository _repository = repository;
+   private readonly IFileFactory _fileFactory = fileFactory;
+   private readonly ILock _lock = @lock;
+   private readonly IState _state = state;
+   private readonly IView _view = view;
 
-   public override ICommand? Create(
+    public override ICommand? Create(
       string input)
    {
       return new DelegateCommand(cancellationToken => Exec(input, cancellationToken));
@@ -50,11 +38,16 @@ public sealed class List
    
    private Task Exec(
       string input,
-      CancellationToken cancellationToken)
+      CancellationToken token)
    {
+      const string context = $"{nameof(List)}.{nameof(Exec)}";
+
+      _logger.Info($"{context}: start with '{input}'");
+
       if (input == "")
       {
-         // show all files if there is no user input
+         _logger.Info($"{context}: enumerating all the files as there is no user input");
+
          var items =
             _repository.Root
                .List()

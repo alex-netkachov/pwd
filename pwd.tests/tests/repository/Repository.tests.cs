@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO.Abstractions;
 using System.Linq;
@@ -12,35 +11,49 @@ namespace pwd.tests.repository;
 
 public sealed class Repository_Tests
 {
+   private static readonly string _testName = Encrypt("test");
+   private static readonly string _testContent = Encrypt("test");
+
    [Test]
    public void List_root_of_empty_repository_returns_no_items()
    {
       var fs = Shared.GetMockFs();
-      var repository = SimpleRepository(fs);
+      var repository = Repository(fs);
       Assert.That(!repository.Root.List().Any());
    }
 
-   [TestCase(true)]
-   [TestCase(false)]
-   public void List_root_of_non_empty_repository_returns_items(
-      bool withPlain)
+   [Test]
+   public void List_root_of_non_empty_repository_returns_files()
    {
-      var cipher = FastTestCipher.Instance;
-      var encoder = Base64Url.Instance;
-
-      var fs = Shared.GetMockFs();
-
-      var plain = "test";
-      var encrypted = encoder.Encode(cipher.Encrypt(plain));
-      fs.File.WriteAllText(encrypted, encrypted);
-
-      if (withPlain)
-         fs.File.WriteAllText(plain, plain);
-
-      var repository = new Repository(fs, cipher, encoder, ".");
+      var fs = Shared.GetMockFs("*test");
+      var repository = Repository(fs);
       Assert.That(
-         repository.List(repository.Root).Single().Name.Value,
-         Is.EqualTo(plain));
+         fs.Directory.EnumerateFiles(".").Count(),
+         Is.EqualTo(1));
+      var file = (pwd.repository.IFile)repository.Root.List().Single();
+      Assert.That(
+         file.Name.Value,
+         Is.EqualTo("test"));
+      Assert.That(
+         repository.Get(Path.From(file.Name)),
+         Is.Not.Null);
+   }
+
+   [Test]
+   public void List_root_of_non_empty_repository_returns_folders()
+   {
+      var fs = Shared.GetMockFs("@test1/*test2");
+      var repository = Repository(fs);
+      Assert.That(
+         fs.Directory.EnumerateDirectories(".").Count(),
+         Is.EqualTo(1));
+      var folder = (IFolder)repository.Root.List(new ListOptions(false, true, false)).Single();
+      Assert.That(
+         folder.Name.Value,
+         Is.EqualTo("test1"));
+      Assert.That(
+         repository.Get(Path.From(folder.Name)),
+         Is.Not.Null);
    }
 
    [TestCase("test", ".", false, false, false, "")]
@@ -52,57 +65,30 @@ public sealed class Repository_Tests
    [TestCase("*.test", ".", false, false, false, "")]
    [TestCase("*.test", ".", false, false, true, ".test")]
    [TestCase("@f/*test", ".", false, false, false, "")]
-   [TestCase("@f/*test", ".", true, false, false, "f/test")]
+   [TestCase("@f/*test", ".", true, false, false, "f\\test")]
    [TestCase("@f/*test", ".", false, true, false, "f")]
    [TestCase("@f/@test", ".", false, true, false, "f")]
    [TestCase("f/test", ".", false, true, false, "")]
    [TestCase("@f/*_test", ".", true, false, false, "")]
-   [TestCase("@f/*_test", ".", true, false, true, "f/_test")]
-   [TestCase("@f/*test", "f", true, false, false, "f/test")]
-   public async Task List_repository(
-      string path,
+   [TestCase("@f/*_test", ".", true, false, true, "f\\_test")]
+   [TestCase("@f/*test", "f", true, false, false, "f\\test")]
+   public void List_repository(
+      string files,
       string listPath,
       bool recursive,
       bool includeFolders,
       bool includeDottedFilesAndFolders,
       string expected)
    {
-      // @ - encrypt name
-      // ^ - encrypt content
-      // * - encrypt name and content
+      var fs = Shared.GetMockFs(files);
 
-      var fs = Shared.GetMockFs();
-
-      var cipher = FastTestCipher.Instance;
-      var encoder = Base64Url.Instance;
-
-      var filePath =
-         string.Join(
-            '/',
-            path.Split('/')
-               .Select(item => item[0] switch
-               {
-                  '@' or '*' => encoder.Encode(cipher.Encrypt(item[1..])),
-                  '^' => item[1..],
-                  _ => item
-               }));
-
-      var fileContent =
-         path.Split('/')[^1][0] is '^' or '*'
-            ? encoder.Encode(cipher.Encrypt("test"))
-            : "test";
-
-      var completeFilePath = fs.Path.Combine("folder1/folder2", filePath);
-      var folder = fs.Path.GetDirectoryName(completeFilePath);
-      if (folder == null)
-         throw new Exception("folder is null");
-      fs.Directory.CreateDirectory(folder);
-      fs.File.WriteAllText(completeFilePath, fileContent);
-
-      var repository = new Repository(fs, cipher, Base64Url.Instance, "folder1/folder2");
+      var repository = Repository(fs);
+      var repositoryFolderPath = Path.Parse(fs, listPath);
+      var repositoryFolder = (IContainer)repository.Get(repositoryFolderPath)!;
+      Assert.That(repositoryFolder, Is.Not.Null);
 
       var items =
-         ((IFolder)repository.Get(Path.Parse(fs, listPath))!)
+         repositoryFolder
             .List(
                new ListOptions(
                   recursive,
@@ -135,7 +121,7 @@ public sealed class Repository_Tests
       fs.File.WriteAllText($"{test11}", test);
       fs.File.WriteAllText($"{test21}", test);
 
-      var repository = new Repository(fs, FastTestCipher.Instance, Base64Url.Instance, ".");
+      var repository = Repository(fs);
 
       var items =
          repository
@@ -154,15 +140,17 @@ public sealed class Repository_Tests
       bool async)
    {
       var fs = Shared.GetMockFs();
-      var repository = SimpleRepository(fs);
+      var repository = Repository(fs);
 
-      var path = Path.Parse(fs, "test");
+      var path = Path.Parse(fs, _testName);
       var file =
          async switch
          {
             true => await repository.CreateFileAsync(path),
             _ => repository.CreateFile(path)
          };
+
+      await file.WriteAsync(_testContent);
 
       Assert.That(
          file,
@@ -180,11 +168,8 @@ public sealed class Repository_Tests
    [Test]
    public void Delete_deletes_a_file()
    {
-      var fs = Shared.GetMockFs();
-
-      fs.File.WriteAllText("test", "test");
-
-      var repository = SimpleRepository(fs);
+      var fs = Shared.GetMockFs("*test");
+      var repository = Repository(fs);
 
       var file = repository.Get(Path.Parse(fs, "test")) as INamedItem;
 
@@ -216,13 +201,13 @@ public sealed class Repository_Tests
             input));
    }
 
-   private static IRepository SimpleRepository(
+   private static IRepository Repository(
       IFileSystem fs)
    {
       return new Repository(
          fs,
-         ZeroCipher.Instance,
-         ZeroEncoder.Instance,
+         FastTestCipher.Instance,
+         Base64Url.Instance,
          ".");
    }
 

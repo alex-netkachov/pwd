@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using NUnit.Framework.Internal;
 using pwd.contexts.file;
 using pwd.mocks;
 using pwd.readline;
@@ -27,16 +28,20 @@ public sealed class Session_Tests
    public async Task open_file(
       string file)
    {
-      const string password = "secret";
       const string text = "test";
 
       var logger = Mock.Of<ILogger>();
 
-      var cipher = new Cipher(password);
+      var fs = Shared.FileLayout2(Shared.GetMockFs());
 
-      var fs = Shared.FileLayout1(Shared.GetMockFs());
       var state = new State(logger);
-      var repository = new Repository(fs, cipher, Base64Url.Instance, ".");
+
+      var repository =
+         new Repository(
+            fs,
+            FastTestCipher.Instance,
+            Base64Url.Instance,
+            ".");
 
       var channel = Channel.CreateUnbounded<string>();
       var console = new TestConsole(channel.Reader);
@@ -55,11 +60,13 @@ public sealed class Session_Tests
 
       var session =
          Shared.CreateSessionContext(
+            logger,
             repository,
             view: view,
             state: state,
             fileFactory: fileFactory);
 
+      logger.Info($"{nameof(Session_Tests)}.{nameof(open_file)}: processing input");
       await session.ProcessAsync($".open {file}");
 
       Assert.That(console.GetScreen(), Is.EqualTo(text + "\n"));

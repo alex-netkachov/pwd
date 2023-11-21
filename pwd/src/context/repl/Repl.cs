@@ -98,6 +98,8 @@ public abstract class Repl
       string input,
       CancellationToken cancellationToken = default)
    {
+      _logger.Info($"{nameof(Repl)}.{nameof(ProcessAsync)}: processing '{input}'");
+
       var command =
          _commandFactories
             .Select(item => item.Create(input))

@@ -33,10 +33,12 @@ public class Rename_Tests
    [Test]
    public async Task DoAsync_calls_repository_delete()
    {
+      var fs = Shared.GetMockFs();
+
       var mockItem = new Mock<INamedItem>();
       mockItem
          .SetupGet(m => m.Name)
-         .Returns(Name.Parse(Mock.Of<IFileSystem>(), "test"));
+         .Returns(Name.Parse(fs, "test"));
 
       var mockRepository = new Mock<IRepository>();
       

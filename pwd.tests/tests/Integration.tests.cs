@@ -192,7 +192,7 @@ public class Integration_Tests
       });
 
       var fs = Shared.GetMockFs();
-      var cipher = new Cipher("secret");
+      var cipher = FastTestCipher.Instance;
       var repository = new Repository(fs, cipher, Base64Url.Instance, ".");
       var file1 = repository.CreateFile(Path.From(Name.Parse(fs, "file1")));
       await repository.WriteAsync(file1, "content1");

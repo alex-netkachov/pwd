@@ -79,30 +79,21 @@ public sealed class Session
    }
 }
 
-public sealed class SessionFactory
-   : ISessionFactory
-{
-   private readonly IFileFactory _fileFactory;
-   private readonly INewFileFactory _newFileFactory;
-   private readonly ILogger _logger;
-   private readonly IState _state;
-   private readonly IView _view;
-
-   public SessionFactory(
+public sealed class SessionFactory(
       ILogger logger,
       IState state,
       IView view,
       IFileFactory fileFactory,
       INewFileFactory newFileFactory)
-   {
-      _logger = logger;
-      _state = state;
-      _view = view;
-      _fileFactory = fileFactory;
-      _newFileFactory = newFileFactory;
-   }
+   : ISessionFactory
+{
+   private readonly IFileFactory _fileFactory = fileFactory;
+   private readonly INewFileFactory _newFileFactory = newFileFactory;
+   private readonly ILogger _logger = logger;
+   private readonly IState _state = state;
+   private readonly IView _view = view;
 
-   public ISession Create(
+    public ISession Create(
       IRepository repository,
       IExporter exporter,
       ILock @lock)
@@ -119,7 +110,7 @@ public sealed class SessionFactory
                   new Export(_view),
                   new Help(_view),
                   new Html(exporter),
-                  new Open(repository, _fileFactory, @lock, _state)
+                  new Open(_logger, repository, _fileFactory, @lock, _state)
                })
             .Concat(Shared.CommandFactories(_state, @lock, _view))
             .Concat(new ICommandServices[] { new List(_logger, repository, _fileFactory, @lock, _state, _view) })
