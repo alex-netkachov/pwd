@@ -6,7 +6,6 @@ using NUnit.Framework.Internal;
 using pwd.contexts.file;
 using pwd.mocks;
 using pwd.readline;
-using pwd.repository.implementation;
 
 namespace pwd.tests.contexts;
 
@@ -36,12 +35,7 @@ public sealed class Session_Tests
 
       var state = new State(logger);
 
-      var repository =
-         new Repository(
-            fs,
-            FastTestCipher.Instance,
-            Base64Url.Instance,
-            ".");
+      var repository = Shared.CreateRepository(fs, logger);
 
       var channel = Channel.CreateUnbounded<string>();
       var console = new TestConsole(channel.Reader);

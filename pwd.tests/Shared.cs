@@ -30,14 +30,15 @@ public static class Shared
       IClipboard? clipboard = null,
       IView? view = null,
       IState? state = null,
-      ILock? @lock = null)
+      ILock? @lock = null,
+      ILogger? logger = null)
    {
       var builder = Host.CreateDefaultBuilder();
       
       builder.ConfigureServices(
          services =>
             services
-               .AddSingleton(Mock.Of<ILogger>())
+               .AddSingleton(logger ?? Mock.Of<ILogger>())
                .AddSingleton(Mock.Of<IEnvironmentVariables>())
                .AddSingleton(runner ?? Mock.Of<IRunner>())
                .AddSingleton(clipboard ?? Mock.Of<IClipboard>())
@@ -74,17 +75,11 @@ public static class Shared
          ? System.IO.Path.GetFileName(path)
          : name);
 
-      var mockRepositoryItem = new Mock<repository.IFile>();
-      mockRepositoryItem
-         .SetupGet(m => m.Name)
-         .Returns(fileName);
-      mockRepositoryItem
-         .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
-         .Returns(() => Task.FromResult(content));
+      var file = (repository.IFile)repository.Root.Get(fileName)!;
 
       return (contexts.file.File)host.Services
          .GetRequiredService<IFileFactory>()
-         .Create(repository, @lock, mockRepositoryItem.Object);
+         .Create(repository, @lock, file);
    }
 
    public static Session CreateSessionContext(
@@ -222,12 +217,12 @@ public static class Shared
       return fs;
    }
 
-   private static async Task Test_AutoCompletionHandler()
+   private static void Test_AutoCompletionHandler()
    {
       var fs = FileLayout1(GetMockFs());
       var console = new StandardConsole();
       var view = new View(console, new Reader(console));
-      var repository = new Repository(fs, FastTestCipher.Instance, Base64Url.Instance, ".");
+      var repository = new Repository(Mock.Of<ILogger>(), fs, FastTestCipher.Instance, Base64Url.Instance, ".");
       var session = CreateSessionContext(Mock.Of<ILogger>(), repository, view: view);
       Assert.That(string.Join(";", session.Suggestions("../")), Is.EqualTo("../test"));
       Assert.That(string.Join(";", session.Suggestions("")), Is.EqualTo("encrypted;regular_dir"));
@@ -251,5 +246,17 @@ public static class Shared
       var encrypted = FastTestCipher.Instance.Encrypt(input);
       var encoded = Base64Url.Instance.Encode(encrypted);
       return encoded;
+   }
+
+   public static IRepository CreateRepository(
+      IFileSystem? fs = null,
+      ILogger? logger = null)
+   {
+      return new Repository(
+         logger ?? Mock.Of<ILogger>(),
+         fs ?? Mock.Of<IFileSystem>(),
+         FastTestCipher.Instance,
+         Base64Url.Instance,
+         ".");
    }
 }

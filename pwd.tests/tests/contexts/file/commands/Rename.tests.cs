@@ -1,4 +1,4 @@
-﻿using System.IO.Abstractions;
+﻿using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -22,8 +22,9 @@ public class Rename_Tests
    {
       using var factory =
          new Rename(
+            Mock.Of<ILogger>(),
             Mock.Of<IRepository>(),
-            Mock.Of<INamedItem>());
+            Mock.Of<IFile>());
 
       var command = factory.Create(input);
 
@@ -31,12 +32,12 @@ public class Rename_Tests
    }
 
    [Test]
-   public async Task DoAsync_calls_repository_delete()
+   public async Task DoAsync_calls_repository_move()
    {
       var fs = Shared.GetMockFs();
 
-      var mockItem = new Mock<INamedItem>();
-      mockItem
+      var mockFile = new Mock<IFile>();
+      mockFile
          .SetupGet(m => m.Name)
          .Returns(Name.Parse(fs, "test"));
 
@@ -44,8 +45,9 @@ public class Rename_Tests
       
       using var factory =
          new Rename(
+            new ConsoleLogger(),
             mockRepository.Object,
-            mockItem.Object);
+            mockFile.Object);
 
       var command = factory.Create(".rename ok");
       if (command == null)
@@ -57,6 +59,29 @@ public class Rename_Tests
       await command.ExecuteAsync();
       
       mockRepository
-         .Verify(m => m.Move(It.IsAny<pwd.repository.IFile>(), It.IsAny<Path>()));
+         .Verify(m => m.Move(It.IsAny<IFile>(), It.IsAny<Path>()));
+   }
+
+   [Test]
+   [Category("Integration")]
+   public async Task Rename_moves_the_file()
+   {
+      var logger = new NullLogger();
+
+      var fs = Shared.GetMockFs("*test1");
+
+      var repository = Shared.CreateRepository(fs, logger: logger);
+
+      var context =
+         Shared.CreateFileContext(
+            repository: repository,
+            name: "test1",
+            logger: logger,
+            fs: fs);
+
+      await context.ProcessAsync(".rename test2");
+
+      var file = repository.Root.List().Single();
+      Assert.That(file.Name.Value, Is.EqualTo("test2"));
    }
 }

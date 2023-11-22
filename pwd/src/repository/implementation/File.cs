@@ -48,7 +48,7 @@ public class File(
 
    public Task WriteAsync(
       string value,
-      CancellationToken token)
+      CancellationToken token = default)
    {
       return _repository.WriteAsync(this, value, token);
    }

@@ -26,7 +26,7 @@ public class Delete_Tests
             Mock.Of<IState>(),
             Mock.Of<IView>(),
             Mock.Of<IRepository>(),
-            Mock.Of<IItem>());
+            Mock.Of<pwd.repository.IFile>());
 
       var command = factory.Create(input);
 
@@ -92,7 +92,7 @@ public class Delete_Tests
             Mock.Of<IState>(),
             Mock.Of<IView>(),
             Mock.Of<IRepository>(),
-            Mock.Of<IItem>());
+            Mock.Of<pwd.repository.IFile>());
 
       Assert.That(
          factory.Suggestions(input),

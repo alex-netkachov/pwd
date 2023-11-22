@@ -77,7 +77,7 @@ public class Edit_Tests
          .Returns(Task.FromResult(content));
       mockItem
          .Setup(m => m.WriteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-         .Callback<string>(value => content = value)
+         .Callback<string, CancellationToken>((value, token) => content = value)
          .Returns(Task.CompletedTask);
 
       using var factory =

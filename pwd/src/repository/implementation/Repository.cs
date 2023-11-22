@@ -55,7 +55,10 @@ public sealed partial class Repository
    public IFile CreateFile(
       Path path)
    {
+      Log($"start with '{path}'");
+
       var (containerPath, name) = path.Tail();
+
       if (name == null)
          throw new InvalidOperationException("Cannot create a file at the specified path.");
 
@@ -71,6 +74,8 @@ public sealed partial class Repository
       var fsPath = Resolve(file.GetEncryptedPath());
       _fs.File.WriteAllText(fsPath, "");
 
+      Log($"done");
+
       return file;
    }
 
@@ -78,7 +83,10 @@ public sealed partial class Repository
       Path path,
       CancellationToken token = default)
    {
+      Log($"start with '{path}'");
+
       var (containerPath, name) = path.Tail();
+
       if (name == null)
          throw new InvalidOperationException("Cannot create a file at the specified path.");
 
@@ -94,13 +102,18 @@ public sealed partial class Repository
       var fsPath = Resolve(file.GetEncryptedPath());
       await _fs.File.WriteAllTextAsync(fsPath, "", token);
 
+      Log($"done");
+
       return file;
    }
 
    public IFolder CreateFolder(
       Path path)
    {
+      Log($"start with '{path}'");
+
       var (containerPath, name) = path.Tail();
+
       if (name == null)
          throw new InvalidOperationException("Cannot create a folder at the specified path.");
 
@@ -117,6 +130,8 @@ public sealed partial class Repository
       var fsPath = Resolve(folder.GetEncryptedPath());
       _fs.Directory.CreateDirectory(fsPath);
 
+      Log($"done");
+
       return folder;
    }
 
@@ -124,7 +139,10 @@ public sealed partial class Repository
       Path path,
       CancellationToken token = default)
    {
+      Log($"start with '{path}'");
+
       var (containerPath, name) = path.Tail();
+
       if (name == null)
          throw new InvalidOperationException("Cannot create a folder at the specified path.");
 
@@ -141,23 +159,31 @@ public sealed partial class Repository
       var fsPath = Resolve(folder.GetEncryptedPath());
       _fs.Directory.CreateDirectory(fsPath);
 
+      Log($"done");
+
       return folder;
    }
 
    public void Delete(
       INamedItem item)
    {
+      Log($"start with '{item.GetPath()}'");
+
       if (item is not File file)
          throw new InvalidOperationException("Cannot delete a folder.");
 
       var fsPath = Resolve(file.GetEncryptedPath());
 
       _fs.File.Delete(fsPath);
+
+      Log($"done");
    }
 
    public IItem? Get(
       Path path)
    {
+      Log($"start with '{path}'");
+
       if (path.Items.Count == 0)
          return Root;
 
@@ -185,6 +211,8 @@ public sealed partial class Repository
       Path path,
       CancellationToken token = default)
    {
+      Log($"start with '{path}'");
+
       if (path.Items.Count == 0)
          return Root;
 
@@ -217,42 +245,78 @@ public sealed partial class Repository
       return null;
    }
 
-   public void Move(
+   public async void Move(
       IFile file,
       Path newPath)
    {
-      /*
-      var (pathItems, pathItem) = Tail(GetItems(path));
-      if (!pathItem.Exists)
-         throw new("The item does not exist.");
+      if (file == null)
+         throw new ArgumentNullException(nameof(file));
+      if (newPath == null)
+         throw new ArgumentNullException(nameof(newPath));
 
-      var pathItemContainer = pathItems[^1];
+      Log($"start with '{file.GetPath()}' and '{newPath}'");
 
-      var (newPathItems, newPathItem) = Tail(GetItems(newPath));
-      if (newPathItem.Exists)
-         throw new("The item already exists.");
+      var sourcePath = ((File)file).GetEncryptedPath();
 
-      var newPathItemContainer = CreateFolders(newPathItems);
+      var (pathItems, pathItem) = newPath.Tail();
 
-      if (pathItem.IsFolder == true)
-         _fs.Directory.Move(
-            Resolve(pathItem.GetEncryptedPath()),
-            Resolve(newPathItem.GetEncryptedPath()));
-      else
-         _fs.File.Move(
-            Resolve(pathItem.GetEncryptedPath()),
-            Resolve(newPathItem.GetEncryptedPath()));
-
-      pathItemContainer.Items.Remove(pathItem);
-      if (pathItem.Name != newPathItem.Name)
+      if (newPath.Items.Count == 0
+          || pathItem == null)
       {
-         pathItem.Name = newPathItem.Name;
-         pathItem.EncryptedName = newPathItem.EncryptedName;
+         // move the file to the root
+         if (sourcePath.Items.Count == 1)
+         {
+            // it is already in the root folder
+            return;
+         }
+
+         _fs.File.Move(
+            Resolve(sourcePath),
+            Resolve(Path.From(sourcePath.Items[^1])));
+
+         return;
       }
 
-      newPathItemContainer.Items.Add(pathItem);
-      */
-      throw new NotImplementedException();
+      var item = Get(newPath);
+
+      if (item is File existingFile)
+      {
+         await existingFile.WriteAsync(await file.ReadAsync());
+         return;
+      }
+
+      var fileName = Name.Parse(_fs, _encoder.Encode(_cipher.Encrypt(pathItem.Value)));
+
+      if (item is Folder existingFolder)
+      {
+         _fs.File.Move(
+            Resolve(sourcePath),
+            Resolve(existingFolder.GetEncryptedPath().Down(fileName)));
+
+         return;
+      }
+
+      if (item == null)
+      {
+         if (pathItems.Items.Count == 0)
+         {
+            _fs.File.Move(
+               Resolve(sourcePath),
+               Resolve(Path.From(fileName)));
+
+            return;
+         }
+
+         var newFolder = (Folder)CreateFolder(pathItems);
+
+         _fs.File.Move(
+            Resolve(sourcePath),
+            Resolve(newFolder.GetEncryptedPath().Down(fileName)));
+
+         return;
+      }
+
+      throw new InvalidOperationException("Cannot move the file.");
    }
 
    public bool TryParseName(
@@ -273,9 +337,7 @@ public sealed partial class Repository
       IItem item,
       ListOptions? options = default)
    {
-      const string context = $"{nameof(Repository)}.{nameof(List)}";
-
-      _logger.Info($"{context}: start with '{item}'");
+      Log($"start with '{item.GetPath()}'");
 
       var fsPath =
          item switch
@@ -287,10 +349,7 @@ public sealed partial class Repository
 
       var fsItems =
          _fs.Directory
-            .EnumerateFileSystemEntries(fsPath)
-            .ToList();
-
-      _logger.Info($"{context}: found {fsItems.Count} item(s)");
+            .EnumerateFileSystemEntries(fsPath);
 
       var entries = new HashSet<string>();
 
@@ -340,6 +399,8 @@ public sealed partial class Repository
             }
          }
       }
+
+      Log($"done");
    }
 
    public async IAsyncEnumerable<INamedItem> ListAsync(
@@ -348,6 +409,8 @@ public sealed partial class Repository
       [EnumeratorCancellation]
       CancellationToken token = default)
    {
+      Log($"start with '{item.GetPath()}'");
+
       var fsPath =
          item switch
          {
@@ -397,12 +460,16 @@ public sealed partial class Repository
             }
          }
       }
+
+      Log($"done");
    }
 
    public async Task<string> ReadAsync(
       IFile file,
       CancellationToken token = default)
    {
+      Log($"start with '{file.GetPath()}'");
+
       if (file is not File repositoryfile)
          throw new InvalidOperationException("Cannot delete a folder.");
 
@@ -417,6 +484,8 @@ public sealed partial class Repository
       string text,
       CancellationToken token = default)
    {
+      Log($"start with '{file.GetPath()}'");
+
       if (file is not File repositoryfile)
          throw new InvalidOperationException("Cannot write into a file.");
 
@@ -436,6 +505,13 @@ public sealed partial class Repository
       Path path)
    {
       return path.Resolve(_path);
+   }
+
+   private void Log(
+      string message,
+      [CallerMemberName] string memberName = "")
+   {
+      _logger.Info($"{nameof(Repository)}.{memberName}: {message}");
    }
 
    /*

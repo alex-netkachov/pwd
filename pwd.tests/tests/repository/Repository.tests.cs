@@ -18,7 +18,7 @@ public sealed class Repository_Tests
    public void List_root_of_empty_repository_returns_no_items()
    {
       var fs = Shared.GetMockFs();
-      var repository = Repository(fs);
+      var repository = Shared.CreateRepository(fs);
       Assert.That(!repository.Root.List().Any());
    }
 
@@ -26,7 +26,7 @@ public sealed class Repository_Tests
    public void List_root_of_non_empty_repository_returns_files()
    {
       var fs = Shared.GetMockFs("*test");
-      var repository = Repository(fs);
+      var repository = Shared.CreateRepository(fs);
       Assert.That(
          fs.Directory.EnumerateFiles(".").Count(),
          Is.EqualTo(1));
@@ -43,7 +43,7 @@ public sealed class Repository_Tests
    public void List_root_of_non_empty_repository_returns_folders()
    {
       var fs = Shared.GetMockFs("@test1/*test2");
-      var repository = Repository(fs);
+      var repository = Shared.CreateRepository(fs);
       Assert.That(
          fs.Directory.EnumerateDirectories(".").Count(),
          Is.EqualTo(1));
@@ -82,7 +82,7 @@ public sealed class Repository_Tests
    {
       var fs = Shared.GetMockFs(files);
 
-      var repository = Repository(fs);
+      var repository = Shared.CreateRepository(fs);
       var repositoryFolderPath = Path.Parse(fs, listPath);
       var repositoryFolder = (IContainer)repository.Get(repositoryFolderPath)!;
       Assert.That(repositoryFolder, Is.Not.Null);
@@ -121,7 +121,7 @@ public sealed class Repository_Tests
       fs.File.WriteAllText($"{test11}", test);
       fs.File.WriteAllText($"{test21}", test);
 
-      var repository = Repository(fs);
+      var repository = Shared.CreateRepository(fs);
 
       var items =
          repository
@@ -140,7 +140,7 @@ public sealed class Repository_Tests
       bool async)
    {
       var fs = Shared.GetMockFs();
-      var repository = Repository(fs);
+      var repository = Shared.CreateRepository(fs);
 
       var path = Path.Parse(fs, _testName);
       var file =
@@ -169,7 +169,7 @@ public sealed class Repository_Tests
    public void Delete_deletes_a_file()
    {
       var fs = Shared.GetMockFs("*test");
-      var repository = Repository(fs);
+      var repository = Shared.CreateRepository(fs);
 
       var file = repository.Get(Path.Parse(fs, "test")) as INamedItem;
 
@@ -199,16 +199,6 @@ public sealed class Repository_Tests
       return Base64Url.Instance.Encode(
          FastTestCipher.Instance.Encrypt(
             input));
-   }
-
-   private static IRepository Repository(
-      IFileSystem fs)
-   {
-      return new Repository(
-         fs,
-         FastTestCipher.Instance,
-         Base64Url.Instance,
-         ".");
    }
 
    private static string ItemsToPaths(

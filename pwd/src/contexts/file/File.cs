@@ -141,7 +141,7 @@ public sealed class FileFactory
                new Delete(_state, _view, repository, file),
                new Edit(_environmentVariables, _runner, _view, _fs, file),
                new Help(_view),
-               new Rename(repository, file),
+               new Rename(_logger, repository, file),
                new Unobscured(_view, file),
                new Up(_state)
             })

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -34,18 +35,5 @@ public class File_Tests
       var file = Shared.CreateFileContext(view: view.Object, content: "password: secret");
       await file.ProcessAsync(".help");
       view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
-   }
-
-   [Test]
-   [Category("Integration")]
-   public async Task renaming_moves_the_file()
-   {
-      var fs = Shared.GetMockFs();
-      await fs.File.WriteAllBytesAsync("test1", Array.Empty<byte>());
-      var repository = new Repository(fs, ZeroCipher.Instance, Base64Url.Instance, ".");
-      var file = Shared.CreateFileContext(repository: repository, name: "test1");
-      await file.ProcessAsync(".rename test2");
-      Assert.That(fs.File.Exists("test2"));
-      Assert.That(!fs.File.Exists("test1"));
    }
 }

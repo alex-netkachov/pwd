@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,11 @@ public sealed class RootFolder(
    private readonly Repository _repository = repository;
 
    public IRepository Repository => _repository;
+
+   public Path Path =>
+      _repository.TryParsePath("", out var path)
+         ? path!
+         : throw new InvalidOperationException("Invalid root path.");
 
    public INamedItem? Get(
       Name name)
