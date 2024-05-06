@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.repository;
+using pwd.ui;
 
 namespace pwd.contexts.session.commands;
 

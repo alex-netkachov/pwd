@@ -6,17 +6,17 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using pwd.readline;
+using pwd.ui.console;
 
 namespace pwd.mocks;
 
 public sealed class TestConsole
    : IConsole,
-      IDisposable
+     IDisposable
 {
    private record State(
       bool Disposed,
-      ImmutableList<Channel<ConsoleKeyInfo>> Subscribers);
+      ImmutableList<ChannelWriter<ConsoleKeyInfo>> Writers);
 
    private State _state;
 
@@ -30,7 +30,7 @@ public sealed class TestConsole
    {
       _writes = new() { new() };
 
-      _state = new(false, ImmutableList<Channel<ConsoleKeyInfo>>.Empty);
+      _state = new(false, ImmutableList<ChannelWriter<ConsoleKeyInfo>>.Empty);
 
       _cts = new();
 
@@ -45,14 +45,42 @@ public sealed class TestConsole
 
             var state = _state;
             foreach (var info in infos)
-            foreach (var subscriber in state.Subscribers)
-               await subscriber.Writer.WriteAsync(info, token);
+            foreach (var writer in state.Writers)
+               await writer.WriteAsync(info, token);
          }
       }, token);
    }
 
    public int BufferWidth => 80;
-   
+
+   public void Subscribe(
+      ChannelWriter<ConsoleKeyInfo> writer)
+   {
+      State initial, updated;
+      do
+      {
+         initial = _state;
+         if (_state.Disposed)
+            throw new ObjectDisposedException(nameof(StandardConsole));
+         updated = _state with { Writers = initial.Writers.Add(writer) };
+      } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+      
+      OnSubscriber?.Invoke(this, EventArgs.Empty);
+   }
+
+   public void Unsubscribe(
+      ChannelWriter<ConsoleKeyInfo> writer)
+   {
+      State initial, updated;
+      do
+      {
+         initial = _state;
+         if (_state.Disposed)
+            break;
+         updated = _state with { Writers = initial.Writers.Remove(writer) };
+      } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+   }
+
    public void Dispose()
    {
       State initial;
@@ -61,50 +89,16 @@ public sealed class TestConsole
          initial = _state;
          if (initial.Disposed)
             return;
-         var updated = new State(true, ImmutableList<Channel<ConsoleKeyInfo>>.Empty);
+         var updated = new State(true, ImmutableList<ChannelWriter<ConsoleKeyInfo>>.Empty);
          if (initial == Interlocked.CompareExchange(ref _state, updated, initial))
             break;
       }
 
       _cts.Cancel();
       _cts.Dispose();
-      
-      foreach (var channel in initial.Subscribers)
-         channel.Writer.Complete();
-   }
 
-   public IConsoleReader Subscribe()
-   {
-      var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
-
-      var reader = new ConsoleReader(channel.Reader, () =>
-      {
-         while (true)
-         {
-            var initial = _state;
-            if (_state.Disposed)
-               break;
-            var updated = _state with { Subscribers = initial.Subscribers.Remove(channel) };
-            if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
-               continue;
-            channel.Writer.Complete();
-            break;
-         }
-      });
-
-      while (true)
-      {
-         var initial = _state;
-         if (_state.Disposed)
-            throw new ObjectDisposedException(nameof(StandardConsole));
-         var updated = _state with { Subscribers = initial.Subscribers.Add(channel) };
-         if (initial == Interlocked.CompareExchange(ref _state, updated, initial))
-            break;
-      }
-      
-      OnSubscriber?.Invoke(this, EventArgs.Empty);
-
-      return reader;
+      foreach (var writer in initial.Writers)
+         writer.Complete();
    }
 
    public void Write(

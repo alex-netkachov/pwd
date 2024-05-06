@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace pwd.readline;
+namespace pwd.ui.readline;
 
 public interface ISuggestionsProvider
 {

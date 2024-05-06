@@ -6,13 +6,16 @@ const $ =
     readPassword : require('./lib/readPassword'),
     cipher : require('./lib/cipher') };
 
-main().catch(error => { console.error(error); process.exit(1); });
+main().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
 
 /** Prints the encrypted contents of the file. */
 async function main() {
-  const [ inFile, outFile ] = process.argv.slice(2, 3);
+  const [inFile, outFile] = process.argv.slice(2, 3);
   if (!inFile || !outFile)
-      throw new Error('Usage: node encrypt.js <in_file> <out_file>');
+    throw new Error('Usage: node encrypt.js <in_file> <out_file>');
   if (!$.fs.existsSync(inFile))
     throw new Error('Input file does not exist.');
   if ($.fs.existsSync(outFile))

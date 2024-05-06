@@ -10,9 +10,11 @@ using Microsoft.Extensions.Hosting;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
-using pwd.readline;
 using pwd.repository;
 using pwd.repository.implementation;
+using pwd.ui;
+using pwd.ui.console;
+using pwd.ui.readline;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
 
@@ -136,7 +138,7 @@ public static class Program
    {
       var logger = new NullLogger();
       var console = new StandardConsole();
-      var view = new View(console, new Reader(console));
+      var view = new ConsoleView(console, new ConsoleReader(console));
       var fs = new FileSystem();
       var cipherFactory = new CipherFactory();
 

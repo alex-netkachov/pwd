@@ -4,26 +4,13 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using pwd.ui.console;
 
-namespace pwd.readline;
+namespace pwd.ui.readline;
 
-/// <summary>Provides reading user input routines.</summary>
-/// <remarks>Reading requests are queued up and processed sequentially.</remarks>
-public interface IReader
-{
-   Task<string> ReadAsync(
-      string prompt = "",
-      ISuggestionsProvider? suggestionsProvider = null,
-      CancellationToken token = default);
-
-   Task<string> ReadPasswordAsync(
-      string prompt = "",
-      CancellationToken token = default);
-}
-
-public sealed class Reader
+public sealed class ConsoleReader
    : IReader,
-      IDisposable
+     IDisposable
 {
    private record State(
       bool Disposed,
@@ -40,7 +27,7 @@ public sealed class Reader
    private readonly ChannelWriter<bool> _requests;
    private readonly CancellationTokenSource _cts;
 
-   public Reader(
+   public ConsoleReader(
       IConsole console)
    {
       _console = console;
@@ -153,7 +140,7 @@ public sealed class Reader
       {
          var initial = _state;
          if (_state.Disposed)
-            throw new ObjectDisposedException(nameof(Reader));
+            throw new ObjectDisposedException(nameof(ConsoleReader));
          var updated = _state with { Queue = initial.Queue.Enqueue(new(TaskFactory, tcs, cancellationToken)) };
          if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
             continue;
@@ -189,10 +176,11 @@ public sealed class Reader
       var suggestionsIndex = 0;
       var suggestionsQueriedPosition = 0;
 
-      using var reader = _console.Subscribe();
+      var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
+      _console.Subscribe(channel.Writer);
       while (!token.IsCancellationRequested)
       {
-         var key = await reader.ReadAsync(token);
+         var key = await channel.Reader.ReadAsync(token);
 
          if (key.Key != ConsoleKey.Tab)
          {
@@ -204,7 +192,7 @@ public sealed class Reader
          {
             case (false, ConsoleKey.Enter):
                _console.WriteLine();
-               reader.Dispose();
+               _console.Unsubscribe(channel.Writer);
                tcs.TrySetResult(new(input.ToArray()));
                return;
             case (false, ConsoleKey.LeftArrow):
@@ -291,18 +279,20 @@ public sealed class Reader
 
       _console.Write(prompt);
       
+      var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
+
       var input = new List<char>();
       var position = 0;
-      using var reader = _console.Subscribe();
+      _console.Subscribe(channel.Writer);
       while (!token.IsCancellationRequested)
       {
-         var key = await reader.ReadAsync(token);
+         var key = await channel.Reader.ReadAsync(token);
 
          switch (key.Modifiers == ConsoleModifiers.Control, key.Key)
          {
             case (false, ConsoleKey.Enter):
                _console.WriteLine();
-               reader.Dispose();
+               _console.Unsubscribe(channel.Writer);
                tcs.TrySetResult(new(input.ToArray()));
                return;
             case (false, ConsoleKey.Backspace):

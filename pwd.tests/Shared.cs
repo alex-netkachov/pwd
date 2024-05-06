@@ -12,9 +12,11 @@ using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.mocks;
-using pwd.readline;
 using pwd.repository;
 using pwd.repository.implementation;
+using pwd.ui;
+using pwd.ui.console;
+using pwd.ui.readline;
 
 namespace pwd;
 
@@ -71,7 +73,7 @@ public static class Shared
       var @lock = host.Services.GetRequiredService<ILock>();
 
       var fileName =
-         Name.Parse(fs, string.IsNullOrEmpty(path)
+         Name.Parse(fs, string.IsNullOrEmpty(name)
          ? System.IO.Path.GetFileName(path)
          : name);
 
@@ -221,7 +223,7 @@ public static class Shared
    {
       var fs = FileLayout1(GetMockFs());
       var console = new StandardConsole();
-      var view = new View(console, new Reader(console));
+      var view = new ConsoleView(console, new ConsoleReader(console));
       var repository = new Repository(Mock.Of<ILogger>(), fs, FastTestCipher.Instance, Base64Url.Instance, ".");
       var session = CreateSessionContext(Mock.Of<ILogger>(), repository, view: view);
       Assert.That(string.Join(";", session.Suggestions("../")), Is.EqualTo("../test"));

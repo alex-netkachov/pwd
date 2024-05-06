@@ -1,13 +1,13 @@
 ﻿using System.Threading.Channels;
 using Moq;
-using pwd.readline;
 using pwd.mocks;
 using pwd.repository;
 using NUnit.Framework;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
-using pwd.repository.implementation;
+using pwd.ui;
+using pwd.ui.readline;
 
 namespace pwd.tests;
 
@@ -73,8 +73,8 @@ public class Integration_Tests
       });
       
       using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      using var reader = new ConsoleReader(console);
+      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
       var cipherFactory = new FastTestCipherFactory();
 
       using var host = Program.SetupHost(logger, console, fs, cipherFactory, view);
@@ -148,8 +148,8 @@ public class Integration_Tests
       });
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      using var reader = new ConsoleReader(console);
+      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
       var cipherFactory = new FastTestCipherFactory();
 
       using var host = Program.SetupHost(logger, console, fs, cipherFactory, view);
@@ -199,8 +199,8 @@ public class Integration_Tests
          .WriteAsync("content1");
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      using var reader = new ConsoleReader(console);
+      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
       var cipherFactory = new FastTestCipherFactory();
 
       using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
@@ -245,8 +245,8 @@ public class Integration_Tests
       var fs = Shared.GetMockFs();
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      using var reader = new ConsoleReader(console);
+      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
       var cipherFactory = new FastTestCipherFactory();
 
       using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
@@ -286,8 +286,8 @@ public class Integration_Tests
       var fs = Shared.GetMockFs();
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      using var reader = new ConsoleReader(console);
+      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
       var cipherFactory = new FastTestCipherFactory();
 
       using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);

@@ -2,7 +2,8 @@
 # Builds a self-contained executables for windows and linix.
 #
 
-$command = "dotnet publish .\\pwd\\pwd.csproj -p:Version=2023.11.4.1 --configuration Release --self-contained"
+$version = Get-Date -Format "yyyy.M.d"
+$command = "dotnet publish .\\pwd\\pwd.csproj -p:Version=$($version).1 --configuration Release --self-contained"
 
 Remove-Item -Path .\bin\Release -Recurse -Force -ErrorAction SilentlyContinue
 Invoke-Expression "${command} -r win-x64"

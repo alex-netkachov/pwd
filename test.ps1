@@ -1,6 +1,7 @@
 ##
 # Restores packages, cleans, builds, publishes, and tests pwd.
-# Supposed to be executed from the solution folder.
+#
+# Run it from the solution's folder.
 #
 
 dotnet restore

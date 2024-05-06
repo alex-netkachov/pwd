@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using pwd.context.repl;
 using pwd.contexts.shared;
+using pwd.ui;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts;

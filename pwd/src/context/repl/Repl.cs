@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using pwd.readline;
+using pwd.ui;
+using pwd.ui.readline;
 
 namespace pwd.context.repl;
 
@@ -70,7 +71,7 @@ public abstract class CommandServicesBase
 /// </remarks>
 public abstract class Repl
    : IContext,
-      ISuggestionsProvider
+     ISuggestionsProvider
 {
    private record State(
       TaskCompletionSource Starting,

@@ -2,10 +2,10 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using NUnit.Framework.Internal;
 using pwd.contexts.file;
 using pwd.mocks;
-using pwd.readline;
+using pwd.ui;
+using pwd.ui.readline;
 
 namespace pwd.tests.contexts;
 
@@ -39,8 +39,8 @@ public sealed class Session_Tests
 
       var channel = Channel.CreateUnbounded<string>();
       var console = new TestConsole(channel.Reader);
-      var reader = new Reader(console);
-      var view = new View(console, reader);
+      var reader = new ConsoleReader(console);
+      var view = new ConsoleView(console, reader);
 
       var fileFactory =
          new FileFactory(

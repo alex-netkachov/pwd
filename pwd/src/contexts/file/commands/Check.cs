@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using pwd.context.repl;
 using pwd.repository;
+using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 

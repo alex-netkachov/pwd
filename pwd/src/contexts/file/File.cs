@@ -8,6 +8,7 @@ using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file.commands;
 using pwd.repository;
+using pwd.ui;
 
 namespace pwd.contexts.file;
 

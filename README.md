@@ -1,7 +1,6 @@
 # pwd
 
-`pwd` is a cross-platform console-based password manager, developed using
-.NET 7.
+`pwd` is a cross-platform console-based password manager.
 
 It functions as a contextual REPL (read-eval-print loop) tool. Passwords, along
 with other sensitive information such as keys or notes, are stored in
@@ -18,6 +17,7 @@ Main features:
   open-source tools such as OpenSSL.
 - Portable: no installation required.
 - One file per entry, which makes it easy to manage and merge changes.
+- Minimum dependencies.
 
 ## Requirements
 

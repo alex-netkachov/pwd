@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using pwd.context.repl;
 using pwd.repository;
+using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 

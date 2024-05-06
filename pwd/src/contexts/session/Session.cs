@@ -7,6 +7,7 @@ using pwd.contexts.file;
 using pwd.contexts.session.commands;
 using pwd.repository;
 using pwd.repository.implementation;
+using pwd.ui;
 
 namespace pwd.contexts.session;
 

@@ -3,6 +3,7 @@ using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.repository;
+using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
 

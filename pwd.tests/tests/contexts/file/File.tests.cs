@@ -5,6 +5,7 @@ using Moq;
 using NUnit.Framework;
 using pwd.mocks;
 using pwd.repository.implementation;
+using pwd.ui;
 
 namespace pwd.tests.contexts.file;
 

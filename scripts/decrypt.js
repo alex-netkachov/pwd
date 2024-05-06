@@ -6,7 +6,10 @@ const $ =
     readPassword : require('./lib/readPassword'),
     cipher : require('./lib/cipher') };
 
-main().catch(error => { console.error(error); process.exit(1); });
+main().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
 
 /** Prints the decrypted contents of the file. */
 async function main() {

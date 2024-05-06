@@ -1,8 +1,10 @@
 using System;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using pwd.context;
-using pwd.readline;
+using pwd.ui;
+using pwd.ui.console;
 
 namespace pwd.contexts;
 
@@ -69,13 +71,15 @@ public sealed class Lock
       });
 
       _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
+
+      var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
       
       Task.Run(async () =>
       {
-         var keys = console.Subscribe();
+         console.Subscribe(channel.Writer);
          while (true)
          {
-            await keys.ReadAsync();
+            await channel.Reader.ReadAsync();
             _idleTimer?.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
          }
       });

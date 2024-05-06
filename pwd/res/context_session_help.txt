@@ -1,13 +1,11 @@
-To list the files in the folder just press Enter. Type a few characters
-and press Enter to view only the names that begin with them. If there is only
-one match the app will open the file. If you type a first few characters of the
-name and press Tab, the app will complete the name with the first match.
-Subsequent Tabs iterate over the matches.
+To list the files in the folder just press <Enter>. Type a few characters
+and press <Enter> to view only the names that begin with the input. Press
+<Tab> for iterating over the matches.
 
 Commands:
 
 .add file
-   creates a new password file
+   creates a file
 .clear
    clears the screen
 .export path

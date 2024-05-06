@@ -1,9 +1,11 @@
 Commands:
 
+<Enter>
+   prints the current file with obscured passwords
 ..
    closes the current file
 .archive
-   archives the current file
+   moves the current file to the folder `.archive`
 .cc field
    copies value of the field into the clipboard
 .clear
@@ -12,8 +14,6 @@ Commands:
    shortcut for `.cc user`
 .ccp
    shortcut for `.cc password`
-.check
-   verifies that the file is a valid YAML
 .edit [editor]
    opens the current file in the editor
 .help
@@ -25,6 +25,6 @@ Commands:
 .rename name
    renames the opened file
 .rm
-   removes the opened file
+   moves the current file to the folder `.bin`
 .unobscured
    prints the file with passwords

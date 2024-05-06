@@ -6,7 +6,10 @@ const $ =
     readPassword : require('./lib/readPassword'),
     cipher : require('./lib/cipher') };
 
-main().catch(error => { console.error(error); process.exit(1); });
+main().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
 
 /** Prints the decrypted contents of the file. */
 async function main() {
@@ -20,7 +23,7 @@ async function main() {
   if (!password)
     throw new Error('Password cannot be empty.');
 
-  let cipher = $.cipher(password);
+  const cipher = $.cipher(password);
   let text = await $.fsp.readFile(inFile, 'utf-8');
   let region = $.cipher.findEncryptedRegion(text);
   while (region !== null) {
