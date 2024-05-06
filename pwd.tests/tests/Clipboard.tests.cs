@@ -10,7 +10,7 @@ namespace pwd.tests;
 public sealed class Clipboard_Tests
 {
    [Test]
-   [Timeout(1000)]
+   [CancelAfter(1000)]
    public async Task Clipboard_clears_its_content_after_timeout()
    {
       var channel = Channel.CreateUnbounded<string>();

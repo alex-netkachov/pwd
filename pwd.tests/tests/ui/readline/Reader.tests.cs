@@ -16,7 +16,7 @@ public sealed class Reader_Tests
    [TestCase("b{<}{<}{<}{>}{>}{>}{<}{<}{<}{<}a\n", "ab")]
    [TestCase("b{<}a{>}c\n", "abc")]
    [TestCase("{<x}\n", "")]
-   [Timeout(1000)]
+   [CancelAfter(1000)]
    public async Task Read(
       string keys,
       string expected)
@@ -52,7 +52,7 @@ public sealed class Reader_Tests
    [TestCase("t{TAB}{TAB}{TAB}\n", "test1")]
    [TestCase("o{TAB}\n", "ok")]
    [TestCase("t{TAB}{BS}{TAB}\n", "test1")]
-   [Timeout(1000)]
+   [CancelAfter(1000)]
    public async Task Reader_shows_suggestions_on_tab(
       string keys,
       string expected)

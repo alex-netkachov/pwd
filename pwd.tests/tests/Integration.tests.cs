@@ -16,7 +16,7 @@ public class Integration_Tests
    private static readonly Settings DefaultSettings = new(Timeout.InfiniteTimeSpan);
 
    [Test]
-   [Timeout(5000)]
+   [CancelAfter(5000)]
    public async Task QuickStart()
    {
       var logger = new ConsoleLogger();
@@ -105,7 +105,7 @@ public class Integration_Tests
    }
 
    [Test]
-   [Timeout(5000)]
+   [CancelAfter(5000)]
    public async Task Initialise_from_empty_repository()
    {
       var logger = new ConsoleLogger();
@@ -169,7 +169,7 @@ public class Integration_Tests
    }
    
    [Test]
-   [Timeout(3000)]
+   [CancelAfter(3000)]
    public async Task Initialise_with_repository_with_files()
    {
       var notifications = Channel.CreateUnbounded<IViewNotification>();
@@ -220,7 +220,7 @@ public class Integration_Tests
    }
    
    [Test]
-   [Timeout(4000)]
+   [CancelAfter(4000)]
    public async Task Initialise_from_empty_repository_plus_locking()
    {
       var notifications = Channel.CreateUnbounded<IViewNotification>();
@@ -259,7 +259,7 @@ public class Integration_Tests
    }
 
    [Test]
-   [Timeout(20000)]
+   [CancelAfter(20000)]
    public async Task Initialise_from_empty_repository_plus_timeout_lock()
    {
       var notifications = Channel.CreateUnbounded<IViewNotification>();
