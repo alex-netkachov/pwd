@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using pwd.repository;
 using pwd.repository.implementation;
+using pwd.repository.interfaces;
 
 namespace pwd;
 

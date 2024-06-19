@@ -14,14 +14,14 @@ public sealed class Edit
    private readonly IRunner _runner;
    private readonly IView _view;
    private readonly IFileSystem _fs;
-   private readonly repository.IFile _file;
+   private readonly repository.interfaces.IFile _file;
 
    public Edit(
       IEnvironmentVariables environmentVariables,
       IRunner runner,
       IView view,
       IFileSystem fs,
-      repository.IFile file)
+      repository.interfaces.IFile file)
    {
       _environmentVariables = environmentVariables;
       _runner = runner;

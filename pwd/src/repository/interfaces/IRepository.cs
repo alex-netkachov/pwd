@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace pwd.repository;
+namespace pwd.repository.interfaces;
 
 public interface IRepository
 {

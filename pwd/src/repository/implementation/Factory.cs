@@ -1,4 +1,5 @@
 ﻿using System.IO.Abstractions;
+using pwd.repository.interfaces;
 
 namespace pwd.repository.implementation;
 

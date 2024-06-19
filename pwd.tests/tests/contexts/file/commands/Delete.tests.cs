@@ -5,6 +5,7 @@ using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.repository;
+using pwd.repository.interfaces;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
@@ -27,7 +28,7 @@ public class Delete_Tests
             Mock.Of<IState>(),
             Mock.Of<IView>(),
             Mock.Of<IRepository>(),
-            Mock.Of<pwd.repository.IFile>());
+            Mock.Of<pwd.repository.interfaces.IFile>());
 
       var command = factory.Create(input);
 
@@ -50,7 +51,7 @@ public class Delete_Tests
                It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(true));
 
-      var mockItem = new Mock<pwd.repository.IFile>();
+      var mockItem = new Mock<pwd.repository.interfaces.IFile>();
       mockItem
          .SetupGet(m => m.Name)
          .Returns(Name.Parse(fs, "test"));
@@ -93,7 +94,7 @@ public class Delete_Tests
             Mock.Of<IState>(),
             Mock.Of<IView>(),
             Mock.Of<IRepository>(),
-            Mock.Of<pwd.repository.IFile>());
+            Mock.Of<pwd.repository.interfaces.IFile>());
 
       Assert.That(
          factory.Suggestions(input),

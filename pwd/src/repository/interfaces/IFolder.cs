@@ -1,4 +1,4 @@
-namespace pwd.repository;
+namespace pwd.repository.interfaces;
 
 public interface IFolder
    : IContainer,

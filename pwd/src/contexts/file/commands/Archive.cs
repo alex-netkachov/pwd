@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using pwd.context.repl;
-using pwd.repository;
+using pwd.repository.interfaces;
 
 namespace pwd.contexts.file.commands;
 

@@ -10,11 +10,11 @@ namespace pwd.contexts.file.commands;
 
 public sealed class CopyField(
       IClipboard clipboard,
-      repository.IFile file)
+      repository.interfaces.IFile file)
    : CommandServicesBase
 {
    private readonly IClipboard _clipboard = clipboard;
-   private readonly repository.IFile _file = file;
+   private readonly repository.interfaces.IFile _file = file;
 
    private string _content = "";
 

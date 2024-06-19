@@ -10,11 +10,11 @@ public sealed class Unobscured
    : CommandServicesBase
 {
    private readonly IView _view;
-   private readonly repository.IFile _file;
+   private readonly repository.interfaces.IFile _file;
 
    public Unobscured(
       IView view,
-      repository.IFile file)
+      repository.interfaces.IFile file)
    {
       _view = view;
       _file = file;

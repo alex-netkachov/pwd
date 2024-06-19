@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using pwd.context.repl;
 using pwd.contexts.file;
-using pwd.repository;
+using pwd.repository.interfaces;
 using pwd.ui;
 
 namespace pwd.contexts.session.commands;
@@ -108,7 +108,7 @@ public sealed class List(
 
       _logger.Info($"found repository item for path '{name}'");
 
-      var file = _fileFactory.Create(_repository, _lock, (repository.IFile)item);
+      var file = _fileFactory.Create(_repository, _lock, (repository.interfaces.IFile)item);
       var _ = _state.OpenAsync(file);
    }
 

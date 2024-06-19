@@ -31,7 +31,7 @@ public class Edit_Tests
             Mock.Of<IRunner>(),
             Mock.Of<IView>(),
             Mock.Of<IFileSystem>(),
-            Mock.Of<pwd.repository.IFile>());
+            Mock.Of<pwd.repository.interfaces.IFile>());
 
       var command = factory.Create(input);
 
@@ -72,7 +72,7 @@ public class Edit_Tests
 
       var mockView = new Mock<IView>();
 
-      var mockItem = new Mock<pwd.repository.IFile>();
+      var mockItem = new Mock<pwd.repository.interfaces.IFile>();
       mockItem
          .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(content));

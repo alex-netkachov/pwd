@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.repository;
+using pwd.repository.interfaces;
 
 namespace pwd.contexts.session.commands;
 
@@ -48,7 +49,7 @@ public sealed class Open(
                   return;
                }
 
-               var file = item as repository.IFile;
+               var file = item as repository.interfaces.IFile;
                if (file == null)
                {
                   _logger.Info($"{nameof(Open)}.{nameof(DelegateCommand)}: '{path}' is not a file");

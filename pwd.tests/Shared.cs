@@ -14,6 +14,7 @@ using pwd.contexts.session;
 using pwd.mocks;
 using pwd.repository;
 using pwd.repository.implementation;
+using pwd.repository.interfaces;
 using pwd.ui;
 using pwd.ui.console;
 using pwd.ui.readline;
@@ -77,7 +78,7 @@ public static class Shared
          ? System.IO.Path.GetFileName(path)
          : name);
 
-      var file = (repository.IFile)repository.Root.Get(fileName)!;
+      var file = (repository.interfaces.IFile)repository.Root.Get(fileName)!;
 
       return (contexts.file.File)host.Services
          .GetRequiredService<IFileFactory>()

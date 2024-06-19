@@ -12,6 +12,7 @@ using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.repository;
 using pwd.repository.implementation;
+using pwd.repository.interfaces;
 using pwd.ui;
 using pwd.ui.console;
 using pwd.ui.readline;

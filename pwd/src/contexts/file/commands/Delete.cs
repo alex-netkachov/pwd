@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using pwd.context.repl;
 using pwd.repository;
+using pwd.repository.interfaces;
 using pwd.ui;
 
 namespace pwd.contexts.file.commands;
@@ -10,13 +11,13 @@ public sealed class Delete(
       IState state,
       IView view,
       IRepository repository,
-      repository.IFile file)
+      repository.interfaces.IFile file)
    : CommandServicesBase
 {
    private readonly IState _state = state;
    private readonly IView _view = view;
    private readonly IRepository _repository = repository;
-   private readonly repository.IFile _file = file;
+   private readonly repository.interfaces.IFile _file = file;
 
     public override ICommand? Create(
       string input)

@@ -6,6 +6,7 @@ using NUnit.Framework;
 using pwd.mocks;
 using pwd.repository;
 using pwd.repository.implementation;
+using pwd.repository.interfaces;
 
 namespace pwd.tests.repository;
 
@@ -30,7 +31,7 @@ public sealed class Repository_Tests
       Assert.That(
          fs.Directory.EnumerateFiles(".").Count(),
          Is.EqualTo(1));
-      var file = (pwd.repository.IFile)repository.Root.List().Single();
+      var file = (pwd.repository.interfaces.IFile)repository.Root.List().Single();
       Assert.That(
          file.Name.Value,
          Is.EqualTo("test"));

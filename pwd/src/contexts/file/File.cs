@@ -8,6 +8,7 @@ using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file.commands;
 using pwd.repository;
+using pwd.repository.interfaces;
 using pwd.ui;
 
 namespace pwd.contexts.file;
@@ -22,7 +23,7 @@ public interface IFileFactory
    IFile Create(
       IRepository repository,
       ILock @lock,
-      repository.IFile file);
+      repository.interfaces.IFile file);
 }
 
 /// <summary>Encrypted file context.</summary>
@@ -32,7 +33,7 @@ public sealed class File
 {
    private readonly IView _view;
 
-   private readonly repository.IFile _file;
+   private readonly repository.interfaces.IFile _file;
 
    //private IRepositoryUpdatesReader? _subscription;
    private CancellationTokenSource? _cts;
@@ -40,7 +41,7 @@ public sealed class File
    public File(
       ILogger logger,
       IView view,
-      repository.IFile file,
+      repository.interfaces.IFile file,
       IReadOnlyCollection<ICommandServices> factories)
    : base(
       logger,
@@ -127,7 +128,7 @@ public sealed class FileFactory
    public IFile Create(
       IRepository repository,
       ILock @lock,
-      repository.IFile file)
+      repository.interfaces.IFile file)
    {
       return new File(
          _logger,

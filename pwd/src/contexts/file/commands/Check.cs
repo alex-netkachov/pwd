@@ -10,11 +10,11 @@ public sealed class Check
    : CommandServicesBase
 {
    private readonly IView _view;
-   private readonly repository.IFile _item;
+   private readonly repository.interfaces.IFile _item;
 
    public Check(
       IView view,
-      repository.IFile item)
+      repository.interfaces.IFile item)
    {
       _view = view;
       _item = item;

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using pwd.context;
 using pwd.repository;
+using pwd.repository.interfaces;
 using pwd.ui;
 using pwd.ui.readline;
 

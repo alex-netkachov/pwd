@@ -2,18 +2,19 @@
 using System.Collections.Generic;
 using pwd.context.repl;
 using pwd.repository;
+using pwd.repository.interfaces;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Rename(
       ILogger logger,
       IRepository repository,
-      repository.IFile file)
+      repository.interfaces.IFile file)
    : CommandServicesBase
 {
    private readonly ILogger _logger = logger;
    private readonly IRepository _repository = repository;
-   private readonly repository.IFile _file = file;
+   private readonly repository.interfaces.IFile _file = file;
 
     public override ICommand? Create(
       string input)
