@@ -2,25 +2,17 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using pwd.context.repl;
-using pwd.repository;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Print
+public sealed class Print(
+      IView view,
+      IRepository repository,
+      Location location)
    : CommandServicesBase
 {
-   private readonly IView _view;
-   private readonly repository.interfaces.IFile _file;
-
-   public Print(
-      IView view,
-      repository.interfaces.IFile file)
-   {
-      _view = view;
-      _file = file;
-   }
-
    public override ICommand? Create(
       string input)
    {
@@ -34,9 +26,9 @@ public sealed class Print
 
    private ICommand Command()
    {
-      return new DelegateCommand(async cancellationToken =>
+      return new DelegateCommand(async _ =>
       {
-         var content = await _file.ReadAsync(cancellationToken);
+         var content = await repository.ReadAsync(location);
 
          var obscured =
             Regex.Replace(
@@ -44,7 +36,7 @@ public sealed class Print
                "password:\\s*[^\n\\s]+",
                "password: ************");
 
-         _view.WriteLine(obscured);
+         view.WriteLine(obscured);
       });
    }
 
@@ -54,7 +46,7 @@ public sealed class Print
       const string key = ".print";
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
-         ? new[] { key }
-         : Array.Empty<string>();
+         ? [key]
+         : [];
    }
 }

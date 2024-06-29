@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
 
@@ -28,10 +28,13 @@ public class CopyField_Tests
       string input,
       bool creates)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new CopyField(
             Mock.Of<IClipboard>(),
-            Mock.Of<IFile>());
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
 
@@ -49,17 +52,15 @@ public class CopyField_Tests
       string expected,
       string content)
    {
-      var mockItem = new Mock<IFile>();
-      mockItem
-         .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
-         .Returns(Task.FromResult(content));
+      var repository = Shared.CreateRepository();
 
       var mockClipboard = new Mock<IClipboard>();
       
       using var factory =
          new CopyField(
             mockClipboard.Object,
-            mockItem.Object);
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
       if (command == null)

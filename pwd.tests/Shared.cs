@@ -6,15 +6,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.mocks;
-using pwd.repository;
-using pwd.repository.implementation;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 using pwd.ui.console;
 using pwd.ui.readline;
@@ -74,15 +74,16 @@ public static class Shared
       var @lock = host.Services.GetRequiredService<ILock>();
 
       var fileName =
-         Name.Parse(fs, string.IsNullOrEmpty(name)
-         ? System.IO.Path.GetFileName(path)
-         : name);
+         repository.ParseName(
+            string.IsNullOrEmpty(name)
+               ? System.IO.Path.GetFileName(path)
+               : name);
 
-      var file = (repository.interfaces.IFile)repository.Root.Get(fileName)!;
+      var fileLocation = repository.Root.Down(fileName);
 
-      return (contexts.file.File)host.Services
+      return (File)host.Services
          .GetRequiredService<IFileFactory>()
-         .Create(repository, @lock, file);
+         .Create(repository, @lock, fileLocation);
    }
 
    public static Session CreateSessionContext(
@@ -113,7 +114,6 @@ public static class Shared
          .GetRequiredService<ISessionFactory>()
          .Create(
             repository ?? Mock.Of<IRepository>(),
-            exporter ?? Mock.Of<IExporter>(),
             @lock ?? Mock.Of<ILock>());
    }
 
@@ -225,7 +225,16 @@ public static class Shared
       var fs = FileLayout1(GetMockFs());
       var console = new StandardConsole();
       var view = new ConsoleView(console, new ConsoleReader(console));
-      var repository = new Repository(Mock.Of<ILogger>(), fs, FastTestCipher.Instance, Base64Url.Instance, ".");
+
+      var repository =
+         new FolderRepository(
+            Mock.Of<ILogger<FolderRepository>>(),
+            fs,
+            (_, _) => GetTestCipher(),
+            Base64Url.Instance,
+            ".",
+            "");
+
       var session = CreateSessionContext(Mock.Of<ILogger>(), repository, view: view);
       Assert.That(string.Join(";", session.Suggestions("../")), Is.EqualTo("../test"));
       Assert.That(string.Join(";", session.Suggestions("")), Is.EqualTo("encrypted;regular_dir"));
@@ -246,20 +255,29 @@ public static class Shared
    public static string Encrypt(
       string input)
    {
-      var encrypted = FastTestCipher.Instance.Encrypt(input);
+      var cipher = GetTestCipher();
+      var encrypted = cipher.Encrypt(input);
       var encoded = Base64Url.Instance.Encode(encrypted);
       return encoded;
    }
 
    public static IRepository CreateRepository(
       IFileSystem? fs = null,
-      ILogger? logger = null)
+      ILogger<FolderRepository>? logger = null)
    {
-      return new Repository(
-         logger ?? Mock.Of<ILogger>(),
+      return new FolderRepository(
+         logger ?? Mock.Of<ILogger<FolderRepository>>(),
          fs ?? Mock.Of<IFileSystem>(),
-         FastTestCipher.Instance,
+         (_, _) => GetTestCipher(),
          Base64Url.Instance,
-         ".");
+         ".",
+         "");
+   }
+
+   public static ICipher GetTestCipher()
+   {
+      return new AesCipher(
+         new byte[32],
+         AesInitialisationData.Zero.ToArray());
    }
 }

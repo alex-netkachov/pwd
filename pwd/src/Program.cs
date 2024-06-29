@@ -7,12 +7,12 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
-using pwd.repository;
-using pwd.repository.implementation;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 using pwd.ui.console;
 using pwd.ui.readline;
@@ -24,13 +24,11 @@ namespace pwd;
 public record Settings(
    TimeSpan LockTimeout);
 
-public static class Program
+public static partial class Program
 {
    internal static IHost SetupHost(
-         ILogger logger,
          IConsole console,
          IFileSystem fs,
-         ICipherFactory cipherFactory,
          IView view)
    {
       var builder = Host.CreateDefaultBuilder();
@@ -38,19 +36,33 @@ public static class Program
          services =>
          {
             services
-               .AddSingleton(logger)
+               .AddLogging(
+                  loggingBuilder => loggingBuilder.ClearProviders())
                .AddSingleton(fs)
                .AddSingleton(view)
                .AddSingleton(console)
-               .AddSingleton(cipherFactory)
                .AddSingleton<IRunner, Runner>()
                .AddSingleton<ITimers, Timers>()
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IState, State>()
                .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
-               .AddSingleton<IFactory, RepositoryFactory>()
+               .AddTransient<RepositoryFactory>(
+                  provider =>
+                     (password, path) =>
+                     {
+                        var repository =
+                           new FolderRepository(
+                              provider.GetRequiredService<ILogger<FolderRepository>>(),
+                              fs,
+                              (pwd, data) => new AesCipher(pwd, data),
+                              provider.GetRequiredService<IStringEncoder>(),
+                              path,
+                              password);
+
+                        return repository;
+                     })
                .AddSingleton<IExporterFactory, ExporterFactory>()
-               .AddSingleton<IEncoder, Base64Url>()
+               .AddSingleton<IStringEncoder, Base64Url>()
                .AddSingleton<ISessionFactory, SessionFactory>()
                .AddSingleton<IFileFactory, FileFactory>()
                .AddSingleton<INewFileFactory, NewFileFactory>()
@@ -75,18 +87,24 @@ public static class Program
       // open the repository from the current working folder
       var path = fs.Path.GetFullPath(".");
 
-      var @lock = services.GetRequiredService<ILockFactory>().Create(password, settings.LockTimeout);
+      var @lock =
+         services
+            .GetRequiredService<ILockFactory>()
+            .Create(password, settings.LockTimeout);
+
       @lock.Password();
 
-      var cipher = services.GetRequiredService<ICipherFactory>().Create(password);
-      var repository = services.GetRequiredService<IFactory>().Create(password, path);
+      var repository =
+         services
+            .GetRequiredService<RepositoryFactory>()
+            .Invoke(password, path);
 
       try
       {
          var decryptErrors = new List<string>();
          var yamlErrors = new List<string>();
 
-         await foreach (var item in repository.Root.ListAsync())
+         foreach (var item in repository.List(repository.Root))
          {
             view.Write(".");
          }
@@ -125,8 +143,9 @@ public static class Program
       }
       */
 
-      var exporter = services.GetRequiredService<IExporterFactory>().Create(cipher, repository);
-      var session = services.GetRequiredService<ISessionFactory>().Create(repository, exporter, @lock);
+      //var exporter = services.GetRequiredService<IExporterFactory>().Create(cipher, repository);
+      var session = services.GetRequiredService<ISessionFactory>().Create(repository, @lock);
+      
 
       var state = services.GetRequiredService<IState>();
       var subscription = state.Subscribe();
@@ -137,11 +156,9 @@ public static class Program
    public static async Task Main(
       string[] args)
    {
-      var logger = new NullLogger();
       var console = new StandardConsole();
       var view = new ConsoleView(console, new ConsoleReader(console));
       var fs = new FileSystem();
-      var cipherFactory = new CipherFactory();
 
       var isGitRepository =
          fs.Directory.Exists(".git") ||
@@ -160,7 +177,7 @@ public static class Program
          }
       }
 
-      using var host = SetupHost(logger, console, fs, cipherFactory, view);
+      using var host = SetupHost(console, fs, view);
 
       await Run(host, new(TimeSpan.FromMinutes(5)));
 

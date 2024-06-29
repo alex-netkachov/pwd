@@ -4,9 +4,8 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using pwd.repository;
-using pwd.repository.implementation;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 
 namespace pwd;
 
@@ -55,14 +54,14 @@ public sealed class Exporter
       var template = await reader.ReadToEndAsync();
 
       // for now, only the files in the main folder
-      var files = _repository.Root.List().ToList();
+      var files = _repository.List(_repository.Root).ToList();
 
       var script = "{ " + string.Join(",\n  ",
          files
             .OrderBy(item => item.Name)
             .Select(item =>
             {
-               var content = _fs.File.ReadAllBytes(((repository.implementation.File)item).GetEncryptedPath().ToString());
+               var content = _fs.File.ReadAllBytes(((FolderRepository)_repository).ToFilesystemPath(item));
                return (item.Name, Content: string.Join("", Convert.ToHexString(content)));
             })
             .Select(item => $"\"{item.Name}\" : \"{item.Content}\"")) + " }";

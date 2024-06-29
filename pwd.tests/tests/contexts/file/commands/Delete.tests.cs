@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
@@ -23,12 +23,14 @@ public class Delete_Tests
       string input,
       bool creates)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Delete(
             Mock.Of<IState>(),
             Mock.Of<IView>(),
-            Mock.Of<IRepository>(),
-            Mock.Of<pwd.repository.interfaces.IFile>());
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
 
@@ -51,19 +53,14 @@ public class Delete_Tests
                It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(true));
 
-      var mockItem = new Mock<pwd.repository.interfaces.IFile>();
-      mockItem
-         .SetupGet(m => m.Name)
-         .Returns(Name.Parse(fs, "test"));
+      var repository = Shared.CreateRepository();
 
-      var mockRepository = new Mock<IRepository>();
-      
       using var factory =
          new Delete(
             mockState.Object,
             mockView.Object,
-            mockRepository.Object,
-            mockItem.Object);
+            repository,
+            repository.Root);
 
       var command = factory.Create(".rm");
       if (command == null)
@@ -89,12 +86,14 @@ public class Delete_Tests
       string input,
       string suggestions)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Delete(
             Mock.Of<IState>(),
             Mock.Of<IView>(),
-            Mock.Of<IRepository>(),
-            Mock.Of<pwd.repository.interfaces.IFile>());
+            repository,
+            repository.Root);
 
       Assert.That(
          factory.Suggestions(input),

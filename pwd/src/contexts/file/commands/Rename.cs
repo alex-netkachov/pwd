@@ -1,25 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using pwd.context.repl;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Rename(
-      ILogger logger,
+      ILogger<Rename> logger,
       IRepository repository,
-      repository.interfaces.IFile file)
+      Location location)
    : CommandServicesBase
 {
-   private readonly ILogger _logger = logger;
-   private readonly IRepository _repository = repository;
-   private readonly repository.interfaces.IFile _file = file;
-
     public override ICommand? Create(
       string input)
    {
-      _logger.Info($"{nameof(Rename)}.{nameof(Create)}: start with '{input}'");
+      logger.LogInformation($"{nameof(Rename)}.{nameof(Create)}: start with '{input}'");
 
       return Shared.ParseCommand(input) switch
       {
@@ -27,11 +24,14 @@ public sealed class Rename(
             new DelegateCommand(
                () =>
                {
-                  _logger.Info($"{nameof(Rename)}.{nameof(DelegateCommand)}: start");
+                  logger.LogInformation($"{nameof(Rename)}.{nameof(DelegateCommand)}: start");
 
-                  _repository.Move(
-                     _file,
-                     Path.From(Name.Parse(_file.Name.FileSystem, name)));
+                  var (folder, _) = location.Up();
+                  var newLocation = folder.Down(repository.ParseName(name));
+
+                  repository.Move(
+                     location,
+                     newLocation);
                }),
          _ => null
       };

@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using pwd.context;
 
 namespace pwd;
@@ -77,12 +78,12 @@ public class State
       IImmutableStack<IContext> Stack,
       ImmutableList<Channel<IStateChange>> Subscribers);
 
-   private readonly ILogger _logger;
+   private readonly ILogger<State> _logger;
 
    private StateInt _state;
 
    public State(
-      ILogger logger)
+      ILogger<State> logger)
    {
       _logger = logger;
       _state = new(
@@ -166,12 +167,12 @@ public class State
 
       if (previous != null)
       {
-         _logger.Info("stopping the context");
+         _logger.LogInformation("stopping the context");
 
          await previous.StopAsync();
       }
 
-      _logger.Info("starting the context");
+      _logger.LogInformation("starting the context");
 
       await context.StartAsync();
    }

@@ -2,34 +2,20 @@
 using System.Collections.Generic;
 using System.IO.Abstractions;
 using pwd.context.repl;
-using pwd.repository;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Edit
-   : CommandServicesBase
-{
-   private readonly IEnvironmentVariables _environmentVariables;
-   private readonly IRunner _runner;
-   private readonly IView _view;
-   private readonly IFileSystem _fs;
-   private readonly repository.interfaces.IFile _file;
-
-   public Edit(
+public sealed class Edit(
       IEnvironmentVariables environmentVariables,
       IRunner runner,
       IView view,
       IFileSystem fs,
-      repository.interfaces.IFile file)
-   {
-      _environmentVariables = environmentVariables;
-      _runner = runner;
-      _view = view;
-      _fs = fs;
-      _file = file;
-   }
-
+      IRepository repository,
+      Location location)
+   : CommandServicesBase
+{
    public override ICommand? Create(
       string input)
    {
@@ -39,45 +25,45 @@ public sealed class Edit
          {
             var chosenEditor =
                string.IsNullOrEmpty(editor)
-                  ? _environmentVariables.Get("EDITOR")
+                  ? environmentVariables.Get("EDITOR")
                   : editor;
 
             if (string.IsNullOrEmpty(chosenEditor))
             {
-               _view.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
+               view.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
                return;
             }
 
-            var content = await _file.ReadAsync(cancellationToken);
+            var content = await repository.ReadAsync(location);
 
-            var path = _fs.Path.GetTempFileName();
+            var tmpFileName = fs.Path.GetTempFileName();
 
             try
             {
-               await _fs.File.WriteAllTextAsync(path, content, cancellationToken);
+               await fs.File.WriteAllTextAsync(tmpFileName, content, cancellationToken);
 
                var exception =
-                  await _runner.RunAsync(
+                  await runner.RunAsync(
                      chosenEditor,
-                     arguments: path,
+                     arguments: tmpFileName,
                      cancellationToken: cancellationToken);
 
                if (exception != null)
-                  _view.Write($"Cannot start the editor. Reason: {exception.Message}");
+                  view.Write($"Cannot start the editor. Reason: {exception.Message}");
 
-               var updated = await _fs.File.ReadAllTextAsync(path, cancellationToken);
+               var updated = await fs.File.ReadAllTextAsync(tmpFileName, cancellationToken);
                if (updated == content ||
-                   !await _view.ConfirmAsync("Update the content?", Answer.Yes, cancellationToken))
+                   !await view.ConfirmAsync("Update the content?", Answer.Yes, cancellationToken))
                {
                }
                else
                {
-                  await _file.WriteAsync(updated);
+                  await repository.WriteAsync(location, updated);
                }
             }
             finally
             {
-               _fs.File.Delete(path);
+               fs.File.Delete(tmpFileName);
             }
          }),
          _ => null
@@ -90,7 +76,7 @@ public sealed class Edit
       const string key = ".edit";
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
-         ? new[] { key }
-         : Array.Empty<string>();
+         ? [key]
+         : [];
    }
 }

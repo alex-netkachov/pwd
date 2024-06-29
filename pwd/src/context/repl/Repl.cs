@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using pwd.ui;
 using pwd.ui.readline;
 
@@ -80,12 +81,12 @@ public abstract class Repl
 
    private State? _state;
 
-   private readonly ILogger _logger;
+   private readonly ILogger<Repl> _logger;
    private readonly IView _view;
    private readonly IReadOnlyCollection<ICommandServices> _commandFactories;
 
    protected Repl(
-      ILogger logger,
+      ILogger<Repl> logger,
       IView view,
       IReadOnlyCollection<ICommandServices> commandFactories)
    {
@@ -99,7 +100,7 @@ public abstract class Repl
       string input,
       CancellationToken cancellationToken = default)
    {
-      _logger.Info($"{nameof(Repl)}.{nameof(ProcessAsync)}: processing '{input}'");
+      _logger.LogInformation($"{nameof(Repl)}.{nameof(ProcessAsync)}: processing '{input}'");
 
       var command =
          _commandFactories
@@ -108,11 +109,11 @@ public abstract class Repl
 
       if (command == null)
       {
-         _logger.Info($"no commands for input '{input}'");
+         _logger.LogInformation($"no commands for input '{input}'");
          return;
       }
 
-      _logger.Info($"executing command {command}");
+      _logger.LogInformation($"executing command {command}");
       await command.ExecuteAsync(cancellationToken);
    }
 
@@ -145,21 +146,21 @@ public abstract class Repl
             {
                var prompt = Prompt();
 
-               _logger.Info("ReplContext.Loop(): _view.ReadAsync(...)");
+               _logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
 
                input = (await _view.ReadAsync(new($"{prompt}> "), this, token)).Trim();
 
-               _logger.Info($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
+               _logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
             }
             catch (OperationCanceledException e) when (e.CancellationToken == token)
             {
                // StopAsync() is called
-               _logger.Info("ReplContext.Loop(): _view.ReadAsync(...) has been cancelled");
+               _logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...) has been cancelled");
                break;
             }
             catch (Exception e)
             {
-               _logger.Error($"waiting for the user's input ended with the following exception: {e}");
+               _logger.LogError($"waiting for the user's input ended with the following exception: {e}");
                continue;
             }
 
@@ -174,7 +175,7 @@ public abstract class Repl
             }
             catch (Exception e)
             {
-               _logger.Error($"Executing the command '{input}' ended with the following exception: {e}");
+               _logger.LogError($"Executing the command '{input}' ended with the following exception: {e}");
             }
          }
 

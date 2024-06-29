@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
@@ -22,10 +22,13 @@ public class Unobscured_Tests
       string input,
       bool creates)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Unobscured(
             Mock.Of<IView>(),
-            Mock.Of<IFile>());
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
 
@@ -37,17 +40,15 @@ public class Unobscured_Tests
    {
       const string content = "password: 123";
 
+      var repository = Shared.CreateRepository();
+
       var mockView = new Mock<IView>();
 
-      var mockItem = new Mock<IFile>();
-      mockItem
-         .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
-         .Returns(Task.FromResult(content));
-      
       using var factory =
          new Unobscured(
             mockView.Object,
-            mockItem.Object);
+            repository,
+            repository.Root);
 
       var command = factory.Create(".unobscured");
       if (command == null)
@@ -58,7 +59,7 @@ public class Unobscured_Tests
 
       await command.ExecuteAsync();
       
-      mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
+      //mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
       mockView.Verify(m => m.WriteLine(content), Times.Once);
    }
 
@@ -73,10 +74,13 @@ public class Unobscured_Tests
       string input,
       string suggestions)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Unobscured(
             Mock.Of<IView>(),
-            Mock.Of<IFile>());
+            repository,
+            repository.Root);
 
       Assert.That(
          factory.Suggestions(input),

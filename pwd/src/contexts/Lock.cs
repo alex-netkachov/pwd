@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using pwd.context;
 using pwd.ui;
 using pwd.ui.console;
@@ -47,7 +48,7 @@ public sealed class Lock
    private string _lockToken;
 
    public Lock(
-      ILogger logger,
+      ILogger<Lock> logger,
       IState state,
       IView view,
       IConsole console,
@@ -161,39 +162,24 @@ public sealed class Lock
    }
 }
 
-public sealed class LockFactory
-   : ILockFactory
-{
-   private readonly ILogger _logger;
-   private readonly IState _state;
-   private readonly IView _view;
-   private readonly IConsole _console;
-   private readonly ITimers _timers;
-
-   public LockFactory(
-      ILogger logger,
+public sealed class LockFactory(
+      ILoggerFactory loggerFactory,
       IState state,
       IView view,
       IConsole console,
       ITimers timers)
-   {
-      _logger = logger;
-      _state = state;
-      _view = view;
-      _console = console;
-      _timers = timers;
-   }
-
+   : ILockFactory
+{
    public ILock Create(
       string password,
       TimeSpan interactionTimeout)
    {
       return new Lock(
-         _logger,
-         _state,
-         _view,
-         _console,
-         _timers,
+         loggerFactory.CreateLogger<Lock>(),
+         state,
+         view,
+         console,
+         timers,
          password,
          interactionTimeout);
    }

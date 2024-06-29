@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.repository;
+using pwd.core;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
@@ -25,13 +25,16 @@ public class Edit_Tests
       string input,
       bool creates)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Edit(
             Mock.Of<IEnvironmentVariables>(),
             Mock.Of<IRunner>(),
             Mock.Of<IView>(),
             Mock.Of<IFileSystem>(),
-            Mock.Of<pwd.repository.interfaces.IFile>());
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
 
@@ -72,14 +75,7 @@ public class Edit_Tests
 
       var mockView = new Mock<IView>();
 
-      var mockItem = new Mock<pwd.repository.interfaces.IFile>();
-      mockItem
-         .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
-         .Returns(Task.FromResult(content));
-      mockItem
-         .Setup(m => m.WriteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-         .Callback<string, CancellationToken>((value, token) => content = value)
-         .Returns(Task.CompletedTask);
+      var repository = Shared.CreateRepository();
 
       using var factory =
          new Edit(
@@ -87,7 +83,8 @@ public class Edit_Tests
             mockRunner.Object,
             mockView.Object,
             mockFileSystem,
-            mockItem.Object);
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
       if (command == null)

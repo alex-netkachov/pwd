@@ -1,25 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using pwd.context.repl;
-using pwd.repository;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Unobscured
+public sealed class Unobscured(
+      IView view,
+      IRepository repository,
+      Location location)
    : CommandServicesBase
 {
-   private readonly IView _view;
-   private readonly repository.interfaces.IFile _file;
-
-   public Unobscured(
-      IView view,
-      repository.interfaces.IFile file)
-   {
-      _view = view;
-      _file = file;
-   }
-
    public override ICommand? Create(
       string input)
    {
@@ -27,8 +20,8 @@ public sealed class Unobscured
       {
          (_, "unobscured", _) => new DelegateCommand(async cancellationToken =>
          {
-            var content = await _file.ReadAsync(cancellationToken);
-            _view.WriteLine(content);
+            var content = await repository.ReadAsync(location);
+            view.WriteLine(content);
          }),
          _ => null
       };

@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file;
@@ -29,13 +30,11 @@ public sealed class Session_Tests
    {
       const string text = "test";
 
-      var logger = Mock.Of<ILogger>();
+
+      var state = new State(Mock.Of<ILogger<State>>());
 
       var fs = Shared.FileLayout2(Shared.GetMockFs());
-
-      var state = new State(logger);
-
-      var repository = Shared.CreateRepository(fs, logger);
+      var repository = Shared.CreateRepository(fs);
 
       var channel = Channel.CreateUnbounded<string>();
       var console = new TestConsole(channel.Reader);
@@ -44,7 +43,7 @@ public sealed class Session_Tests
 
       var fileFactory =
          new FileFactory(
-            logger,
+            Mock.Of<ILoggerFactory>(),
             Mock.Of<IEnvironmentVariables>(),
             Mock.Of<IRunner>(),
             Mock.Of<IClipboard>(),
@@ -54,13 +53,13 @@ public sealed class Session_Tests
 
       var session =
          Shared.CreateSessionContext(
-            logger,
+            Mock.Of<ILogger>(),
             repository,
             view: view,
             state: state,
             fileFactory: fileFactory);
 
-      logger.Info($"{nameof(Session_Tests)}.{nameof(open_file)}: processing input");
+      //logger.Info($"{nameof(Session_Tests)}.{nameof(open_file)}: processing input");
       await session.ProcessAsync($".open {file}");
 
       Assert.That(console.GetScreen(), Is.EqualTo(text + "\n"));

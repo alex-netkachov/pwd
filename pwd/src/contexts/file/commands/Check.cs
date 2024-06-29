@@ -1,35 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
 using pwd.context.repl;
-using pwd.repository;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Check
+public sealed class Check(
+      IView view,
+      IRepository repository,
+      Location location)
    : CommandServicesBase
 {
-   private readonly IView _view;
-   private readonly repository.interfaces.IFile _item;
-
-   public Check(
-      IView view,
-      repository.interfaces.IFile item)
-   {
-      _view = view;
-      _item = item;
-   }
-
    public override ICommand? Create(
       string input)
    {
       return Shared.ParseCommand(input) switch
       {
-         (_, "check", _) => new DelegateCommand(async cancellationToken =>
+         (_, "check", _) => new DelegateCommand(async _ =>
          {
-            var content = await _item.ReadAsync(cancellationToken);
+            var content = await repository.ReadAsync(location);
             if (Shared.CheckYaml(content) is { Message: var msg })
-               _view.WriteLine(msg);
+               view.WriteLine(msg);
          }),
          _ => null
       };
@@ -41,7 +33,7 @@ public sealed class Check
       const string key = ".check";
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
-         ? new[] { key }
-         : Array.Empty<string>();
+         ? [key]
+         : [];
    }
 }

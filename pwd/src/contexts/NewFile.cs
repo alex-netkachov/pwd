@@ -6,9 +6,10 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using pwd.context;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 using pwd.ui.readline;
 
@@ -33,7 +34,7 @@ public sealed class NewFile
    private readonly CancellationTokenSource _cts;
 
    private readonly IRepository _repository;
-   private readonly ILogger _logger;
+   private readonly ILogger<NewFile> _logger;
    private readonly IState _state;
    private readonly IView _view;
 
@@ -41,7 +42,7 @@ public sealed class NewFile
    private readonly string _name;
 
    public NewFile(
-      ILogger logger,
+      ILogger<NewFile> logger,
       IRepository repository,
       IState state,
       IView view,
@@ -82,14 +83,13 @@ public sealed class NewFile
             switch (input)
             {
                case "":
-                  if (!_repository.TryParsePath(_name, out var path)
+                  if (!_repository.TryParseLocation(_name, out var path)
                       || path == null)
                   {
                      return;
                   }
 
-                  var file = _repository.CreateFile(path);
-                  await file.WriteAsync(_content.ToString());
+                  await _repository.WriteAsync(path, _content.ToString());
                   await _state.BackAsync();
                   return;
                case ".help":
@@ -102,7 +102,7 @@ public sealed class NewFile
          }
          catch (Exception e)
          {
-            _logger.Error($"Executing the command '{input}' caused the following exception: {e}");
+            _logger.LogError($"Executing the command '{input}' caused the following exception: {e}");
          }
       }
    }
@@ -145,32 +145,21 @@ public sealed class NewFile
    }
 }
 
-public sealed class NewFileFactory
-   : INewFileFactory
-{
-   private readonly ILogger _logger;
-   private readonly IState _state;
-   private readonly IView _view;
-
-   public NewFileFactory(
-      ILogger logger,
+public sealed class NewFileFactory(
+      ILoggerFactory loggerFactory,
       IState state,
       IView view)
-   {
-      _logger = logger;
-      _state = state;
-      _view = view;
-   }
-
+   : INewFileFactory
+{
    public INewFile Create(
       IRepository repository,
       string name)
    {
       return new NewFile(
-         _logger,
+         loggerFactory.CreateLogger<NewFile>(),
          repository,
-         _state,
-         _view,
+         state,
+         view,
          name);
    }
 }

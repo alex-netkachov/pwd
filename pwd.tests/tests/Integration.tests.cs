@@ -1,11 +1,12 @@
 ﻿using System.Threading.Channels;
-using Moq;
 using pwd.mocks;
-using pwd.repository;
 using NUnit.Framework;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using Castle.Core.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using pwd.ui;
 using pwd.ui.readline;
 
@@ -19,7 +20,11 @@ public class Integration_Tests
    [CancelAfter(5000)]
    public async Task QuickStart()
    {
-      var logger = new ConsoleLogger();
+      var logger =
+         new ServiceCollection()
+            .AddLogging(builder => builder.AddConsole())
+            .BuildServiceProvider()
+            .GetRequiredService<ILogger<Integration_Tests>>();
 
       var fs = Shared.GetMockFs();
       
@@ -34,25 +39,25 @@ public class Integration_Tests
          async Task WaitForReadAndType(
             string instruction)
          {
-            logger.Info("waiting for Read");
+            logger.LogInformation("waiting for Read");
             Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
 
-            logger.Info($"writing `{instruction}`");
+            logger.LogInformation($"writing `{instruction}`");
             await writer.WriteAsync(instruction + "\n");
          }
 
          try
          {
-            logger.Info("waiting for ReadPassword");
+            logger.LogInformation("waiting for ReadPassword");
             Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
 
-            logger.Info("writing `secret`");
+            logger.LogInformation("writing `secret`");
             await writer.WriteAsync("secret\n");
 
-            logger.Info("waiting for ReadPassword (confirmation)");
+            logger.LogInformation("waiting for ReadPassword (confirmation)");
             Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
 
-            logger.Info("writing `secret`");
+            logger.LogInformation("writing `secret`");
             await writer.WriteAsync("secret\n");
 
             await WaitForReadAndType(".add website.com");
@@ -64,24 +69,23 @@ public class Integration_Tests
             await WaitForReadAndType("..");
             await WaitForReadAndType(".quit");
 
-            logger.Info("done writing");
+            logger.LogInformation("done writing");
          }
          catch (Exception e)
          {
-            logger.Error(e.ToString());
+            logger.LogError(e.ToString());
          }
       });
       
       using var console = new TestConsole(input.Reader);
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
-      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(logger, console, fs, cipherFactory, view);
+      using var host = Program.SetupHost(console, fs, view);
 
-      logger.Info("Before Program.Run(...)");
+      logger.LogInformation("Before Program.Run(...)");
       await Program.Run(host, DefaultSettings);
-      logger.Info("After Program.Run(...)");
+      logger.LogInformation("After Program.Run(...)");
 
       var expected = string.Join("\n",
          "Password: ******",
@@ -150,9 +154,8 @@ public class Integration_Tests
       using var console = new TestConsole(input.Reader);
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
-      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(logger, console, fs, cipherFactory, view);
+      using var host = Program.SetupHost(console, fs, view);
 
       logger.Info("Before Program.Run(...)");
       await Program.Run(host, DefaultSettings);
@@ -192,18 +195,16 @@ public class Integration_Tests
       });
 
       var fs = Shared.GetMockFs();
-      var cipher = FastTestCipher.Instance;
       var repository = Shared.CreateRepository(fs);
-      await repository
-         .CreateFile(Path.From(Name.Parse(fs, "file1")))
-         .WriteAsync("content1");
+      await repository.WriteAsync(
+         repository.Root.Down("file1"),
+         "content1");
 
       using var console = new TestConsole(input.Reader);
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
-      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
+      using var host = Program.SetupHost(console, fs, view);
       await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
@@ -247,9 +248,8 @@ public class Integration_Tests
       using var console = new TestConsole(input.Reader);
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
-      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
+      using var host = Program.SetupHost(console, fs, view);
       await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
@@ -288,9 +288,8 @@ public class Integration_Tests
       using var console = new TestConsole(input.Reader);
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
-      var cipherFactory = new FastTestCipherFactory();
 
-      using var host = Program.SetupHost(Mock.Of<ILogger>(), console, fs, cipherFactory, view);
+      using var host = Program.SetupHost(console, fs, view);
 
       await Program.Run(host, new(TimeSpan.FromSeconds(1)));
 

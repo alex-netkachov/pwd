@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using pwd.context.repl;
 using pwd.contexts.file;
-using pwd.repository.interfaces;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.contexts.session.commands;
 
 public sealed class List(
-      ILogger logger,
+      ILogger<List> logger,
       IRepository repository,
       IFileFactory fileFactory,
       ILock @lock,
@@ -43,16 +44,16 @@ public sealed class List(
    {
       const string context = $"{nameof(List)}.{nameof(Exec)}";
 
-      _logger.Info($"{context}: start with '{input}'");
+      _logger.LogInformation($"{context}: start with '{input}'");
 
       if (input == "")
       {
-         _logger.Info($"{context}: enumerating all the files as there is no user input");
+         _logger.LogInformation($"{context}: enumerating all the files as there is no user input");
 
          var items =
-            _repository.Root
-               .List()
-               .Select(item => ((repository.implementation.File)item).GetPath().ToString())
+            _repository
+               .List(_repository.Root)
+               .Select(item => _repository.ToString(item))
                .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
                .ToList();
 
@@ -62,27 +63,28 @@ public sealed class List(
       {
          // show files and folders
          var items =
-            _repository.Root
-               .List(new ListOptions(false, true, false))
-               .Where(item => ((repository.implementation.File)item).GetPath().ToString().StartsWith(input, StringComparison.OrdinalIgnoreCase))
-               .OfType<repository.implementation.File>()
+            _repository
+               .List(
+                  _repository.Root,
+                  new ListOptions(false, true, false))
+               .Where(item => _repository.ToString(item).StartsWith(input, StringComparison.OrdinalIgnoreCase))
                .ToList();
 
-         _logger.Info($"found {items.Count} items");
+         _logger.LogInformation($"found {items.Count} items");
 
          var match =
             items.FirstOrDefault(
-               item => string.Equals(item.GetPath().ToString(), input, StringComparison.OrdinalIgnoreCase));
+               item => string.Equals(_repository.ToString(item), input, StringComparison.OrdinalIgnoreCase));
 
          var chosen =
             match == default
-               ? items.Count == 1 && input != "" ? items[0].GetPath() : default
-               : match.GetPath();
+               ? items.Count == 1 && input != "" ? _repository.ToString(items[0]) : default
+               : _repository.ToString(match);
 
-         _logger.Info($"chosen item: {chosen}");
+         _logger.LogInformation($"chosen item: {chosen}");
 
          if (chosen == null)
-            _view.WriteLine(string.Join("\n", items.Select(item => item.GetPath()).OrderBy(item => item)));
+            _view.WriteLine(string.Join("\n", items.Select(item => _repository.ToString(item)).OrderBy(item => item)));
          else
             Open(chosen.ToString());
       }
@@ -93,22 +95,15 @@ public sealed class List(
    private void Open(
       string name)
    {
-      if (!_repository.TryParsePath(name, out var path)
+      if (!_repository.TryParseLocation(name, out var path)
           || path == null)
       {
          return;
       }
 
-      var item = _repository.Get(path);
-      if (item == null)
-      {
-         _logger.Info($"item '{name}' not found");
-         return;
-      }
+      _logger.LogInformation($"found repository item for path '{name}'");
 
-      _logger.Info($"found repository item for path '{name}'");
-
-      var file = _fileFactory.Create(_repository, _lock, (repository.interfaces.IFile)item);
+      var file = _fileFactory.Create(_repository, _lock, path);
       var _ = _state.OpenAsync(file);
    }
 

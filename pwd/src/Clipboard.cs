@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace pwd;
 
@@ -20,14 +21,14 @@ public sealed class Clipboard
    : IClipboard,
       IDisposable
 {
-   private readonly ILogger _logger;
+   private readonly ILogger<Clipboard> _logger;
    private readonly IRunner _runner;
    private readonly ChannelWriter<string> _writer;
    private readonly ITimer _cleaner;
    private readonly CancellationTokenSource _cts;
 
    public Clipboard(
-      ILogger logger,
+      ILogger<Clipboard> logger,
       IRunner runner,
       ITimers timers)
    {
@@ -108,6 +109,6 @@ public sealed class Clipboard
       };
 
       if (e != null)
-         _logger.Error($"Cannot copy to the clipboard: {e}");
+         _logger.LogError($"Cannot copy to the clipboard: {e}");
    }
 }

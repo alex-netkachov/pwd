@@ -2,6 +2,20 @@
   "version": 1,
   "dependencies": {
     "net8.0": {
+      "Microsoft.Extensions.Logging.Console": {
+        "type": "Direct",
+        "requested": "[8.0.0, )",
+        "resolved": "8.0.0",
+        "contentHash": "e+48o7DztoYog+PY430lPxrM4mm3PbA6qucvQtUDDwVo4MO+ejMw7YGc/o2rnxbxj4isPxdfKFzTxvXMwAz83A==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0",
+          "Microsoft.Extensions.Logging": "8.0.0",
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.0",
+          "Microsoft.Extensions.Logging.Configuration": "8.0.0",
+          "Microsoft.Extensions.Options": "8.0.0",
+          "System.Text.Json": "8.0.0"
+        }
+      },
       "Microsoft.NET.Test.Sdk": {
         "type": "Direct",
         "requested": "[17.9.0, )",
@@ -29,15 +43,9 @@
       },
       "NUnit.Analyzers": {
         "type": "Direct",
-<<<<<<< HEAD
         "requested": "[4.2.0, )",
         "resolved": "4.2.0",
         "contentHash": "4fJojPkzdoa4nB2+p6U+fITvPnVvwWSnsmiJ/Dl30xqiL3oxNbYvfeSLVd91hOmEjoUqSwN3Z7j1aFedjqWbUA=="
-=======
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "zhTn0POj5eEA4bi+zbaeIPT6F5HlgM0XH7sAWkNcUihzsl7Pn1J6eLGj/E/tPQiR6spFuh12u1tpWB6+xA0giQ=="
->>>>>>> 1333eaa4e79ad5c88bc5b53ffb192a8a42aed1d3
       },
       "NUnit3TestAdapter": {
         "type": "Direct",
@@ -266,19 +274,6 @@
           "Microsoft.Extensions.Options.ConfigurationExtensions": "8.0.0"
         }
       },
-      "Microsoft.Extensions.Logging.Console": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "e+48o7DztoYog+PY430lPxrM4mm3PbA6qucvQtUDDwVo4MO+ejMw7YGc/o2rnxbxj4isPxdfKFzTxvXMwAz83A==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0",
-          "Microsoft.Extensions.Logging": "8.0.0",
-          "Microsoft.Extensions.Logging.Abstractions": "8.0.0",
-          "Microsoft.Extensions.Logging.Configuration": "8.0.0",
-          "Microsoft.Extensions.Options": "8.0.0",
-          "System.Text.Json": "8.0.0"
-        }
-      },
       "Microsoft.Extensions.Logging.Debug": {
         "type": "Transitive",
         "resolved": "8.0.0",
@@ -374,34 +369,19 @@
       },
       "System.IO.Abstractions": {
         "type": "Transitive",
-<<<<<<< HEAD
         "resolved": "21.0.2",
         "contentHash": "ewYQGK0kzOpfiYCF0P0nqPAnKqGhqiXAWDFeMtQtwJyERA2s7nLx7KEALwDvIFjZvX6677IsPREoLIU9oBOQvA==",
         "dependencies": {
           "TestableIO.System.IO.Abstractions": "21.0.2",
           "TestableIO.System.IO.Abstractions.Wrappers": "21.0.2"
-=======
-        "resolved": "20.0.15",
-        "contentHash": "IcKGQnTDIdDzZreoU5zkiabLEV1O5TiAuNCVCUzVwXPqODO1Ne2kZGSufPWPVP5xFmMgPCvMXH4eQqVGwSG6Cg==",
-        "dependencies": {
-          "TestableIO.System.IO.Abstractions": "20.0.15",
-          "TestableIO.System.IO.Abstractions.Wrappers": "20.0.15"
->>>>>>> 1333eaa4e79ad5c88bc5b53ffb192a8a42aed1d3
         }
       },
       "System.IO.Abstractions.TestingHelpers": {
         "type": "Transitive",
-<<<<<<< HEAD
         "resolved": "21.0.2",
         "contentHash": "35gVJWBrsUkf+ob0xZJaVja0gLYA5UnqM1K0cSHHKfZ71aMMwUbhNNOy/cpHiVF+Z7FLiREVE080F9QDCf5O2A==",
         "dependencies": {
           "TestableIO.System.IO.Abstractions.TestingHelpers": "21.0.2"
-=======
-        "resolved": "20.0.15",
-        "contentHash": "Or7WQBhwAIvlzMKXod/XfBoqHOcRbmTufqG1FDDUF1U+n4ufGrrgSbYiISJJW11QgWqhwG9qaepGIQXJd7WUIg==",
-        "dependencies": {
-          "TestableIO.System.IO.Abstractions.TestingHelpers": "20.0.15"
->>>>>>> 1333eaa4e79ad5c88bc5b53ffb192a8a42aed1d3
         }
       },
       "System.Reflection.Metadata": {
@@ -424,7 +404,6 @@
       },
       "TestableIO.System.IO.Abstractions": {
         "type": "Transitive",
-<<<<<<< HEAD
         "resolved": "21.0.2",
         "contentHash": "ViPtOy4lAlmWq9GDEwiE5C9XSgDGHUWMRvVvruI38pbikUXkgu7xnCVW7PYdQOjS+iWWcQHt+U7oyPedfnWSHg=="
       },
@@ -435,33 +414,14 @@
         "dependencies": {
           "TestableIO.System.IO.Abstractions": "21.0.2",
           "TestableIO.System.IO.Abstractions.Wrappers": "21.0.2"
-=======
-        "resolved": "20.0.15",
-        "contentHash": "ohYr5VOrTGO+8ZVvaWZGg5vn7wQIYmAT35pjrxZ/NNbC4yamMw2JYDFv73rhpOjE/7PkuwV2Mk9GMR6hY527Gw=="
-      },
-      "TestableIO.System.IO.Abstractions.TestingHelpers": {
-        "type": "Transitive",
-        "resolved": "20.0.15",
-        "contentHash": "Usbm1pW5TljGIt++b5e2BsxZhG19u0b4Y8cZTuPq4JfbGjv1G6GqPpTD7ygqKloFZOaB3jQjhLIYUjTLlC/+2Q==",
-        "dependencies": {
-          "TestableIO.System.IO.Abstractions": "20.0.15",
-          "TestableIO.System.IO.Abstractions.Wrappers": "20.0.15"
->>>>>>> 1333eaa4e79ad5c88bc5b53ffb192a8a42aed1d3
         }
       },
       "TestableIO.System.IO.Abstractions.Wrappers": {
         "type": "Transitive",
-<<<<<<< HEAD
         "resolved": "21.0.2",
         "contentHash": "ii6Xgru3ozRaLezwE/lKAPTdE3ES+S3P3ul+QrMxIP10GN+LF0JAi4aWqb8lxzEAwBMSAeK/QipEpVt4KYlTOg==",
         "dependencies": {
           "TestableIO.System.IO.Abstractions": "21.0.2"
-=======
-        "resolved": "20.0.15",
-        "contentHash": "ylbWPBEeX8oS2Uj8pCOyFPfBRJ1JHc56YyHEa1IaaYpW4QDH5zw3H/CRm2R6V0PWCG+Fx+tpb09vkD6Y97UB2Q==",
-        "dependencies": {
-          "TestableIO.System.IO.Abstractions": "20.0.15"
->>>>>>> 1333eaa4e79ad5c88bc5b53ffb192a8a42aed1d3
         }
       },
       "YamlDotNet": {
@@ -473,14 +433,17 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Hosting": "[8.0.0, )",
-<<<<<<< HEAD
           "System.IO.Abstractions": "[21.0.2, )",
           "System.IO.Abstractions.TestingHelpers": "[21.0.2, )",
-=======
-          "System.IO.Abstractions": "[20.0.15, )",
-          "System.IO.Abstractions.TestingHelpers": "[20.0.15, )",
->>>>>>> 1333eaa4e79ad5c88bc5b53ffb192a8a42aed1d3
-          "YamlDotNet": "[15.1.2, )"
+          "YamlDotNet": "[15.1.2, )",
+          "pwd.core": "[1.0.0, )"
+        }
+      },
+      "pwd.core": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "[8.0.0, )",
+          "System.IO.Abstractions": "[21.0.2, )"
         }
       }
     },

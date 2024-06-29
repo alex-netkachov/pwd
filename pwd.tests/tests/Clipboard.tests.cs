@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using pwd.mocks;
@@ -23,7 +24,7 @@ public sealed class Clipboard_Tests
          .Setup(m => m.Run(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
          .Callback<string, string, string>((cmd, arguments, input) => writer.WriteAsync(input));
 
-      var clipboard = new Clipboard(Mock.Of<ILogger>(), mockRunner.Object, timers);
+      var clipboard = new Clipboard(Mock.Of<ILogger<Clipboard>>(), mockRunner.Object, timers);
 
       clipboard.Put("test", TimeSpan.FromSeconds(1));
 
@@ -46,7 +47,7 @@ public sealed class Clipboard_Tests
 
       var mockRunner = new Mock<IRunner>();
 
-      var clipboard = new Clipboard(Mock.Of<ILogger>(), mockRunner.Object, timers);
+      var clipboard = new Clipboard(Mock.Of<ILogger<Clipboard>>(), mockRunner.Object, timers);
 
       mockRunner
          .Setup(m => m.Run(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))

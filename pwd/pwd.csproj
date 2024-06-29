@@ -24,4 +24,7 @@
     <EmbeddedResource Include="res\template.html" />
     <EmbeddedResource Include="res\context_new_file_help.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\pwd.core\pwd.core.csproj" />
+  </ItemGroup>
 </Project>

@@ -4,23 +4,16 @@ using pwd.context.repl;
 
 namespace pwd.contexts.file.commands;
 
-public sealed class Up
+public sealed class Up(
+      IState state)
    : CommandServicesBase
 {
-   private readonly IState _state;
-
-   public Up(
-      IState state)
-   {
-      _state = state;
-   }
-
    public override ICommand? Create(
       string input)
    {
       return input switch
       {
-         ".." => new DelegateCommand(() => _state.BackAsync()),
+         ".." => new DelegateCommand(() => state.BackAsync()),
          _ => null
       };
    }
@@ -31,7 +24,7 @@ public sealed class Up
       const string key = "..";
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
-         ? new[] { key }
-         : Array.Empty<string>();
+         ? [key]
+         : [];
    }
 }

@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file;
 using pwd.contexts.session.commands;
-using pwd.repository;
-using pwd.repository.implementation;
-using pwd.repository.interfaces;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.contexts.session;
@@ -21,7 +20,6 @@ public interface ISessionFactory
 {
    ISession Create(
       IRepository repository,
-      IExporter exporter,
       ILock @lock);
 }
 
@@ -34,7 +32,7 @@ public sealed class Session
    private readonly IRepository _repository;
 
    public Session(
-      ILogger logger,
+      ILogger<Session> logger,
       IRepository repository,
       IView view,
       IReadOnlyCollection<ICommandServices> factories)
@@ -53,19 +51,22 @@ public sealed class Session
       {
          var p = input.LastIndexOf('/');
          var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-         if (!_repository.TryParsePath(folder, out var path)
+         if (!_repository.TryParseLocation(folder, out var path)
              || path == null)
          {
             return [];
          }
 
-         if (_repository.Get(path) is not IContainer container)
+         if (!_repository.FileExist(path)
+             && !_repository.FolderExist(path))
+         {
             return [];
+         }
 
-         return container
-            .List()
-            .Where(item => ((repository.implementation.File)item).GetPath().ToString().StartsWith(input))
-            .Select((object item) => ((repository.implementation.File)item).GetPath().ToString()!)
+         return _repository
+            .List(path)
+            .Where(item => (_repository.ToString(path).StartsWith(input)))
+            .Select((object item) => _repository.ToString(path))
             .ToArray();
       }
 
@@ -82,40 +83,32 @@ public sealed class Session
 }
 
 public sealed class SessionFactory(
-      ILogger logger,
+      ILoggerFactory loggerFactory,
       IState state,
       IView view,
       IFileFactory fileFactory,
       INewFileFactory newFileFactory)
    : ISessionFactory
 {
-   private readonly IFileFactory _fileFactory = fileFactory;
-   private readonly INewFileFactory _newFileFactory = newFileFactory;
-   private readonly ILogger _logger = logger;
-   private readonly IState _state = state;
-   private readonly IView _view = view;
-
     public ISession Create(
       IRepository repository,
-      IExporter exporter,
       ILock @lock)
    {
       return new Session(
-         _logger,
+         loggerFactory.CreateLogger<Session>(),
          repository,
-         _view,
+         view,
          Array.Empty<ICommandServices>()
             .Concat(
                new ICommandServices[]
                {
-                  new Add(_state, _newFileFactory, repository),
-                  new Export(_view),
-                  new Help(_view),
-                  new Html(exporter),
-                  new Open(_logger, repository, _fileFactory, @lock, _state)
+                  new Add(state, newFileFactory, repository),
+                  new Export(view),
+                  new Help(view),
+                  new Open(loggerFactory.CreateLogger<Open>(), repository, fileFactory, @lock, state)
                })
-            .Concat(Shared.CommandFactories(_state, @lock, _view))
-            .Concat(new ICommandServices[] { new List(_logger, repository, _fileFactory, @lock, _state, _view) })
+            .Concat(Shared.CommandFactories(state, @lock, view))
+            .Concat(new ICommandServices[] { new List(loggerFactory.CreateLogger<List>(), repository, fileFactory, @lock, state, view) })
             .ToArray());
    }
 }

@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
@@ -23,10 +23,13 @@ public class Print_Tests
       string input,
       bool creates)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Print(
             Mock.Of<IView>(),
-            Mock.Of<IFile>());
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
 
@@ -41,15 +44,13 @@ public class Print_Tests
 
       var mockView = new Mock<IView>();
 
-      var mockItem = new Mock<IFile>();
-      mockItem
-         .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
-         .Returns(Task.FromResult(content));
-      
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Print(
             mockView.Object,
-            mockItem.Object);
+            repository,
+            repository.Root);
 
       var command = factory.Create(".print");
       if (command == null)
@@ -60,7 +61,7 @@ public class Print_Tests
 
       await command.ExecuteAsync();
       
-      mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
+      //mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
       mockView.Verify(m => m.WriteLine(output), Times.Once);
    }
 
@@ -75,10 +76,13 @@ public class Print_Tests
       string input,
       string suggestions)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Print(
             Mock.Of<IView>(),
-            Mock.Of<IFile>());
+            repository,
+            repository.Root);
 
       Assert.That(
          factory.Suggestions(input),

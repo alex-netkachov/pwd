@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using pwd.context.repl;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 
 namespace pwd.contexts.session.commands;
 

@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using pwd.context;
 using pwd.context.repl;
 using pwd.contexts.file.commands;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.contexts.file;
@@ -23,7 +24,7 @@ public interface IFileFactory
    IFile Create(
       IRepository repository,
       ILock @lock,
-      repository.interfaces.IFile file);
+      Location location);
 }
 
 /// <summary>Encrypted file context.</summary>
@@ -32,16 +33,18 @@ public sealed class File
       IFile
 {
    private readonly IView _view;
+   private readonly IRepository _repository;
 
-   private readonly repository.interfaces.IFile _file;
+   private readonly Location _location;
 
    //private IRepositoryUpdatesReader? _subscription;
    private CancellationTokenSource? _cts;
 
    public File(
-      ILogger logger,
+      ILogger<File> logger,
       IView view,
-      repository.interfaces.IFile file,
+      IRepository repository,
+      Location location,
       IReadOnlyCollection<ICommandServices> factories)
    : base(
       logger,
@@ -49,17 +52,18 @@ public sealed class File
       factories)
    {
       _view = view;
-      _file = file;
+      _repository = repository;
+      _location = location;
    }
 
    protected override string Prompt()
    {
-      return _file.Name.ToString();
+      return _location.Name!.ToString() ?? "";
    }
 
    public override async Task StartAsync()
    {
-      var print = new Print(_view, _file).Create("");
+      var print = new Print(_view, _repository, _location).Create("");
       if (print != null)
          await print.ExecuteAsync();
 
@@ -96,59 +100,40 @@ public sealed class File
    }
 }
 
-public sealed class FileFactory
-   : IFileFactory
-{
-   private readonly ILogger _logger;
-   private readonly IEnvironmentVariables _environmentVariables;
-   private readonly IRunner _runner;
-   private readonly IClipboard _clipboard;
-   private readonly IFileSystem _fs;
-   private readonly IState _state;
-   private readonly IView _view;
-
-   public FileFactory(
-      ILogger logger,
+public sealed class FileFactory(
+      ILoggerFactory loggerFactory,
       IEnvironmentVariables environmentVariables,
       IRunner runner,
       IClipboard clipboard,
       IFileSystem fs,
       IState state,
       IView view)
-   {
-      _logger = logger;
-      _environmentVariables = environmentVariables;
-      _runner = runner;
-      _clipboard = clipboard;
-      _fs = fs;
-      _state = state;
-      _view = view;
-   }
-
+   : IFileFactory
+{
    public IFile Create(
       IRepository repository,
       ILock @lock,
-      repository.interfaces.IFile file)
+      Location location)
    {
       return new File(
-         _logger,
-         _view,
-         file,
+         loggerFactory.CreateLogger<File>(),
+         view,
+         repository,
+         location,
          Array.Empty<ICommandServices>()
             .Concat(new ICommandServices[]
             {
-               new Archive(_state, file),
-               new Check(_view, file),
-               new CopyField(_clipboard, file),
-               new Delete(_state, _view, repository, file),
-               new Edit(_environmentVariables, _runner, _view, _fs, file),
-               new Help(_view),
-               new Rename(_logger, repository, file),
-               new Unobscured(_view, file),
-               new Up(_state)
+               new Check(view, repository, location),
+               new CopyField(clipboard, repository, location),
+               new Delete(state, view, repository, location),
+               new Edit(environmentVariables, runner, view, fs, repository, location),
+               new Help(view),
+               new Rename(loggerFactory.CreateLogger<Rename>(), repository, location),
+               new Unobscured(view, repository, location),
+               new Up(state)
             })
-            .Concat(Shared.CommandFactories(_state, @lock, _view))
-            .Concat(new ICommandServices[] { new Print(_view, file) })
+            .Concat(Shared.CommandFactories(state, @lock, view))
+            .Concat(new ICommandServices[] { new Print(view, repository, location) })
             .ToArray());
    }
 }

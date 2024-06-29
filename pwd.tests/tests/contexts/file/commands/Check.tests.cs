@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.repository;
-using pwd.repository.interfaces;
+using pwd.core;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
@@ -23,10 +23,13 @@ public class Check_Tests
       string input,
       bool creates)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Check(
             Mock.Of<IView>(),
-            Mock.Of<IFile>());
+            repository,
+            repository.Root);
 
       var command = factory.Create(input);
 
@@ -36,17 +39,15 @@ public class Check_Tests
    [Test]
    public async Task DoAsync_calls_repository_item_archive()
    {
+      var repository = Shared.CreateRepository();
+
       var mockView = new Mock<IView>();
 
-      var mockItem = new Mock<IFile>();
-      mockItem
-         .Setup(m => m.ReadAsync(It.IsAny<CancellationToken>()))
-         .Returns(Task.FromResult(""));
-      
       using var factory =
          new Check(
             mockView.Object,
-            mockItem.Object);
+            repository,
+            repository.Root);
 
       var command = factory.Create(".check");
       if (command == null)
@@ -70,10 +71,13 @@ public class Check_Tests
       string input,
       string suggestions)
    {
+      var repository = Shared.CreateRepository();
+
       using var factory =
          new Check(
             Mock.Of<IView>(),
-            Mock.Of<IFile>());
+            repository,
+            repository.Root);
 
       Assert.That(
          factory.Suggestions(input),

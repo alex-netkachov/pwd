@@ -4,19 +4,18 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using pwd.context.repl;
+using pwd.core.abstractions;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class CopyField(
       IClipboard clipboard,
-      repository.interfaces.IFile file)
+      IRepository repository,
+      Location location)
    : CommandServicesBase
 {
-   private readonly IClipboard _clipboard = clipboard;
-   private readonly repository.interfaces.IFile _file = file;
-
-   private string _content = "";
+   private readonly string _content = "";
 
     public override ICommand? Create(
       string input)
@@ -35,15 +34,15 @@ public sealed class CopyField(
    {
       var value = await Field(path);
       if (string.IsNullOrEmpty(value))
-         _clipboard.Clear();
+         clipboard.Clear();
       else
-         _clipboard.Put(value, TimeSpan.FromSeconds(10));
+         clipboard.Put(value, TimeSpan.FromSeconds(10));
    }
    
    private async Task<string> Field(
       string name)
    {
-      var content = await _file.ReadAsync();
+      var content = await repository.ReadAsync(location);
 
       using var input = new StringReader(content);
 
