@@ -123,7 +123,7 @@ public sealed class FileFactory(
          Array.Empty<ICommandServices>()
             .Concat(new ICommandServices[]
             {
-               new Check(view, repository, location),
+               new Check(view, location),
                new CopyField(clipboard, repository, location),
                new Delete(state, view, repository, location),
                new Edit(environmentVariables, runner, view, fs, repository, location),

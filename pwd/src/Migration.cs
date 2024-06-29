@@ -93,8 +93,12 @@ public static class Migration
          var path = file.GetPath().ToString();
          Console.WriteLine(path);
 
-         if (!repository.TryParseLocation(path, out var location))
-            throw new Exception();
+         if (!repository.TryParseLocation(path, out var location)
+             || location == null)
+         {
+            throw new Exception($"Cannot convert path '{path}' to location.");
+         }
+
          await repository.WriteAsync(location, await file.ReadAsync());
       }
    }

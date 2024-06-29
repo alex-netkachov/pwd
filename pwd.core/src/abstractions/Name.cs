@@ -8,6 +8,11 @@ public sealed class Name(
    public IRepository Repository => repository;
 
    public string Value => value;
+   
+   public override string ToString()
+   {
+      return Value;
+   } 
 
    public bool Equals(Name? other)
    {

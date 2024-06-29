@@ -19,7 +19,7 @@ public class Check_Tests
    [TestCase(".check", true)]
    [TestCase(".check ", true)]
    [TestCase(".check test", true)]
-   public void Parse_creates_command(
+   public void Create_creates_command(
       string input,
       bool creates)
    {
@@ -28,7 +28,6 @@ public class Check_Tests
       using var factory =
          new Check(
             Mock.Of<IView>(),
-            repository,
             repository.Root);
 
       var command = factory.Create(input);
@@ -37,17 +36,19 @@ public class Check_Tests
    }
 
    [Test]
-   public async Task DoAsync_calls_repository_item_archive()
+   public async Task ExecuteAsync_checks_the_content()
    {
-      var repository = Shared.CreateRepository();
+      var fs = Shared.GetMockFs();
+      var repository = Shared.CreateRepository(fs);
+      var location = repository.Root.Down("file");
+      await repository.WriteAsync(location, "content");
 
       var mockView = new Mock<IView>();
 
       using var factory =
          new Check(
             mockView.Object,
-            repository,
-            repository.Root);
+            location);
 
       var command = factory.Create(".check");
       if (command == null)
@@ -76,7 +77,6 @@ public class Check_Tests
       using var factory =
          new Check(
             Mock.Of<IView>(),
-            repository,
             repository.Root);
 
       Assert.That(

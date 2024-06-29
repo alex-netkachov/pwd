@@ -267,7 +267,7 @@ public static class Shared
    {
       return new FolderRepository(
          logger ?? Mock.Of<ILogger<FolderRepository>>(),
-         fs ?? Mock.Of<IFileSystem>(),
+         fs ?? new MockFileSystem(),
          (_, _) => GetTestCipher(),
          Base64Url.Instance,
          ".",
