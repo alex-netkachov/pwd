@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.core", "pwd.core\pwd.co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.core.tests", "pwd.core.tests\pwd.core.tests.csproj", "{3051E680-5EC0-47E2-9E67-E5FE6ED18586}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "core", "core", "{9A433ABD-05A0-401F-A88E-A63DBBB4D9AE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,5 +31,9 @@ Global
 		{3051E680-5EC0-47E2-9E67-E5FE6ED18586}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3051E680-5EC0-47E2-9E67-E5FE6ED18586}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3051E680-5EC0-47E2-9E67-E5FE6ED18586}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6A387C7D-58C2-4260-9BED-B1A2AE34B448} = {9A433ABD-05A0-401F-A88E-A63DBBB4D9AE}
+		{3051E680-5EC0-47E2-9E67-E5FE6ED18586} = {9A433ABD-05A0-401F-A88E-A63DBBB4D9AE}
 	EndGlobalSection
 EndGlobal

@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace pwd.core.abstractions;
 
 public delegate IRepository RepositoryFactory(
@@ -13,7 +11,8 @@ public record ListOptions(
    bool IncludeFolders,
    bool IncludeDottedFilesAndFolders)
 {
-   public static ListOptions Default = new ListOptions(false, false, false);
+   public static readonly ListOptions Default =
+      new(false, false, false);
 }
 
 public interface IRepository

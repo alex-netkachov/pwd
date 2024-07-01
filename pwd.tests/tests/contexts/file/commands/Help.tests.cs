@@ -30,7 +30,7 @@ public class Help_Tests
    }
 
    [Test]
-   public async Task DoAsync_writes_to_view()
+   public async Task Execute_writes_to_view()
    {
       var mockView = new Mock<IView>();
 

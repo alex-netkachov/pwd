@@ -40,8 +40,6 @@ public class Delete_Tests
    [Test]
    public async Task DoAsync_calls_repository_delete()
    {
-      var fs = Shared.GetMockFs();
-
       var mockState = new Mock<IState>();
 
       var mockView = new Mock<IView>();
@@ -54,13 +52,15 @@ public class Delete_Tests
          .Returns(Task.FromResult(true));
 
       var repository = Shared.CreateRepository();
+      var location = repository.Root.Down("file");
+      await repository.WriteAsync(location, "test");
 
       using var factory =
          new Delete(
             mockState.Object,
             mockView.Object,
             repository,
-            repository.Root);
+            location);
 
       var command = factory.Create(".rm");
       if (command == null)
@@ -71,8 +71,7 @@ public class Delete_Tests
 
       await command.ExecuteAsync();
 
-      //mockRepository
-      //   .Verify(m => m.Delete("test"));
+      Assert.That(repository.FileExist(location), Is.False);
    }
 
    [TestCase("", ".rm")]

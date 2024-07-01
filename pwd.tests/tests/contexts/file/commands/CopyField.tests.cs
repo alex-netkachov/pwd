@@ -53,6 +53,8 @@ public class CopyField_Tests
       string content)
    {
       var repository = Shared.CreateRepository();
+      var location = repository.Root.Down("file");
+      await repository.WriteAsync(location, content);
 
       var mockClipboard = new Mock<IClipboard>();
       
@@ -60,7 +62,7 @@ public class CopyField_Tests
          new CopyField(
             mockClipboard.Object,
             repository,
-            repository.Root);
+            location);
 
       var command = factory.Create(input);
       if (command == null)
