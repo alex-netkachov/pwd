@@ -1,10 +1,7 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.core;
 using pwd.core.abstractions;
 using pwd.ui;
 
@@ -23,32 +20,35 @@ public class Check_Tests
       string input,
       bool creates)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new Check(
             Mock.Of<IView>(),
-            repository.Root);
+            Mock.Of<IRepository>(),
+            "/");
 
       var command = factory.Create(input);
 
       Assert.That(command, creates ? Is.Not.Null : Is.Null);
    }
 
-   [Test]
-   public async Task ExecuteAsync_checks_the_content()
+   [TestCase("content", 0)]
+   [TestCase("\"test", 1)]
+   public async Task Execute_checks_the_content(
+      string fileContent,
+      int errors)
    {
-      var fs = Shared.GetMockFs();
-      var repository = Shared.CreateRepository(fs);
-      var location = repository.Root.Down("file");
-      await repository.WriteAsync(location, "content");
+      var repository = new Mock<IRepository>();
+      repository
+         .Setup(m => m.ReadAsync("/test"))
+         .Returns(Task.FromResult(fileContent));
 
       var mockView = new Mock<IView>();
 
       using var factory =
          new Check(
             mockView.Object,
-            location);
+            repository.Object,
+            "/test");
 
       var command = factory.Create(".check");
       if (command == null)
@@ -58,6 +58,10 @@ public class Check_Tests
       }
 
       await command.ExecuteAsync();
+
+      mockView.Verify(
+         m => m.WriteLine(It.IsAny<string>()),
+         Times.Exactly(errors));
    }
 
    [TestCase("", ".check")]
@@ -72,18 +76,17 @@ public class Check_Tests
       string input,
       string suggestions)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new Check(
             Mock.Of<IView>(),
-            repository.Root);
+            Mock.Of<IRepository>(),
+            "/");
 
       Assert.That(
          factory.Suggestions(input),
          Is.EqualTo(
             string.IsNullOrEmpty(suggestions)
-               ? Array.Empty<string>()
+               ? []
                : suggestions.Split(';')));
    }
 }

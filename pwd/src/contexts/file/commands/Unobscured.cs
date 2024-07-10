@@ -10,7 +10,7 @@ namespace pwd.contexts.file.commands;
 public sealed class Unobscured(
       IView view,
       IRepository repository,
-      Location location)
+      string path)
    : CommandServicesBase
 {
    public override ICommand? Create(
@@ -20,7 +20,7 @@ public sealed class Unobscured(
       {
          (_, "unobscured", _) => new DelegateCommand(async cancellationToken =>
          {
-            var content = await repository.ReadAsync(location);
+            var content = await repository.ReadAsync(path);
             view.WriteLine(content);
          }),
          _ => null

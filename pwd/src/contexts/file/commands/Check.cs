@@ -8,7 +8,8 @@ namespace pwd.contexts.file.commands;
 
 public sealed class Check(
       IView view,
-      Location location)
+      IRepository repository,
+      string path)
    : CommandServicesBase
 {
    public override ICommand? Create(
@@ -18,8 +19,7 @@ public sealed class Check(
       {
          (_, "check", _) => new DelegateCommand(async _ =>
          {
-            var repository = location.Repository;
-            var content = await repository.ReadAsync(location);
+            var content = await repository.ReadAsync(path);
             if (Shared.CheckYaml(content) is { Message: var msg })
                view.WriteLine(msg);
          }),

@@ -22,9 +22,11 @@ public interface ICommandServices
 public abstract class CommandServicesBase
    : ICommandServices
 {
-   public abstract ICommand? Create(string input);
+   public abstract ICommand? Create(
+      string input);
 
-   public virtual IReadOnlyList<string> Suggestions(string input)
+   public virtual IReadOnlyList<string> Suggestions(
+      string input)
    {
       return Array.Empty<string>();
    }

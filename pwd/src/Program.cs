@@ -48,7 +48,7 @@ public static partial class Program
                .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
                .AddTransient<RepositoryFactory>(
                   provider =>
-                     (password, path) =>
+                     (path, password) =>
                      {
                         var repository =
                            new FolderRepository(
@@ -69,7 +69,14 @@ public static partial class Program
                .AddSingleton<ILockFactory, LockFactory>();
          });
 
-      return builder.Build();
+      var host = builder.Build();
+
+      TaskScheduler.UnobservedTaskException += (sender, args) =>
+      {
+         console.WriteLine(args.Exception.ToString());
+      };
+
+      return host;
    }
 
    internal static async Task Run(
@@ -87,6 +94,8 @@ public static partial class Program
       // open the repository from the current working folder
       var path = fs.Path.GetFullPath(".");
 
+      var existingRepository = fs.File.Exists(fs.Path.Combine(path, "pwd.json"));
+
       var @lock =
          services
             .GetRequiredService<ILockFactory>()
@@ -97,14 +106,14 @@ public static partial class Program
       var repository =
          services
             .GetRequiredService<RepositoryFactory>()
-            .Invoke(password, path);
+            .Invoke(path, password);
 
       try
       {
          var decryptErrors = new List<string>();
          var yamlErrors = new List<string>();
 
-         foreach (var item in repository.List(repository.Root))
+         foreach (var item in repository.List("/"))
          {
             view.Write(".");
          }
@@ -127,25 +136,19 @@ public static partial class Program
          return;
       }
 
-      /*
-      var files = repository.Root.List(new ListOptions(true, false, true)).ToList();
-      view.WriteLine($"repository contains {files.Count} file{files.Count switch {1 => "", _ => "s"}}");
-
-      if (files.Count == 0)
+      if (!existingRepository)
       {
          var confirmPassword =
-            await view.ReadPasswordAsync("It seems that you are creating a new repository. Please confirm password: ");
+            await view.ReadPasswordAsync("It seems that you are creating a new repository. Please confirm your password: ");
          if (confirmPassword != password)
          {
             view.WriteLine("passwords do not match");
             return;
          }
       }
-      */
 
       //var exporter = services.GetRequiredService<IExporterFactory>().Create(cipher, repository);
       var session = services.GetRequiredService<ISessionFactory>().Create(repository, @lock);
-      
 
       var state = services.GetRequiredService<IState>();
       var subscription = state.Subscribe();

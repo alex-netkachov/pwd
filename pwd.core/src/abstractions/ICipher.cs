@@ -54,7 +54,7 @@ public interface ICipher
    Task EncryptAsync(
       Stream input,
       Stream output,
-      CancellationToken cancellationToken = default);
+      CancellationToken token = default);
 
    /// <summary>
    ///   Decrypts the data from the input stream and writes
@@ -73,7 +73,7 @@ public interface ICipher
    Task DecryptAsync(
       Stream input,
       Stream output,
-      CancellationToken cancellationToken = default);
+      CancellationToken token = default);
 }
 
 public static class CipherExtensions
@@ -173,7 +173,7 @@ public static class CipherExtensions
    public static bool TryDecryptString(
       this ICipher cipher,
       byte[] data,
-      out string output)
+      out string? output)
    {
       try
       {
@@ -182,7 +182,7 @@ public static class CipherExtensions
       }
       catch
       {
-         output = string.Empty;
+         output = null;
          return false;
       }
    }

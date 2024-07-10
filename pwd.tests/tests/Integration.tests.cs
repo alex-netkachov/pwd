@@ -18,7 +18,8 @@ public class Integration_Tests
 
    [Test]
    [CancelAfter(5000)]
-   public async Task QuickStart()
+   public async Task QuickStart(
+      CancellationToken token)
    {
       var logger =
          new ServiceCollection()
@@ -90,8 +91,7 @@ public class Integration_Tests
       var expected = string.Join("\n",
          "Password: ******",
          "",
-         "repository contains 0 files",
-         "It seems that you are creating a new repository. Please confirm password: ******",
+         "It seems that you are creating a new repository. Please confirm your password: ******",
          "> .add website.com",
          "+> user: tom",
          "+> password: secret",
@@ -165,7 +165,7 @@ public class Integration_Tests
          "Password: ******",
          "",
          "repository contains 0 files",
-         "It seems that you are creating a new repository. Please confirm password: ******",
+         "It seems that you are creating a new repository. Please confirm your password: ******",
          "> .quit\n");
       var actual = console.GetScreen();
       Assert.That(actual, Is.EqualTo(expected));
@@ -197,7 +197,7 @@ public class Integration_Tests
       var fs = Shared.GetMockFs();
       var repository = Shared.CreateRepository(fs);
       await repository.WriteAsync(
-         repository.Root.Down("file1"),
+         "/file1",
          "content1");
 
       using var console = new TestConsole(input.Reader);

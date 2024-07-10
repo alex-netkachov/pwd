@@ -54,15 +54,15 @@ public sealed class Exporter
       var template = await reader.ReadToEndAsync();
 
       // for now, only the files in the main folder
-      var files = _repository.List(_repository.Root).ToList();
+      var files = _repository.List("/").ToList();
 
       var script = "{ " + string.Join(",\n  ",
          files
-            .OrderBy(item => item.Name)
+            .OrderBy(item => _repository.GetName(item))
             .Select(item =>
             {
                var content = _fs.File.ReadAllBytes(((FolderRepository)_repository).ToFilesystemPath(item));
-               return (item.Name, Content: string.Join("", Convert.ToHexString(content)));
+               return (Name: _repository.GetName(item), Content: string.Join("", Convert.ToHexString(content)));
             })
             .Select(item => $"\"{item.Name}\" : \"{item.Content}\"")) + " }";
       var encrypted = Convert.ToHexString(await _cipher.EncryptAsync(script));

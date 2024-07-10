@@ -177,7 +177,13 @@ public sealed class ConsoleReader
       var suggestionsQueriedPosition = 0;
 
       var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
-      _console.Subscribe(channel.Writer);
+      var subscription =
+         _console.Subscribe(
+            new DelegatedObserver<ConsoleKeyInfo>(key =>
+            {
+               while (!channel.Writer.TryWrite(key)) /* empty*/;
+            }));
+
       while (!token.IsCancellationRequested)
       {
          var key = await channel.Reader.ReadAsync(token);
@@ -192,7 +198,7 @@ public sealed class ConsoleReader
          {
             case (false, ConsoleKey.Enter):
                _console.WriteLine();
-               _console.Unsubscribe(channel.Writer);
+               subscription.Dispose();
                tcs.TrySetResult(new(input.ToArray()));
                return;
             case (false, ConsoleKey.LeftArrow):
@@ -280,10 +286,15 @@ public sealed class ConsoleReader
       _console.Write(prompt);
       
       var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
+      var subscription =
+         _console.Subscribe(
+            new DelegatedObserver<ConsoleKeyInfo>(key =>
+            {
+               while (!channel.Writer.TryWrite(key)) /* empty*/;
+            }));
 
       var input = new List<char>();
       var position = 0;
-      _console.Subscribe(channel.Writer);
       while (!token.IsCancellationRequested)
       {
          var key = await channel.Reader.ReadAsync(token);
@@ -292,7 +303,7 @@ public sealed class ConsoleReader
          {
             case (false, ConsoleKey.Enter):
                _console.WriteLine();
-               _console.Unsubscribe(channel.Writer);
+               subscription.Dispose();
                tcs.TrySetResult(new(input.ToArray()));
                return;
             case (false, ConsoleKey.Backspace):

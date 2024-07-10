@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.core.abstractions;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file;
@@ -11,7 +12,17 @@ public class File_Tests
    public async Task empty_input_prints_the_content_with_obscured_passwords()
    {
       var view = new Mock<IView>();
-      var file = Shared.CreateFileContext(view: view.Object, content: "password: secret");
+
+      var repository = new Mock<IRepository>();
+      repository
+         .Setup(m => m.ReadAsync(It.IsAny<string>()))
+         .Returns(Task.FromResult("password: secret"));
+
+      var file =
+         Shared.CreateFileContext(
+            view: view.Object,
+            repository: repository.Object);
+
       await file.ProcessAsync("");
       view.Verify(m => m.WriteLine("password: ************"), Times.Once);
    }

@@ -6,6 +6,5 @@ open pwd.core
 let repository = FolderRepository.Open ("$9cre7", ".")
 
 // list files from the repository root folder
-repository.Root
-|> repository.List 
-|> Seq.iter (fun item -> printfn $"%s{item.Name.Value}")
+repository.List "/"
+|> Seq.iter (fun item -> printfn $"%s{item}")

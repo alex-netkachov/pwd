@@ -3,8 +3,7 @@ using System.Threading.Tasks;
 
 namespace pwd.ui.readline;
 
-/// <summary>Provides reading user input routines.</summary>
-/// <remarks>Reading requests are queued up and processed sequentially.</remarks>
+/// <summary>Reading user input routines.</summary>
 public interface IReader
 {
    Task<string> ReadAsync(

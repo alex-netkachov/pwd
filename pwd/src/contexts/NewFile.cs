@@ -83,13 +83,7 @@ public sealed class NewFile
             switch (input)
             {
                case "":
-                  if (!_repository.TryParseLocation(_name, out var path)
-                      || path == null)
-                  {
-                     return;
-                  }
-
-                  await _repository.WriteAsync(path, _content.ToString());
+                  await _repository.WriteAsync(_name, _content.ToString());
                   await _state.BackAsync();
                   return;
                case ".help":

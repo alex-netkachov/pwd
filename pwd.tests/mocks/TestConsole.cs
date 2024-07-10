@@ -16,7 +16,7 @@ public sealed class TestConsole
 {
    private record State(
       bool Disposed,
-      ImmutableList<ChannelWriter<ConsoleKeyInfo>> Writers);
+      ImmutableList<IObserver<ConsoleKeyInfo>> Observers);
 
    private State _state;
 
@@ -30,7 +30,7 @@ public sealed class TestConsole
    {
       _writes = new() { new() };
 
-      _state = new(false, ImmutableList<ChannelWriter<ConsoleKeyInfo>>.Empty);
+      _state = new(false, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
 
       _cts = new();
 
@@ -45,40 +45,42 @@ public sealed class TestConsole
 
             var state = _state;
             foreach (var info in infos)
-            foreach (var writer in state.Writers)
-               await writer.WriteAsync(info, token);
+            foreach (var item in state.Observers)
+               item.OnNext(info);
          }
       }, token);
    }
 
    public int BufferWidth => 80;
 
-   public void Subscribe(
-      ChannelWriter<ConsoleKeyInfo> writer)
+   public IDisposable Subscribe(
+      IObserver<ConsoleKeyInfo> observer)
    {
-      State initial, updated;
-      do
       {
-         initial = _state;
-         if (_state.Disposed)
-            throw new ObjectDisposedException(nameof(StandardConsole));
-         updated = _state with { Writers = initial.Writers.Add(writer) };
-      } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
-      
-      OnSubscriber?.Invoke(this, EventArgs.Empty);
-   }
+         State initial, updated;
+         do
+         {
+            initial = _state;
+            if (_state.Disposed)
+               throw new ObjectDisposedException(nameof(StandardConsole));
+            updated = _state with { Observers = initial.Observers.Add(observer) };
+         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+      }
 
-   public void Unsubscribe(
-      ChannelWriter<ConsoleKeyInfo> writer)
-   {
-      State initial, updated;
-      do
+      OnSubscriber?.Invoke(this, EventArgs.Empty);
+
+      return new DelegatedDisposable(() =>
       {
-         initial = _state;
-         if (_state.Disposed)
-            break;
-         updated = _state with { Writers = initial.Writers.Remove(writer) };
-      } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+         State initial, updated;
+         do
+         {
+            initial = _state;
+            if (_state.Disposed)
+               break;
+            updated = _state with { Observers = initial.Observers.Remove(observer) };
+         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+
+      });
    }
 
    public void Dispose()
@@ -89,7 +91,7 @@ public sealed class TestConsole
          initial = _state;
          if (initial.Disposed)
             return;
-         var updated = new State(true, ImmutableList<ChannelWriter<ConsoleKeyInfo>>.Empty);
+         var updated = new State(true, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
          if (initial == Interlocked.CompareExchange(ref _state, updated, initial))
             break;
       }
@@ -97,8 +99,8 @@ public sealed class TestConsole
       _cts.Cancel();
       _cts.Dispose();
 
-      foreach (var writer in initial.Writers)
-         writer.Complete();
+      foreach (var item in initial.Observers)
+         item.OnCompleted();
    }
 
    public void Write(

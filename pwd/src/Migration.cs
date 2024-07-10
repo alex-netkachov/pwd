@@ -40,7 +40,7 @@ public static class Migration
          .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
          .AddTransient<RepositoryFactory>(
             provider =>
-               (password, path) =>
+               (path, password) =>
                {
                   var repository =
                      new FolderRepository(
@@ -66,7 +66,7 @@ public static class Migration
       
       var password = await view.ReadPasswordAsync("Password: ");
 
-      var repository = repositoryFactory(password, @"C:\Projects\accounts1");
+      var repository = repositoryFactory(@"C:\Projects\accounts1", password);
 
       var previousCipherFactory =
          new PreviousCipherFactory();
@@ -93,13 +93,7 @@ public static class Migration
          var path = file.GetPath().ToString();
          Console.WriteLine(path);
 
-         if (!repository.TryParseLocation(path, out var location)
-             || location == null)
-         {
-            throw new Exception($"Cannot convert path '{path}' to location.");
-         }
-
-         await repository.WriteAsync(location, await file.ReadAsync());
+         await repository.WriteAsync(path, await file.ReadAsync());
       }
    }
 }

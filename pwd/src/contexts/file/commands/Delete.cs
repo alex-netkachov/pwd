@@ -10,7 +10,7 @@ public sealed class Delete(
       IState state,
       IView view,
       IRepository repository,
-      Location location)
+      string path)
    : CommandServicesBase
 {
     public override ICommand? Create(
@@ -20,12 +20,12 @@ public sealed class Delete(
       {
          (_, "rm", _) => new DelegateCommand(async cancellationToken =>
          {
-            if (!await view.ConfirmAsync($"Delete '{location.Name}'?", Answer.No, cancellationToken))
+            if (!await view.ConfirmAsync($"Delete '{path}'?", Answer.No, cancellationToken))
                return;
 
-            repository.Delete(location);
+            repository.Delete(path);
 
-            view.WriteLine($"'{location.Name}' has been deleted.");
+            view.WriteLine($"'{path}' has been deleted.");
 
             _ = state.BackAsync();
          }),

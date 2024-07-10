@@ -1,3 +1,4 @@
+using System.IO.Abstractions.TestingHelpers;
 using pwd.core.abstractions;
 
 namespace pwd.core.tests;
@@ -6,13 +7,76 @@ public sealed class FolderRepository_Tests
 {
    private static readonly string TestName = Support.Encrypt("test");
    private static readonly string TestContent = Support.Encrypt("test");
+   
+   [TestCase("", "/")]
+   [TestCase("/", "/")]
+   [TestCase("/test", "/test")]
+   [TestCase("/test1/test2", "/test1/test2")]
+   [TestCase("test1", "/test1")]
+   [TestCase("test1/.//../test2", "/test2")]
+   [TestCase("test1;test2", "/test1/test2")]
+   public void Repository_sets_and_gets_the_working_folder_as_expected(
+      string paths,
+      string expectedPath)
+   {
+      var fs = new MockFileSystem();
+      var repository = Support.CreateRepository(fs);
+      foreach (var item in paths.Split(';'))
+         repository.SetWorkingFolder(item);
+      Assert.That(
+         repository.GetWorkingFolder(),
+         Is.EqualTo(expectedPath));
+   }
 
+   [Test]
+   public void GetWorkingFolder_is_root_for_new_repository()
+   {
+      var fs = new MockFileSystem();
+      var repository = Support.CreateRepository(fs);
+      var workingFolder = repository.GetWorkingFolder();
+      Assert.That(workingFolder, Is.EqualTo("/"));
+   }
+
+   [TestCase(null, "test", "/test")]
+   [TestCase("/test1", "test2", "/test1/test2")]
+   [TestCase("/test1", "", "/test1")]
+   [TestCase("/test1", ".", "/test1")]
+   [TestCase("/test1", "..", "/")]
+   [TestCase("/test1", "../..", "/")]
+   public void GetFullPath_works_as_expected(
+      string? workingFolder,
+      string path,
+      string expectedPath)
+   {
+      var fs = new MockFileSystem();
+      var repository = Support.CreateRepository(fs);
+      if (workingFolder != null)
+         repository.SetWorkingFolder(workingFolder);
+      var fullPath = repository.GetFullPath(path);
+      Assert.That(fullPath, Is.EqualTo(expectedPath));
+   }
+
+   [TestCase("/test", "/", "test")]
+   [TestCase("/test1/file", "/test1", "file")]
+   [TestCase("/test1/file", "/test1/folder1", "../file")]
+   [TestCase("/test1/folder1/file", "/test1/folder2", "../folder1/file")]
+   public void GetRelativePath_works_as_expected(
+      string path,
+      string location,
+      string expected)
+   {
+      var fs = new MockFileSystem();
+      var repository = Support.CreateRepository(fs);
+      var relativePath = repository.GetRelativePath(path, location);
+      Assert.That(relativePath, Is.EqualTo(expected));
+   }
+   
    [Test]
    public void List_root_of_empty_repository_returns_no_items()
    {
       var fs = Support.GetMockFs();
       var repository = Support.CreateRepository(fs);
-      Assert.That(!repository.List(repository.Root).Any());
+      Assert.That(!repository.List("/").Any());
    }
 
    [Test]
@@ -23,12 +87,12 @@ public sealed class FolderRepository_Tests
       Assert.That(
          fs.Directory.EnumerateFiles(".").Count(),
          Is.EqualTo(2));
-      var location = repository.Root;
+      var location = "/";
       var items = repository.List(location).ToList();
       var file = items.Single();
       Assert.That(
-         file.Name!.Value,
-         Is.EqualTo("test"));
+         GetName(file)!,
+         Is.EqualTo("/test"));
    }
 
    [Test]
@@ -39,28 +103,28 @@ public sealed class FolderRepository_Tests
       Assert.That(
          fs.Directory.EnumerateDirectories(".").Count(),
          Is.EqualTo(1));
-      var folder = repository.List(repository.Root, new ListOptions(false, true, false)).Single();
+      var folder = repository.List("/", new ListOptions(false, true, false)).Single();
       Assert.That(
-         folder.Name!.Value,
-         Is.EqualTo("test1"));
+         GetName(folder),
+         Is.EqualTo("/test1"));
    }
 
    [TestCase("test", ".", false, false, false, "")]
-   [TestCase("@test", ".", false, false, false, "test")]
+   [TestCase("@test", ".", false, false, false, "/test")]
    [TestCase("^test", ".", false, false, false, "")]
-   [TestCase("*test", ".", false, false, false, "test")]
+   [TestCase("*test", ".", false, false, false, "/test")]
    [TestCase("*_test", ".", false, false, false, "")]
-   [TestCase("*_test", ".", false, false, true, "_test")]
+   [TestCase("*_test", ".", false, false, true, "/_test")]
    [TestCase("*.test", ".", false, false, false, "")]
-   [TestCase("*.test", ".", false, false, true, ".test")]
+   [TestCase("*.test", ".", false, false, true, "/.test")]
    [TestCase("@f/*test", ".", false, false, false, "")]
-   [TestCase("@f/*test", ".", true, false, false, "f\\test")]
-   [TestCase("@f/*test", ".", false, true, false, "f")]
-   [TestCase("@f/@test", ".", false, true, false, "f")]
+   [TestCase("@f/*test", ".", true, false, false, "/f/test")]
+   [TestCase("@f/*test", ".", false, true, false, "/f")]
+   [TestCase("@f/@test", ".", false, true, false, "/f")]
    [TestCase("f/test", ".", false, true, false, "")]
    [TestCase("@f/*_test", ".", true, false, false, "")]
-   [TestCase("@f/*_test", ".", true, false, true, "f\\_test")]
-   [TestCase("@f/*test", "f", true, false, false, "f\\test")]
+   [TestCase("@f/*_test", ".", true, false, true, "/f/_test")]
+   [TestCase("@f/*test", "f", true, false, false, "/f/test")]
    public void List_repository(
       string files,
       string listPath,
@@ -72,17 +136,11 @@ public sealed class FolderRepository_Tests
       var fs = Support.GetMockFs(files);
 
       var repository = Support.CreateRepository(fs);
-      var repositoryFolder =
-         listPath == "."
-            ? repository.Root
-            : repository.TryParseLocation(listPath, out var value)
-               ? value!
-               : throw new Exception();
 
       var items =
          repository
             .List(
-               repositoryFolder!,
+               listPath,
                new ListOptions(
                   recursive,
                   includeFolders,
@@ -119,13 +177,13 @@ public sealed class FolderRepository_Tests
       var items =
          repository
             .List(
-               repository.Root,
+               "/",
                new ListOptions(true, false, false))
             .ToList();
 
       Assert.That(
          ItemsToPaths(items),
-         Is.EqualTo("f\\test1;f\\test2;test1;test2"));
+         Is.EqualTo("/f/test1;/f/test2;/test1;/test2"));
    }
 
    [TestCase(true)]
@@ -136,19 +194,17 @@ public sealed class FolderRepository_Tests
       var fs = Support.GetMockFs();
       var repository = Support.CreateRepository(fs);
 
-      Assert.That(repository.TryParseLocation(TestName, out var path));
-
       if (async)
-         repository.Write(path, TestContent);
+         repository.Write(TestName, TestContent);
       else
-         await repository.WriteAsync(path, TestContent);
+         await repository.WriteAsync(TestName, TestContent);
 
       Assert.That(
          fs.Directory.EnumerateFiles(".").Count(),
          Is.EqualTo(2));
 
       Assert.That(
-         repository.List(repository.Root).Count(),
+         repository.List("/").Count(),
          Is.EqualTo(1));
    }
 
@@ -158,33 +214,37 @@ public sealed class FolderRepository_Tests
       var fs = Support.GetMockFs("*test");
       var repository = Support.CreateRepository(fs);
 
-      Assert.That(repository.TryParseLocation("test", out var path));
-      Assert.That(repository.FileExist(path));
+      Assert.That(repository.FileExist("test"));
 
       Assert.That(
-         repository.List(repository.Root).Count(),
+         repository.List("/").Count(),
          Is.EqualTo(1));
 
       // deleting a file removes it
-      repository.Delete(path);
+      repository.Delete("test");
 
       Assert.That(
          fs.Directory.EnumerateFiles(".").Count(),
          Is.EqualTo(1));
 
       Assert.That(
-         repository.List(repository.Root).Count(),
+         repository.List("/").Count(),
          Is.EqualTo(0));
    }
 
    private static string ItemsToPaths(
-      IEnumerable<Location> items)
+      IEnumerable<string> items)
    {
       var paths =
          items
-            .Select(item => item.Repository.ToString(item))
             .OrderBy(item => item)
             .ToList();
       return string.Join(";", paths);
+   }
+
+   private static string? GetName(
+      string path)
+   {
+      return path == "/" ? null : path[path.LastIndexOf('/')..];
    }
 }

@@ -52,8 +52,8 @@ public sealed class List(
 
          var items =
             _repository
-               .List(_repository.Root)
-               .Select(item => _repository.ToString(item))
+               .List(".")
+               .Select(item => _repository.GetRelativePath(item, "."))
                .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
                .ToList();
 
@@ -65,28 +65,26 @@ public sealed class List(
          var items =
             _repository
                .List(
-                  _repository.Root,
+                  ".",
                   new ListOptions(false, true, false))
-               .Where(item => _repository.ToString(item).StartsWith(input, StringComparison.OrdinalIgnoreCase))
+               .Select(item => _repository.GetRelativePath(item, "."))
+               .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                .ToList();
 
          _logger.LogInformation($"found {items.Count} items");
 
          var match =
             items.FirstOrDefault(
-               item => string.Equals(_repository.ToString(item), input, StringComparison.OrdinalIgnoreCase));
+               item => string.Equals(item, input, StringComparison.OrdinalIgnoreCase));
 
-         var chosen =
-            match == default
-               ? items.Count == 1 && input != "" ? _repository.ToString(items[0]) : default
-               : _repository.ToString(match);
+         var chosen = match ?? (items.Count == 1 && input != "" ? items[0] : default);
 
          _logger.LogInformation($"chosen item: {chosen}");
 
          if (chosen == null)
-            _view.WriteLine(string.Join("\n", items.Select(item => _repository.ToString(item)).OrderBy(item => item)));
+            _view.WriteLine(string.Join("\n", items.OrderBy(item => item)));
          else
-            Open(chosen.ToString());
+            Open(chosen);
       }
 
       return Task.CompletedTask;
@@ -95,16 +93,8 @@ public sealed class List(
    private void Open(
       string name)
    {
-      if (!_repository.TryParseLocation(name, out var path)
-          || path == null)
-      {
-         return;
-      }
-
-      _logger.LogInformation($"found repository item for path '{name}'");
-
-      var file = _fileFactory.Create(_repository, _lock, path);
-      var _ = _state.OpenAsync(file);
+      var file = _fileFactory.Create(_repository, _lock, name);
+      _ = _state.OpenAsync(file);
    }
 
    public override IReadOnlyList<string> Suggestions(

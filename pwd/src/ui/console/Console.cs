@@ -1,17 +1,11 @@
 ﻿using System;
-using System.Threading.Channels;
 
 namespace pwd.ui.console;
 
 public interface IConsole
+   : IObservable<ConsoleKeyInfo>
 {
    int BufferWidth { get; }
-
-   void Subscribe(
-      ChannelWriter<ConsoleKeyInfo> writer);
-   
-   void Unsubscribe(
-      ChannelWriter<ConsoleKeyInfo> writer);
 
    void Write(
       object? value = null);

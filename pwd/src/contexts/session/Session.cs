@@ -51,22 +51,18 @@ public sealed class Session
       {
          var p = input.LastIndexOf('/');
          var (folder, _) = p == -1 ? ("", input) : (input[..p], input[(p + 1)..]);
-         if (!_repository.TryParseLocation(folder, out var path)
-             || path == null)
-         {
-            return [];
-         }
+         folder = string.IsNullOrEmpty(folder) ? "/" : folder;
 
-         if (!_repository.FileExist(path)
-             && !_repository.FolderExist(path))
+         if (!_repository.FileExist(folder)
+             && !_repository.FolderExist(folder))
          {
             return [];
          }
 
          return _repository
-            .List(path)
-            .Where(item => (_repository.ToString(path).StartsWith(input)))
-            .Select((object item) => _repository.ToString(path))
+            .List(folder)
+            .Select(item => _repository.GetRelativePath(item, folder))
+            .Where(item => item.StartsWith(input))
             .ToArray();
       }
 

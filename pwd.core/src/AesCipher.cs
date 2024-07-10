@@ -163,7 +163,7 @@ public sealed class AesCipher
    public async Task EncryptAsync(
       Stream input,
       Stream output,
-      CancellationToken cancellationToken = default)
+      CancellationToken token = default)
    {
       VerifyStreams(input, output);
 
@@ -177,12 +177,12 @@ public sealed class AesCipher
             CryptoStreamMode.Write,
             leaveOpen: true);
 
-      await input.CopyToAsync(cryptoStream, cancellationToken);
+      await input.CopyToAsync(cryptoStream, token);
 
-      await cryptoStream.FlushAsync(cancellationToken);
+      await cryptoStream.FlushAsync(token);
 
       if (cryptoStream.HasFlushedFinalBlock == false)
-         await cryptoStream.FlushFinalBlockAsync(cancellationToken);
+         await cryptoStream.FlushFinalBlockAsync(token);
    }
 
    public void Decrypt(
@@ -207,7 +207,7 @@ public sealed class AesCipher
    public async Task DecryptAsync(
       Stream input,
       Stream output,
-      CancellationToken cancellationToken = default)
+      CancellationToken token = default)
    {
       VerifyStreams(input, output);
 
@@ -221,7 +221,7 @@ public sealed class AesCipher
             CryptoStreamMode.Read,
             leaveOpen: true);
 
-      await cryptoStream.CopyToAsync(output, cancellationToken);
+      await cryptoStream.CopyToAsync(output, token);
    }
 
    private static void VerifyStreams(

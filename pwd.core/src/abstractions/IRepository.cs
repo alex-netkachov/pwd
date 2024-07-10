@@ -1,8 +1,8 @@
 namespace pwd.core.abstractions;
 
 public delegate IRepository RepositoryFactory(
-   string password,
-   string path);
+   string path,
+   string password);
 
 public interface IUpdate;
 
@@ -17,7 +17,25 @@ public record ListOptions(
 
 public interface IRepository
 {
-   Location Root { get; }
+   /// <summary>Gets the working folder of the repository.</summary>
+   public string GetWorkingFolder();
+
+   /// <summary>Sets the working folder of the repository.</summary>
+   public void SetWorkingFolder(
+      string path);
+
+   public string GetFolder(
+      string path);
+
+   public string? GetName(
+      string path);
+
+   public string GetFullPath(
+      string path);
+   
+   public string GetRelativePath(
+      string path,
+      string relativeToPath);
 
    /// <summary>Writes a value into the file, overwriting the file if exists.</summary>
    /// <remarks>
@@ -25,7 +43,7 @@ public interface IRepository
    ///   be created.
    /// </remarks>
    void Write(
-      Location location,
+      string path,
       string value);
 
    /// <summary>Writes a value into the file, overwriting the file if exists.</summary>
@@ -34,71 +52,43 @@ public interface IRepository
    ///   be created.
    /// </remarks>
    Task WriteAsync(
-      Location location,
+      string path,
       string value);
 
    /// <summary>Reads the file content.</summary>
    string Read(
-      Location location);
+      string path);
    
    /// <summary>Reads the file content.</summary>
    Task<string> ReadAsync(
-      Location location);
+      string path);
 
    /// <summary>Creates a folder.</summary>
    /// <remarks>
    ///   Creates folders in the path. Throws exception if the folder cannot be created.
    /// </remarks>
    void CreateFolder(
-      Location location);
+      string path);
 
    /// <summary>Deletes an item in the repository.</summary>
    void Delete(
-      Location location);
+      string path);
 
    /// <summary>Moves an item in the repository to a new location.</summary>
    void Move(
-      Location location,
-      Location newLocation);
+      string path,
+      string newPath);
    
    /// <summary>Enumerates files and folders in a location, specified by the relative path.</summary>
-   IEnumerable<Location> List(
-      Location location,
+   IEnumerable<string> List(
+      string path,
       ListOptions? options = null);
 
    /// <summary>Returns true when the file does exist.</summary>
    bool FileExist(
-      Location location);
+      string path);
 
    /// <summary>Returns true when the folder does exist.</summary>
    bool FolderExist(
-      Location location);
-
-   /// <summary>Tries to parse the name part.</summary>
-   bool TryParseName(
-      string value,
-      out Name? name);
-
-   /// <summary>Tries to parse the path.</summary>
-   bool TryParseLocation(
-      string value,
-      out Location? path);
-
-   string ToString(
-      Location location);
-   
-   string ToString(
-      Name name);
-}
-
-public static class RepositoryExtensions
-{
-   public static Name ParseName(
-      this IRepository repository,
-      string input)
-   {
-      if (!repository.TryParseName(input, out var name))
-         throw new Exception("Invalid name.");
-      return name!;
-   }
+      string path);
 }

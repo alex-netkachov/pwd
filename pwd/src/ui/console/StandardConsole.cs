@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace pwd.ui.console;
@@ -12,14 +11,14 @@ public sealed class StandardConsole
 {
    private record State(
       bool Disposed,
-      ImmutableList<ChannelWriter<ConsoleKeyInfo>> Writers);
+      ImmutableList<IObserver<ConsoleKeyInfo>> Observers);
 
    private State _state;
    private readonly CancellationTokenSource _cts;
 
    public StandardConsole()
    {
-      _state = new(false, ImmutableList<ChannelWriter<ConsoleKeyInfo>>.Empty);
+      _state = new(false, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
 
       _cts = new();
 
@@ -43,10 +42,8 @@ public sealed class StandardConsole
 
             var key = Console.ReadKey(true);
             var state = _state;
-            foreach (var writer in state.Writers)
-               while (!writer.TryWrite(key))
-               {
-               }
+            foreach (var item in state.Observers)
+               item.OnNext(key);
          }
       }, token);
    }
@@ -61,39 +58,40 @@ public sealed class StandardConsole
          initial = _state;
          if (initial.Disposed)
             return;
-         updated = new State(true, ImmutableList<ChannelWriter<ConsoleKeyInfo>>.Empty);
+         updated = new State(true, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
       } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
 
       _cts.Cancel();
       _cts.Dispose();
       
-      foreach (var writer in initial.Writers)
-         writer.Complete();
+      foreach (var item in initial.Observers)
+         item.OnCompleted();
    }
-
-   public void Subscribe(
-      ChannelWriter<ConsoleKeyInfo> writer)
+   
+   public IDisposable Subscribe(
+      IObserver<ConsoleKeyInfo> observer)
    {
-      State initial, updated;
-      do
       {
-         initial = _state;
-         ObjectDisposedException.ThrowIf(_state.Disposed, this);
-         updated = _state with { Writers = initial.Writers.Add(writer) };
-      } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
-   }
+         State initial, updated;
+         do
+         {
+            initial = _state;
+            ObjectDisposedException.ThrowIf(_state.Disposed, this);
+            updated = _state with { Observers = initial.Observers.Add(observer) };
+         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+      }
 
-   public void Unsubscribe(
-      ChannelWriter<ConsoleKeyInfo> writer)
-   {
-      State initial, updated;
-      do
+      return new DelegatedDisposable(() =>
       {
-         initial = _state;
-         if (initial.Disposed)
-            return;
-         updated = _state with { Writers = initial.Writers.Remove(writer) };
-      } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+         State initial, updated;
+         do
+         {
+            initial = _state;
+            if (initial.Disposed)
+               return;
+            updated = _state with { Observers = initial.Observers.Remove(observer) };
+         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+      });
    }
 
    public void Write(

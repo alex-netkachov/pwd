@@ -36,22 +36,15 @@ public sealed class Open(
 
             return new DelegateCommand(() =>
             {
-               if (!_repository.TryParseLocation(name, out var path)
-                   || path == null)
+               if (!_repository.FileExist(name))
                {
-                  _logger.LogInformation($"{nameof(Open)}.{nameof(DelegateCommand)}: '{name}' is not a path");
+                  _logger.LogInformation($"{nameof(Open)}.{nameof(DelegateCommand)}: '{name}' is not a file");
                   return;
                }
 
-               if (!_repository.FileExist(path))
-               {
-                  _logger.LogInformation($"{nameof(Open)}.{nameof(DelegateCommand)}: '{path}' is not a file");
-                  return;
-               }
+               _logger.LogInformation($"{nameof(Open)}.{nameof(DelegateCommand)}: opening file context for '{name}'");
 
-               _logger.LogInformation($"{nameof(Open)}.{nameof(DelegateCommand)}: opening file context for '{path}'");
-
-               var fileContext = _fileFactory.Create(_repository, _lock, path);
+               var fileContext = _fileFactory.Create(_repository, _lock, name);
                var _ = _state.OpenAsync(fileContext);
             });
          default:

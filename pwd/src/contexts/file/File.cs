@@ -24,7 +24,7 @@ public interface IFileFactory
    IFile Create(
       IRepository repository,
       ILock @lock,
-      Location location);
+      string path);
 }
 
 /// <summary>Encrypted file context.</summary>
@@ -33,37 +33,38 @@ public sealed class File
       IFile
 {
    private readonly IView _view;
-   private readonly IRepository _repository;
-
-   private readonly Location _location;
 
    //private IRepositoryUpdatesReader? _subscription;
    private CancellationTokenSource? _cts;
+   private readonly IRepository _repository;
+   private readonly string _path;
 
-   public File(
-      ILogger<File> logger,
-      IView view,
-      IRepository repository,
-      Location location,
-      IReadOnlyCollection<ICommandServices> factories)
-   : base(
-      logger,
-      view,
-      factories)
+   /// <summary>Encrypted file context.</summary>
+   public File(ILogger<File> logger,
+         IView view,
+         IRepository repository,
+         string path,
+         IReadOnlyCollection<ICommandServices> factories)
+      : base(
+         logger,
+         view,
+         factories)
    {
-      _view = view;
       _repository = repository;
-      _location = location;
+      _path = repository.GetFullPath(path);
+      _view = view;
    }
 
    protected override string Prompt()
    {
-      return _location.Name!.ToString() ?? "";
+      return _repository.GetName(_path) ?? "";
    }
 
    public override async Task StartAsync()
    {
-      var print = new Print(_view, _repository, _location).Create("");
+      _repository.SetWorkingFolder(_repository.GetFolder(_path));
+
+      var print = new Print(_view, _repository, _path).Create("");
       if (print != null)
          await print.ExecuteAsync();
 
@@ -113,27 +114,27 @@ public sealed class FileFactory(
    public IFile Create(
       IRepository repository,
       ILock @lock,
-      Location location)
+      string path)
    {
       return new File(
          loggerFactory.CreateLogger<File>(),
          view,
          repository,
-         location,
+         path,
          Array.Empty<ICommandServices>()
             .Concat(new ICommandServices[]
             {
-               new Check(view, location),
-               new CopyField(clipboard, repository, location),
-               new Delete(state, view, repository, location),
-               new Edit(environmentVariables, runner, view, fs, repository, location),
+               new Check(view, repository, path),
+               new CopyField(clipboard, repository, path),
+               new Delete(state, view, repository, path),
+               new Edit(environmentVariables, runner, view, fs, repository, path),
                new Help(view),
-               new Rename(loggerFactory.CreateLogger<Rename>(), repository, location),
-               new Unobscured(view, repository, location),
+               new Rename(loggerFactory.CreateLogger<Rename>(), repository, path),
+               new Unobscured(view, repository, path),
                new Up(state)
             })
             .Concat(Shared.CommandFactories(state, @lock, view))
-            .Concat(new ICommandServices[] { new Print(view, repository, location) })
+            .Concat(new ICommandServices[] { new Print(view, repository, path) })
             .ToArray());
    }
 }

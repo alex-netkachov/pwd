@@ -77,7 +77,12 @@ public sealed class Lock
       
       Task.Run(async () =>
       {
-         console.Subscribe(channel.Writer);
+         console.Subscribe(
+            new DelegatedObserver<ConsoleKeyInfo>(key =>
+            {
+               while (!channel.Writer.TryWrite(key)) /* empty */ ;
+            }));
+
          while (true)
          {
             await channel.Reader.ReadAsync();

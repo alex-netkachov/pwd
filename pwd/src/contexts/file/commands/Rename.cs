@@ -10,7 +10,7 @@ namespace pwd.contexts.file.commands;
 public sealed class Rename(
       ILogger<Rename> logger,
       IRepository repository,
-      Location location)
+      string path)
    : CommandServicesBase
 {
     public override ICommand? Create(
@@ -26,12 +26,9 @@ public sealed class Rename(
                {
                   logger.LogInformation($"{nameof(Rename)}.{nameof(DelegateCommand)}: start");
 
-                  var (folder, _) = location.Up();
-                  var newLocation = folder.Down(repository.ParseName(name));
-
                   repository.Move(
-                     location,
-                     newLocation);
+                     path,
+                     name);
                }),
          _ => null
       };

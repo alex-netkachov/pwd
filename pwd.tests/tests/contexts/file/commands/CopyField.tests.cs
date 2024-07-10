@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.core;
 using pwd.core.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
@@ -28,13 +26,11 @@ public class CopyField_Tests
       string input,
       bool creates)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new CopyField(
             Mock.Of<IClipboard>(),
-            repository,
-            repository.Root);
+            Mock.Of<IRepository>(),
+            "/");
 
       var command = factory.Create(input);
 
@@ -47,22 +43,23 @@ public class CopyField_Tests
    [TestCase(".cc user", "joe","user: joe\npassword: secret")]
    [TestCase(".cc password", "secret", "user: joe\npassword: secret")]
    [TestCase(".cc site", "https://example.com", "site: https://example.com\nuser: joe")]
-   public async Task DoAsync_copies_the_expected_content(
+   public async Task Execute_copies_the_expected_content(
       string input,
       string expected,
       string content)
    {
-      var repository = Shared.CreateRepository();
-      var location = repository.Root.Down("file");
-      await repository.WriteAsync(location, content);
-
       var mockClipboard = new Mock<IClipboard>();
-      
+
+      var repository = new Mock<IRepository>();
+      repository
+         .Setup(m => m.ReadAsync("/test"))
+         .Returns(Task.FromResult(content));
+
       using var factory =
          new CopyField(
             mockClipboard.Object,
-            repository,
-            location);
+            repository.Object,
+            "/test");
 
       var command = factory.Create(input);
       if (command == null)

@@ -13,7 +13,7 @@ public sealed class Edit(
       IView view,
       IFileSystem fs,
       IRepository repository,
-      Location location)
+      string path)
    : CommandServicesBase
 {
    public override ICommand? Create(
@@ -34,7 +34,7 @@ public sealed class Edit(
                return;
             }
 
-            var content = await repository.ReadAsync(location);
+            var content = await repository.ReadAsync(path);
 
             var tmpFileName = fs.Path.GetTempFileName();
 
@@ -58,7 +58,7 @@ public sealed class Edit(
                }
                else
                {
-                  await repository.WriteAsync(location, updated);
+                  await repository.WriteAsync(path, updated);
                }
             }
             finally

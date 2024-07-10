@@ -12,7 +12,7 @@ namespace pwd.contexts.file.commands;
 public sealed class CopyField(
       IClipboard clipboard,
       IRepository repository,
-      Location location)
+      string path)
    : CommandServicesBase
 {
    private readonly string _content = "";
@@ -42,7 +42,7 @@ public sealed class CopyField(
    private async Task<string> Field(
       string name)
    {
-      var content = await repository.ReadAsync(location);
+      var content = await repository.ReadAsync(path);
 
       using var input = new StringReader(content);
 

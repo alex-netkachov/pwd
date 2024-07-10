@@ -1,10 +1,8 @@
-﻿using System.IO.Abstractions;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.core;
 using pwd.core.abstractions;
 using pwd.ui;
 
@@ -23,14 +21,12 @@ public class Delete_Tests
       string input,
       bool creates)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new Delete(
             Mock.Of<IState>(),
             Mock.Of<IView>(),
-            repository,
-            repository.Root);
+            Mock.Of<IRepository>(),
+            "/");
 
       var command = factory.Create(input);
 
@@ -38,7 +34,7 @@ public class Delete_Tests
    }
 
    [Test]
-   public async Task DoAsync_calls_repository_delete()
+   public async Task Execute_calls_repository_delete()
    {
       var mockState = new Mock<IState>();
 
@@ -51,16 +47,14 @@ public class Delete_Tests
                It.IsAny<CancellationToken>()))
          .Returns(Task.FromResult(true));
 
-      var repository = Shared.CreateRepository();
-      var location = repository.Root.Down("file");
-      await repository.WriteAsync(location, "test");
+      var repository = new Mock<IRepository>();
 
       using var factory =
          new Delete(
             mockState.Object,
             mockView.Object,
-            repository,
-            location);
+            repository.Object,
+            "/test");
 
       var command = factory.Create(".rm");
       if (command == null)
@@ -70,8 +64,8 @@ public class Delete_Tests
       }
 
       await command.ExecuteAsync();
-
-      Assert.That(repository.FileExist(location), Is.False);
+      
+      repository.Verify(m => m.Delete("/test"), Times.Once);
    }
 
    [TestCase("", ".rm")]
@@ -85,14 +79,14 @@ public class Delete_Tests
       string input,
       string suggestions)
    {
-      var repository = Shared.CreateRepository();
+      var repository = new Mock<IRepository>();
 
       using var factory =
          new Delete(
             Mock.Of<IState>(),
             Mock.Of<IView>(),
-            repository,
-            repository.Root);
+            repository.Object,
+            "/test");
 
       Assert.That(
          factory.Suggestions(input),

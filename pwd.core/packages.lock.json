@@ -71,6 +71,7 @@
           "TestableIO.System.IO.Abstractions": "21.0.2"
         }
       }
-    }
+    },
+    "net8.0/win-x64": {}
   }
 }

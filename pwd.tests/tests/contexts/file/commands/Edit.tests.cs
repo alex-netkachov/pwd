@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.core;
+using pwd.core.abstractions;
+using pwd.mocks;
 using pwd.ui;
 
 namespace pwd.tests.contexts.file.commands;
@@ -25,16 +26,14 @@ public class Edit_Tests
       string input,
       bool creates)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new Edit(
             Mock.Of<IEnvironmentVariables>(),
             Mock.Of<IRunner>(),
             Mock.Of<IView>(),
             Mock.Of<IFileSystem>(),
-            repository,
-            repository.Root);
+            Mock.Of<IRepository>(),
+            "/test");
 
       var command = factory.Create(input);
 
@@ -43,7 +42,7 @@ public class Edit_Tests
 
    [TestCase("", "", ".edit", "", "EDITOR is not set")]
    [TestCase("notepad", "", ".edit notepad", "", "")]
-   public async Task DoAsync_edits_and_updates_the_content_of_the_item(
+   public async Task Execute_edits_and_updates_the_content_of_the_item(
       string editor,
       string content,
       string input,
@@ -75,16 +74,19 @@ public class Edit_Tests
 
       var mockView = new Mock<IView>();
 
-      var repository = Shared.CreateRepository();
-
+      var repository = new Mock<IRepository>();
+      repository
+         .Setup(m => m.ReadAsync("/test"))
+         .Returns(Task.FromResult("content"));
+      
       using var factory =
          new Edit(
             mockEnvironmentVariables.Object,
             mockRunner.Object,
             mockView.Object,
             mockFileSystem,
-            repository,
-            repository.Root);
+            repository.Object,
+            "/test");
 
       var command = factory.Create(input);
       if (command == null)

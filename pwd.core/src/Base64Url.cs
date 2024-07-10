@@ -1,5 +1,4 @@
 using pwd.core.abstractions;
-using pwd.core.extensions;
 
 namespace pwd.core;
 
@@ -11,51 +10,54 @@ public sealed class Base64Url
 {
    public static readonly Base64Url Instance = new();
 
-   private static string Encode(
+   public string Encode(
       byte[] input)
    {
-      return Convert.ToBase64String(input)
-         .Replace('+', '-')
-         .Replace('/', '_');
+      return PostEncodeString(
+         Convert.ToBase64String(input));
    }
 
-   private static byte[] Decode(
+   public byte[] Decode(
       string input)
    {
       return Convert.FromBase64String(
-         input.Replace('-', '+')
-            .Replace('_', '/'));
+         PreDecodeString(input));
+   }
+
+   public bool TryDecode(
+      string input,
+      out byte[]? output)
+   {
+      var buffer = new byte[input.Length];
+      var converted =
+         Convert.TryFromBase64String(
+            PreDecodeString(input),
+            buffer,
+            out var length);
+      if (!converted)
+      {
+         output = null;
+         return false;
+      }
+
+      output = new byte[length];
+      Array.Copy(buffer, output, length);
+      return true;
+   }
+
+   private static string PreDecodeString(
+      string input)
+   {
+      return input
+         .Replace('-', '+')
+         .Replace('_', '/');
    }
    
-   public string Encode(
-      Stream input)
+   private static string PostEncodeString(
+      string input)
    {
-      var inputData = input.ReadAllBytes();
-      return Encode(inputData);
-   }
-
-   public async Task<string> EncodeAsync(
-      Stream input,
-      CancellationToken token = default)
-   {
-      var inputData = await input.ReadAllBytesAsync(token);
-      return Encode(inputData);
-   }
-
-   public void Decode(
-      string input,
-      Stream output)
-   {
-      var decodedData = Decode(input);
-      output.Write(decodedData);
-   }
-
-   public async Task DecodeAsync(
-      string input,
-      Stream output,
-      CancellationToken token = default)
-   {
-      var decodedData = Decode(input);
-      await output.WriteAsync(decodedData, token);
+      return input
+         .Replace('+', '-')
+         .Replace('/', '_');
    }
 }

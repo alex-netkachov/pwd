@@ -2,7 +2,6 @@ using System;
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,7 +22,7 @@ namespace pwd;
 
 public static class Shared
 {
-   public static contexts.file.File CreateFileContext(
+   public static File CreateFileContext(
       string path = "",
       string name = "",
       string content = "",
@@ -45,7 +44,7 @@ public static class Shared
                .AddSingleton(Mock.Of<IEnvironmentVariables>())
                .AddSingleton(runner ?? Mock.Of<IRunner>())
                .AddSingleton(clipboard ?? Mock.Of<IClipboard>())
-               .AddSingleton(fs ?? new MockFileSystem())
+               .AddSingleton(fs ?? Mock.Of<IFileSystem>())
                .AddSingleton(repository ?? Mock.Of<IRepository>())
                .AddSingleton(state ?? Mock.Of<IState>())
                .AddSingleton(view ?? Mock.Of<IView>())
@@ -58,7 +57,7 @@ public static class Shared
 
    }
 
-   private static contexts.file.File CreateFileContext(
+   private static File CreateFileContext(
       string path,
       string name,
       string content,
@@ -66,24 +65,15 @@ public static class Shared
    {
       path =
          string.IsNullOrEmpty(path)
-            ? System.IO.Path.GetFileName(System.IO.Path.GetTempFileName())
+            ? "filename"
             : path;
 
-      var fs = host.Services.GetRequiredService<IFileSystem>();
       var repository = host.Services.GetRequiredService<IRepository>();
       var @lock = host.Services.GetRequiredService<ILock>();
 
-      var fileName =
-         repository.ParseName(
-            string.IsNullOrEmpty(name)
-               ? System.IO.Path.GetFileName(path)
-               : name);
-
-      var fileLocation = repository.Root.Down(fileName);
-
       return (File)host.Services
          .GetRequiredService<IFileFactory>()
-         .Create(repository, @lock, fileLocation);
+         .Create(repository, @lock, path);
    }
 
    public static Session CreateSessionContext(
@@ -161,68 +151,9 @@ public static class Shared
       return fs;
    }
 
-   public static IFileSystem FileLayout1(
-      IFileSystem fs)
-   {
-      const string text = "test"; 
-      var encrypted = Encrypt(text);
-
-      fs.File.WriteAllText("file", text);
-      fs.File.WriteAllText(".hidden", text);
-      fs.Directory.CreateDirectory("regular_dir");
-      fs.File.WriteAllText("regular_dir/file", text);
-      fs.File.WriteAllText("regular_dir/.hidden", text);
-      fs.Directory.CreateDirectory(".hidden_dir");
-      fs.File.WriteAllText(".hidden_dir/file", text);
-      fs.File.WriteAllText(".hidden_dir/.hidden", text);
-      fs.File.WriteAllText("encrypted", encrypted);
-      fs.File.WriteAllText(".hidden_encrypted", encrypted);
-      fs.File.WriteAllText("regular_dir/encrypted", encrypted);
-      fs.File.WriteAllText("regular_dir/.hidden_encrypted", encrypted);
-      fs.File.WriteAllText(".hidden_dir/encrypted", encrypted);
-      fs.File.WriteAllText(".hidden_dir/.hidden_encrypted", encrypted);
-
-      var encryptedFile = fs.Path.GetFileName("file");
-      var encryptedDotHidden = fs.Path.GetFileName(".hidden");
-      var encryptedRegularDir = fs.Path.GetFileName(".regular_dir");
-
-      return fs;
-   }
-
-   public static IFileSystem FileLayout2(
-      IFileSystem fs)
-   {
-      const string text = "test"; 
-      var encryptedContent = Encrypt(text);
-
-      var file = Encrypt("file");
-      var hidden = Encrypt(".hidden");
-      var encrypted = Encrypt("encrypted");
-      var hiddenEncrypted = Encrypt(".hidden_encrypted");
-      var regularDir = Encrypt("regular_dir");
-      var hiddenDir = Encrypt(".hidden_dir");
-
-      fs.File.WriteAllText(file, text);
-      fs.File.WriteAllText(hidden, text);
-      fs.File.WriteAllText(encrypted, encryptedContent);
-      fs.File.WriteAllText(hiddenEncrypted, encryptedContent);
-      fs.Directory.CreateDirectory(regularDir);
-      fs.File.WriteAllText($"{regularDir}/{file}", text);
-      fs.File.WriteAllText($"{regularDir}/{hidden}", text);
-      fs.File.WriteAllText($"{regularDir}/{encrypted}", encryptedContent);
-      fs.File.WriteAllText($"{regularDir}/{hiddenEncrypted}", encryptedContent);
-      fs.Directory.CreateDirectory(hiddenDir);
-      fs.File.WriteAllText($"{hiddenDir}/{file}", text);
-      fs.File.WriteAllText($"{hiddenDir}/{hidden}", text);
-      fs.File.WriteAllText($"{hiddenDir}/{encrypted}", encryptedContent);
-      fs.File.WriteAllText($"{hiddenDir}/{hiddenEncrypted}", encryptedContent);
-
-      return fs;
-   }
-
    private static void Test_AutoCompletionHandler()
    {
-      var fs = FileLayout1(GetMockFs());
+      var fs = GetMockFs().FileLayout1();
       var console = new StandardConsole();
       var view = new ConsoleView(console, new ConsoleReader(console));
 
@@ -262,16 +193,33 @@ public static class Shared
    }
 
    public static IRepository CreateRepository(
-      IFileSystem? fs = null,
-      ILogger<FolderRepository>? logger = null)
+      IFileSystem? fs = null)
    {
-      return new FolderRepository(
-         logger ?? Mock.Of<ILogger<FolderRepository>>(),
-         fs ?? new MockFileSystem(),
-         (_, _) => GetTestCipher(),
-         Base64Url.Instance,
-         ".",
-         "");
+      var provider =
+         new ServiceCollection()
+            .AddLogging()
+            .AddSingleton(fs ?? Mock.Of<IFileSystem>())
+            .AddSingleton<CipherFactory>((_, _) => GetTestCipher())
+            .AddSingleton<IStringEncoder>(Base64Url.Instance)
+            .AddSingleton<RepositoryFactory>(
+               provider => (path, password) => new FolderRepository(
+                  provider.GetRequiredService<ILogger<FolderRepository>>(),
+                  provider.GetRequiredService<IFileSystem>(),
+                  provider.GetRequiredService<CipherFactory>(),
+                  provider.GetRequiredService<IStringEncoder>(),
+                  path,
+                  password))
+            .BuildServiceProvider();
+
+      var repositoryFactory =
+         provider.GetRequiredService<RepositoryFactory>();
+
+      var repository =
+         repositoryFactory(
+            ".",
+            "");
+
+      return repository;
    }
 
    public static ICipher GetTestCipher()

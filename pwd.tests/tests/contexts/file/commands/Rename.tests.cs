@@ -1,10 +1,8 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.core;
 using pwd.core.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
@@ -22,13 +20,11 @@ public class Rename_Tests
       string input,
       bool creates)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new Rename(
             Mock.Of<ILogger<Rename>>(),
             Mock.Of<IRepository>(),
-            repository.Root);
+            "/");
 
       var command = factory.Create(input);
 
@@ -36,19 +32,15 @@ public class Rename_Tests
    }
 
    [Test]
-   public async Task DoAsync_calls_repository_move()
+   public async Task Execute_calls_repository_move()
    {
-      var fs = Shared.GetMockFs();
-
-      var repository = Shared.CreateRepository();
-
-      var mockRepository = new Mock<IRepository>();
+      var repository = new Mock<IRepository>();
       
       using var factory =
          new Rename(
             Mock.Of<ILogger<Rename>>(),
-            repository,
-            repository.Root);
+            repository.Object,
+            "/test");
 
       var command = factory.Create(".rename ok");
       if (command == null)
@@ -59,27 +51,8 @@ public class Rename_Tests
 
       await command.ExecuteAsync();
       
-      //mockRepository
-      //   .Verify(m => m.Move(It.IsAny<IFile>(), It.IsAny<Path>()));
-   }
-
-   [Test]
-   [Category("Integration")]
-   public async Task Rename_moves_the_file()
-   {
-      var fs = Shared.GetMockFs("*test1");
-
-      var repository = Shared.CreateRepository(fs);
-
-      var context =
-         Shared.CreateFileContext(
-            repository: repository,
-            name: "test1",
-            fs: fs);
-
-      await context.ProcessAsync(".rename test2");
-
-      var file = repository.List(repository.Root).Single();
-      Assert.That(file.Name.Value, Is.EqualTo("test2"));
+      repository.Verify(
+         m => m.Move("/test", "ok"),
+         Times.Once);
    }
 }

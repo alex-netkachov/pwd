@@ -10,7 +10,7 @@ namespace pwd.contexts.file.commands;
 public sealed class Print(
       IView view,
       IRepository repository,
-      Location location)
+      string path)
    : CommandServicesBase
 {
    public override ICommand? Create(
@@ -28,7 +28,7 @@ public sealed class Print(
    {
       return new DelegateCommand(async _ =>
       {
-         var content = await repository.ReadAsync(location);
+         var content = await repository.ReadAsync(path);
 
          var obscured =
             Regex.Replace(

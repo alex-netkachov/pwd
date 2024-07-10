@@ -1,10 +1,7 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
-using pwd.core;
 using pwd.core.abstractions;
 using pwd.ui;
 
@@ -23,13 +20,11 @@ public class Print_Tests
       string input,
       bool creates)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new Print(
             Mock.Of<IView>(),
-            repository,
-            repository.Root);
+            Mock.Of<IRepository>(),
+            "/");
 
       var command = factory.Create(input);
 
@@ -37,20 +32,23 @@ public class Print_Tests
    }
 
    [Test]
-   public async Task DoAsync_calls_repository_item_read_and_writes_to_view()
+   public async Task Execute_calls_repository_item_read_and_writes_to_view()
    {
       const string content = "password: 123";
       const string output = "password: ************";
 
       var mockView = new Mock<IView>();
 
-      var repository = Shared.CreateRepository();
+      var repository = new Mock<IRepository>();
+      repository
+         .Setup(m => m.ReadAsync("/test"))
+         .Returns(Task.FromResult(content));
 
       using var factory =
          new Print(
             mockView.Object,
-            repository,
-            repository.Root);
+            repository.Object,
+            "/test");
 
       var command = factory.Create(".print");
       if (command == null)
@@ -61,7 +59,6 @@ public class Print_Tests
 
       await command.ExecuteAsync();
       
-      //mockItem.Verify(m => m.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
       mockView.Verify(m => m.WriteLine(output), Times.Once);
    }
 
@@ -76,13 +73,11 @@ public class Print_Tests
       string input,
       string suggestions)
    {
-      var repository = Shared.CreateRepository();
-
       using var factory =
          new Print(
             Mock.Of<IView>(),
-            repository,
-            repository.Root);
+            Mock.Of<IRepository>(),
+            "/");
 
       Assert.That(
          factory.Suggestions(input),

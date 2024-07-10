@@ -7,13 +7,16 @@ using pwd.core.abstractions;
 
 namespace pwd.core;
 
-public class FolderRepository : IRepository
+public class FolderRepository
+   : IRepository
 {
    private readonly ILogger<FolderRepository> _logger;
    private readonly IFileSystem _fs;
    private readonly IStringEncoder _encoder;
    private readonly ICipher _cipher;
    private readonly string _path;
+
+   private string _currentFolder = "/";
 
    public FolderRepository(
       ILogger<FolderRepository> logger,
@@ -50,29 +53,100 @@ public class FolderRepository : IRepository
             _cipher.GetInitialisationData());
       }
    }
+   
+   public string GetWorkingFolder()
+   {
+      return _currentFolder;
+   }
 
-   public Location Root => new(this, []);
+   public void SetWorkingFolder(
+      string path)
+   {
+      _currentFolder = GetFullPathInt(
+         path,
+         _currentFolder);
+   }
+
+   public string GetFolder(
+      string path)
+   {
+      return PathUp(path).Folder;
+   }
+
+   public string? GetName(
+      string path)
+   {
+      return PathUp(path).Name;
+   }
+   
+   public string GetFullPath(
+      string path)
+   {
+      return GetFullPathInt(path);
+   }
+   
+   public string GetRelativePath(
+      string path,
+      string relativeToPath)
+   {
+      var fullPath = GetFullPathInt(path);
+      var fullRelativeToPath = GetFullPathInt(relativeToPath);
+      
+      var fullPathParts =
+         fullPath == "/"
+            ? []
+            : fullPath.Trim('/').Split('/');
+
+      var fullRelativeToParts =
+         fullRelativeToPath == "/"
+            ? []
+            : fullRelativeToPath.Trim('/').Split('/');
+
+      var index = 0;
+      while (index < fullPathParts.Length
+             && index < fullRelativeToParts.Length
+             && fullPathParts[index] == fullRelativeToParts[index])
+      {
+         index++;
+      }
+      
+      var relativePathParts = new List<string>();
+      for (var i = index; i < fullRelativeToParts.Length; i++)
+         relativePathParts.Add("..");
+      for (var i = index; i < fullPathParts.Length; i++)
+         relativePathParts.Add(fullPathParts[i]);
+      return string.Join("/", relativePathParts);
+   }
 
    public void Write(
-      Location location,
+      string path,
       string value)
    {
-      var (container, _) = location.Up();
-      CreateFolder(container);
+      var (folder, name) = PathUp(path);
+      if (name == null)
+         throw new IOException("The specified path is a root folder path.");
+
+      CreateFolder(folder);
+
+      var localPath = ToFilesystemPath(path);
+      var encrypted = _cipher.Encrypt(value);
 
       _fs.File.WriteAllBytes(
-         ToFilesystemPath(location),
-         _cipher.Encrypt(value));
+         localPath,
+         encrypted);
    }
 
    public async Task WriteAsync(
-      Location location,
+      string path,
       string value)
    {
-      var (container, _) = location.Up();
-      CreateFolder(container);
+      var (folder, name) = PathUp(path);
+      if (name == null)
+         throw new IOException("The specified path is a root folder path.");
 
-      var localPath = ToFilesystemPath(location);
+      CreateFolder(folder);
+
+      var localPath = ToFilesystemPath(path);
       var encrypted = await _cipher.EncryptAsync(value);
 
       await _fs.File.WriteAllBytesAsync(
@@ -81,9 +155,9 @@ public class FolderRepository : IRepository
    }
    
    public string Read(
-      Location location)
+      string path)
    {
-      var localPath = ToFilesystemPath(location);
+      var localPath = ToFilesystemPath(path);
       var content = _fs.File.ReadAllBytes(localPath);
       using var input = new MemoryStream(content);
       using var output = new MemoryStream();
@@ -92,9 +166,9 @@ public class FolderRepository : IRepository
    }
 
    public async Task<string> ReadAsync(
-      Location location)
+      string path)
    {
-      var localPath = ToFilesystemPath(location);
+      var localPath = ToFilesystemPath(path);
       var content = await _fs.File.ReadAllBytesAsync(localPath);
       using var input = new MemoryStream(content);
       using var output = new MemoryStream();
@@ -103,41 +177,95 @@ public class FolderRepository : IRepository
    }
 
    public void CreateFolder(
-      Location location)
+      string path)
    {
-      if (location.Items.Count == 0)
+      if (path == "/")
          return;
 
-      var localPath = ToFilesystemPath(location);
+      var localPath = ToFilesystemPath(path);
       _fs.Directory.CreateDirectory(localPath);
    }
 
    public void Delete(
-      Location location)
+      string path)
    {
-      var localPath = ToFilesystemPath(location);
+      var localPath = ToFilesystemPath(path);
       _fs.File.Delete(localPath);
    }
 
    public void Move(
-      Location location,
-      Location newLocation)
+      string path,
+      string newPath)
    {
-      throw new System.NotImplementedException();
+      Log($"start with '{path}' and '{newPath}'");
+
+      if (!FileExist(path))
+      {
+         throw new IOException(
+            "The location does not correspond to a file.");
+      }
+
+      var (_, locationName) = PathUp(path);
+      if (locationName == null)
+      {
+         throw new IOException(
+            "The location does not correspond to a file.");
+      }
+
+      if (FolderExist(newPath))
+      {
+         var newPathUpdated = PathDown(newPath, locationName);
+         if (FolderExist(newPathUpdated))
+         {
+            throw new IOException(
+               "Cannot overwrite a folder.");
+         }
+
+         _fs.File.Move(
+            ToFilesystemPath(path),
+            ToFilesystemPath(newPathUpdated));
+
+         return;
+      }
+
+      if (FileExist(newPath))
+      {
+         _fs.File.Move(
+            ToFilesystemPath(path),
+            ToFilesystemPath(newPath));
+         return;
+      }
+
+      var (newPathFolder, _) = PathUp(newPath);
+
+      try
+      {
+         _fs.Directory.CreateDirectory(
+            ToFilesystemPath(newPathFolder));
+      }
+      catch
+      {
+         throw new IOException(
+            "Cannot create a folder.");
+      }
+      
+      _fs.File.Move(
+         ToFilesystemPath(path),
+         ToFilesystemPath(newPath));
    }
 
-   public IEnumerable<Location> List(
-      Location location,
+   public IEnumerable<string> List(
+      string path,
       ListOptions? options = null)
    {
-      Log($"start with '{ToString(location)}'");
+      Log($"start with '{path}'");
       
       var listOptions = options ?? ListOptions.Default;
 
-      var localPath = ToFilesystemPath(location);
+      var localPath = ToFilesystemPath(path);
 
       if (!_fs.Directory.Exists(localPath))
-         throw new InvalidOperationException($"The location '{ToString(location)}' is not a folder.");
+         throw new InvalidOperationException($"'{path}' is not a folder.");
 
       var fsItems =
          _fs.Directory
@@ -147,23 +275,28 @@ public class FolderRepository : IRepository
       {
          var fsFileName = _fs.Path.GetFileName(fsItem);
 
-         if (!TryDecryptName(fsFileName, out var decryptedName))
+         if (!TryDecryptName(fsFileName, out var value)
+             || value == null)
+         {
             continue;
-         
+         }
+
+         var decryptedName = value;
+
          if (_fs.File.Exists(fsItem))
          {
-            if (!decryptedName!.IsDotted()
+            if (!IsDotted(decryptedName)
                 || listOptions.IncludeDottedFilesAndFolders)
             {
-               yield return location.Down(decryptedName!);
+               yield return PathDown(path, decryptedName);
             }
          }
          else if (_fs.Directory.Exists(fsItem))
          {
-            var folderLocation = location.Down(decryptedName!);
+            var folderLocation = PathDown(path, decryptedName);
 
             if (listOptions.IncludeFolders
-                && (!decryptedName!.IsDotted()
+                && (!IsDotted(decryptedName)
                     || listOptions.IncludeDottedFilesAndFolders))
             {
                yield return folderLocation;
@@ -177,174 +310,74 @@ public class FolderRepository : IRepository
          }
       }
 
-      Log($"done");
+      Log("done");
    }
 
    public bool FileExist(
-      Location location)
+      string path)
    {
-      var localPath = ToFilesystemPath(location);
+      var localPath = ToFilesystemPath(path);
       return _fs.File.Exists(localPath);
    }
 
    public bool FolderExist(
-      Location location)
+      string path)
    {
-      var localPath = ToFilesystemPath(location);
+      var localPath = ToFilesystemPath(path);
       return _fs.Directory.Exists(localPath);
    }
 
-   public bool TryParseName(
-      string value,
-      out Name? name)
-   {
-      name = null;
-
-      if (value is "")
-         return false;
-
-      var invalidNameChars = _fs.Path.GetInvalidFileNameChars();
-
-      if (value.IndexOfAny(invalidNameChars) != -1)
-         return false;
-
-      name = new(this, value);
-      return true;
-   }
-
-   public bool TryParseLocation(
-      string value,
-      out Location? location)
-   {
-      location = null;
-
-      if (value == "")
-      {
-         location = new(this, []);
-         return true;
-      }
-
-      var pathItems =
-         value.Split(
-            _fs.Path.DirectorySeparatorChar,
-            _fs.Path.AltDirectorySeparatorChar);
-
-      var items = new List<Name>(pathItems.Length);
-
-      foreach (var item in pathItems)
-      {
-         if (!TryParseName(item, out var name)
-             || name is null)
-         {
-            return false;
-         }
-
-         items.Add(name);
-      }
-
-      location = new(this, items);
-
-      return true;
-   }
-
-   public string ToString(
-      Location location)
-   {
-      var items = location.Items;
-
-      if (items.Count == 0)
-         return ".";
-
-      return _fs.Path.Join(
-         items
-            .Select(item => item.Value)
-            .ToArray());
-   }
-
-   public string ToString(
-      Name name)
-   {
-      return name.Value;
-   }
-
    public string ToFilesystemPath(
-      Location location)
+      string path)
    {
-      var fullPath = _fs.Path.GetFullPath(_path);
+      var fullFilesystemPath = _fs.Path.GetFullPath(_path);
 
-      if (location.Items.Count == 0)
-         return fullPath;
+      var fullPath = GetFullPathInt(path);
 
-      var relativePath = ToFilesystemRelativePath(location);
+      if (fullPath == "/")
+         return fullFilesystemPath;
+
+      var relativePath = ToFilesystemRelativePath(fullPath);
 
       return _fs.Path.Combine(
-         fullPath,
+         fullFilesystemPath,
          relativePath);
    }
    
    private string ToFilesystemRelativePath(
-      Location location)
+      string path)
    {
-      var items = location.Items;
+      var items = GetFullPathInt(path).Trim('/').Split('/');
 
-      if (items.Count == 0)
+      if (items.Length == 0)
          return ".";
 
       return Path.Join(
          items
-            .Select(item => _encoder.Encode(_cipher.Encrypt(item.Value)))
+            .Select(item => _encoder.Encode(_cipher.Encrypt(item)))
             .ToArray());
-   }
-
-   private Location? FromPath(
-      string relativePath)
-   {
-      if (!TryParseLocation(relativePath, out var location)
-          || location == null)
-      {
-         return null;
-      }
-
-      var decryptedPathNames = new List<Name>();
-      foreach (var item in location.Items)
-      {
-         Name decryptedPathName;
-         try
-         {
-            if (!TryDecryptName(item.Value, out var value)
-                || value == null)
-            {
-               return null;
-            }
-
-            decryptedPathName = value;
-         }
-         catch
-         {
-            return null;
-         }
-
-         decryptedPathNames.Add(decryptedPathName);
-      }
-
-      return new Location(this, decryptedPathNames);
    }
 
    private bool TryDecryptName(
       string value,
-      out Name? name)
+      out string? name)
    {
-      try
-      {
-         var decoded = _encoder.Decode(value);
-         var decrypted = _cipher.DecryptString(decoded);
-         return TryParseName(decrypted, out name);
-      }
-      catch
+      var ok = _encoder.TryDecode(value, out var decoded);
+      if (!ok || decoded == null)
       {
          name = null;
          return false;
       }
+
+      ok = _cipher.TryDecryptString(decoded, out var content);
+      if (!ok || content == null)
+      {
+         name = null;
+         return false;
+      }
+
+      name = content;
+      return true;
    }
    
    private void Log(
@@ -357,9 +390,87 @@ public class FolderRepository : IRepository
          message);
    }
    
+   private string GetFullPathInt(
+      string path,
+      string? location = null)
+   {
+      // - removes leading and trailing slashes
+      // - collapses multiple slashes
+      // - removes dots as points to itself
+      // - collapses double dots as points to parent
+      // - does not fail when the path goes out of the root
+      // - will be resolved from the location if the path does not start with "/"
+
+      location =
+         location switch
+         {
+            null => _currentFolder,
+            "/" => "/",
+            _ => GetFullPathInt(location, "/")
+         };
+
+      var absolute = path.Length > 0 && path[0] == '/';
+
+      var parts = path.Trim('/').Split('/');
+
+      if (!absolute)
+         parts = location.Trim('/').Split('/').Concat(parts).ToArray();
+
+      var stack = new Stack<string>();
+
+      foreach (var item in parts)
+      {
+         switch (item)
+         {
+            case "." or "":
+               continue;
+            case "..":
+               stack.TryPop(out _);
+               continue;
+            default:
+               stack.Push(item);
+               break;
+         }
+      }
+
+      return "/" + string.Join("/", stack.Reverse());
+   }
+
+   private (string Folder, string? Name) PathUp(
+      string path,
+      string? location = null)
+   {
+      var fullPath = GetFullPathInt(path, location);
+      if (fullPath == "/")
+         return ("/", null);
+      var separatorPosition = fullPath.LastIndexOf('/');
+      var name = fullPath[(separatorPosition + 1)..];
+
+      return separatorPosition == 0
+         ? ("/", name)
+         : (fullPath[..separatorPosition], name);
+   }
+
+   private string PathDown(
+      string path,
+      string name,
+      string? location = null)
+   {
+      var fullPath = GetFullPathInt(path, location);
+      return fullPath == "/"
+         ? "/" + name
+         : fullPath + "/" + name;
+   }
+
+   private static bool IsDotted(
+      string name)
+   {
+      return name.Length > 0 && name[0] is '.' or '_';
+   }
+   
    public static IRepository Open(
-      string password,
-      string path)
+      string path,
+      string password)
    {
       return new FolderRepository(
          NullLogger<FolderRepository>.Instance,
