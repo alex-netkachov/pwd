@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -116,12 +117,13 @@ public sealed class TestConsole
       _writes.Add(new());
    }
 
-   public (int Left, int Top) GetCursorPosition()
+   public Point GetCursorPosition()
    {
-      return (0, 0);
+      return new(0, 0);
    }
 
-   public void SetCursorPosition(int left, int top)
+   public void SetCursorPosition(
+      Point point)
    {
    }
 

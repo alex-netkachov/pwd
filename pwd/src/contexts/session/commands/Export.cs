@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using pwd.context.repl;
+using pwd.contexts.repl;
 using pwd.ui;
 
 namespace pwd.contexts.session.commands;

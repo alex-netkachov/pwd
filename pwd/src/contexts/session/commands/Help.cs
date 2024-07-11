@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using pwd.context.repl;
+using pwd.contexts.repl;
 using pwd.ui;
 
 namespace pwd.contexts.session.commands;

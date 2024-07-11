@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.context;
-using pwd.context.repl;
+using pwd.contexts.repl;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
 using pwd.ui;

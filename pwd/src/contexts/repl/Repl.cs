@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using pwd.ui;
 using pwd.ui.readline;
 
-namespace pwd.context.repl;
+namespace pwd.contexts.repl;
 
 public interface ICommandServices
    : IDisposable

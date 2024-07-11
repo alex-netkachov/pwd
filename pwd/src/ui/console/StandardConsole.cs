@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -106,16 +107,18 @@ public sealed class StandardConsole
       Console.WriteLine(value);
    }
 
-   public (int Left, int Top) GetCursorPosition()
+   public Point GetCursorPosition()
    {
-      return Console.GetCursorPosition();
+      var (left, top) = Console.GetCursorPosition();
+      return new(left, top);
    }
 
    public void SetCursorPosition(
-      int left,
-      int top)
+      Point point)
    {
-      Console.SetCursorPosition(left, top);
+      Console.SetCursorPosition(
+         point.X,
+         point.Y);
    }
 
    public void Clear()

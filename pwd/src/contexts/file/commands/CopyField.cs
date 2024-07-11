@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using pwd.context.repl;
+using pwd.contexts.repl;
 using pwd.core.abstractions;
 using YamlDotNet.RepresentationModel;
 

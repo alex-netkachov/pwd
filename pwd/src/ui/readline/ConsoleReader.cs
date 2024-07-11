@@ -374,7 +374,8 @@ public sealed class ConsoleReader
          return;
 
       var width = _console.BufferWidth;
-      var (left, top) = _console.GetCursorPosition();
+      var cursorPosition = _console.GetCursorPosition();
+      var (left, top) = (cursorPosition.X, cursorPosition.Y);
       for (var i = 0; i < steps; i++)
       {
          left++;
@@ -383,7 +384,7 @@ public sealed class ConsoleReader
          left = 0;
          top++;
       }
-      _console.SetCursorPosition(left, top);
+      _console.SetCursorPosition(new(left, top));
 
       position += steps;
    }
@@ -395,7 +396,8 @@ public sealed class ConsoleReader
       if (position == 0)
          return;
 
-      var (left, top) = _console.GetCursorPosition();
+      var cursorPosition = _console.GetCursorPosition();
+      var (left, top) = (cursorPosition.X, cursorPosition.Y);
       for (var i = 0; i < steps; i++)
       {
          left--;
@@ -403,7 +405,8 @@ public sealed class ConsoleReader
          left = _console.BufferWidth - 1;
          top--;
       }
-      _console.SetCursorPosition(left, top);
+
+      _console.SetCursorPosition(new(left, top));
       
       position -= steps;
    }
@@ -411,8 +414,8 @@ public sealed class ConsoleReader
    private void WriteAndMoveBack(
       string text)
    {
-      var (left, top) = _console.GetCursorPosition();
+      var position = _console.GetCursorPosition();
       _console.Write(text);
-      _console.SetCursorPosition(left, top);
+      _console.SetCursorPosition(position);
    }
 }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using pwd.context.repl;
+using pwd.contexts.repl;
 using pwd.core;
 using pwd.core.abstractions;
 

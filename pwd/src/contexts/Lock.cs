@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.context;
 using pwd.ui;
 using pwd.ui.console;
 

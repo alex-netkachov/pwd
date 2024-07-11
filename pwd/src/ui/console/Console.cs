@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 
 namespace pwd.ui.console;
 
@@ -13,11 +14,10 @@ public interface IConsole
    void WriteLine(
       object? value = null);
 
-   (int Left, int Top) GetCursorPosition();
+   Point GetCursorPosition();
 
    void SetCursorPosition(
-      int left,
-      int top);
+      Point point);
 
    void Clear();
 }
