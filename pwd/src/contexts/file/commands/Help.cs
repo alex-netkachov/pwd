@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Help
-   : CommandServicesBase
+   : CommandBase
 {
    private readonly IView _view;
 
@@ -18,29 +20,25 @@ public sealed class Help
       _view = view;
    }
 
-   public override ICommand? Create(
-      string input)
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return Shared.ParseCommand(input) switch
+
+      await using var stream =
+         Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("pwd.res.context_file_help.txt");
+
+      if (stream == null)
       {
-         (_, "help", _) => new DelegateCommand(async _ =>
-         {
-            await using var stream =
-               Assembly.GetExecutingAssembly()
-                  .GetManifestResourceStream("pwd.res.context_file_help.txt");
+         _view.WriteLine("help file is missing");
+         return;
+      }
 
-            if (stream == null)
-            {
-               _view.WriteLine("help file is missing");
-               return;
-            }
-
-            using var reader = new StreamReader(stream);
-            var content = await reader.ReadToEndAsync();
-            _view.WriteLine(content.TrimEnd());
-         }),
-         _ => null
-      };
+      using var reader = new StreamReader(stream);
+      var content = await reader.ReadToEndAsync();
+      _view.WriteLine(content.TrimEnd());
    }
 
    public override IReadOnlyList<string> Suggestions(

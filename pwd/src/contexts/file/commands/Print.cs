@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
 using pwd.ui;
@@ -11,33 +13,22 @@ public sealed class Print(
       IView view,
       IRepository repository,
       string path)
-   : CommandServicesBase
+   : CommandBase
 {
-   public override ICommand? Create(
-      string input)
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "print", _) => Command(),
-         _ when string.IsNullOrWhiteSpace(input) => Command(),
-         _ => null
-      };
-   }
+      var content = await repository.ReadAsync(path);
 
-   private ICommand Command()
-   {
-      return new DelegateCommand(async _ =>
-      {
-         var content = await repository.ReadAsync(path);
+      var obscured =
+         Regex.Replace(
+            content,
+            "password:\\s*[^\n\\s]+",
+            "password: ************");
 
-         var obscured =
-            Regex.Replace(
-               content,
-               "password:\\s*[^\n\\s]+",
-               "password: ************");
-
-         view.WriteLine(obscured);
-      });
+      view.WriteLine(obscured);
    }
 
    public override IReadOnlyList<string> Suggestions(

@@ -83,7 +83,12 @@ public class Integration_Tests
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
 
-      using var host = Program.SetupHost(console, fs, view);
+      using var host =
+         Program.SetupHost(
+            console,
+            fs,
+            view,
+            configureLogging: _ => { });
 
       logger.LogInformation("Before Program.Run(...)");
       await Program.Run(host, DefaultSettings);
@@ -201,7 +206,13 @@ public class Integration_Tests
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
 
-      using var host = Program.SetupHost(console, fs, view);
+      using var host =
+         Program.SetupHost(
+            console,
+            fs,
+            view,
+            configureLogging: _ => { });
+
       var repositoryFactory = host.Services.GetRequiredService<RepositoryFactory>();
       var repository = repositoryFactory("/container/test", "secret");
       await repository.WriteAsync(

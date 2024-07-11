@@ -140,6 +140,11 @@ public class FolderRepository
       string path,
       string value)
    {
+      _logger.LogInformation(
+         "{Name}: writing {Path}",
+         nameof(WriteAsync),
+         path);
+      
       var (folder, name) = PathUp(path);
       if (name == null)
          throw new IOException("The specified path is a root folder path.");

@@ -1,42 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
 
 namespace pwd.contexts.shared;
 
-public sealed class Lock
-   : CommandServicesBase
-{
-   private readonly IView _view;
-   private readonly IState _state;
-   private readonly ILock _lock;
-
-   public Lock(
+public sealed class Lock(
       IState state,
       IView view,
       ILock @lock)
+   : CommandBase
+{
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      _state = state;
-      _view = view;
-      _lock = @lock;
-   }
-
-   public override ICommand? Create(
-      string input)
-   {
-      return Shared.ParseCommand(input) switch
+      var action = parameters.FirstOrDefault() ?? "";
+      switch (action)
       {
-         (_, "lock", "disable") => new(_lock.Disable),
-         (_, "lock", "pin") => new(_lock.Pin),
-         (_, "lock", "pwd") => new(_lock.Password),
-         (_, "lock", _) => new DelegateCommand(async cancellationToken =>
-         {
-            _view.Clear();
-            await _state.OpenAsync(_lock).WaitAsync(cancellationToken);
-         }),
-         _ => null
-      };
+         case "disable":
+            @lock.Disable();
+            return;
+         case "pin":
+            @lock.Pin(token);
+            return;
+         case "pwd":
+            @lock.Password();
+            return;
+         default:
+            view.Clear();
+            await state.OpenAsync(@lock).WaitAsync(token);
+            return;
+      }
    }
 
    public override IReadOnlyList<string> Suggestions(
@@ -46,6 +45,6 @@ public sealed class Lock
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
          ? new[] { key }
-         : Array.Empty<string>();
+         : [];
    }
 }

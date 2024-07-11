@@ -13,13 +13,13 @@ namespace pwd.contexts;
 
 public static class Shared
 {
-   public static (string, string, string) ParseCommand(
+   public static (string Text, string Name, string[] Parameters) ParseCommand(
       string input)
    {
       var match = Regex.Match(input, @"^ *\.(\w+)(?: +(.+))? *$");
       return match.Success
-         ? ("", match.Groups[1].Value.ToLowerInvariant(), match.Groups[2].Value)
-         : (input, "", "");
+         ? ("", match.Groups[1].Value.ToLowerInvariant(), match.Groups[2].Value.Split(" "))
+         : (input, "", []);
    }
 
    public static Exception? CheckYaml(
@@ -83,17 +83,15 @@ public static class Shared
       return list;
    }
 
-   public static IReadOnlyCollection<ICommandServices> CommandFactories(
+   public static void CommandFactories(
+      Dictionary<string, ICommand> commands,
       IState state,
       ILock @lock,
       IView view)
    {
-      return new ICommandServices[]
-      {
-         new Clear(view),
-         new Pwd(view),
-         new shared.Lock(state, view, @lock),
-         new Quit(state)
-      };
+      commands.Add("clear", new Clear(view));
+      commands.Add("pwd", new Pwd(view));
+      commands.Add("lock", new shared.Lock(state, view, @lock));
+      commands.Add("quit", new Quit(state));
    }
 }

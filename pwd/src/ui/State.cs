@@ -5,9 +5,8 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.ui;
 
-namespace pwd;
+namespace pwd.ui;
 
 public interface IStateChange
 {
@@ -25,25 +24,18 @@ public interface IStateChangeReader
       CancellationToken cancellationToken = default);
 }
 
-public sealed class StateChangeReader
-   : IStateChangeReader
-{
-   private readonly ChannelReader<IStateChange> _reader;
-   private readonly Action _disposing;
-   private int _disposed;
-
-   public StateChangeReader(
+public sealed class StateChangeReader(
       ChannelReader<IStateChange> reader,
       Action? disposing = null)
-   {
-      _reader = reader;
-      _disposing = disposing ?? new Action(() => { });
-   }
+   : IStateChangeReader
+{
+   private readonly Action _disposing = disposing ?? (() => { });
+   private int _disposed;
 
    public ValueTask<IStateChange> ReadAsync(
       CancellationToken cancellationToken = default)
    {
-      return _reader.ReadAsync(cancellationToken);
+      return reader.ReadAsync(cancellationToken);
    }
 
    public void Dispose()
@@ -126,6 +118,8 @@ public class State
 
    public async Task BackAsync()
    {
+      _logger.LogInformation("{0}: start", nameof(BackAsync));
+
       IContext? removed;
       IContext? active;
       while (true)
@@ -152,6 +146,11 @@ public class State
    public async Task OpenAsync(
       IContext context)
    {
+      _logger.LogInformation(
+         "{0}: start with {1}",
+         nameof(OpenAsync),
+         context.GetType().Name);
+
       IContext? previous;
       while (true)
       {

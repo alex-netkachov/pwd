@@ -9,28 +9,6 @@ namespace pwd.tests.contexts.file.commands;
 
 public class Unobscured_Tests
 {
-   [TestCase("", false)]
-   [TestCase(".", false)]
-   [TestCase(".un", false)]
-   [TestCase("unobscured", false)]
-   [TestCase(".unobscured", true)]
-   [TestCase(".unobscured ", true)]
-   [TestCase(".unobscured test", true)]
-   public void Parse_creates_command(
-      string input,
-      bool creates)
-   {
-      using var factory =
-         new Unobscured(
-            Mock.Of<IView>(),
-            Mock.Of<IRepository>(),
-            "/");
-
-      var command = factory.Create(input);
-
-      Assert.That(command, creates ? Is.Not.Null : Is.Null);
-   }
-
    [Test]
    public async Task Execute_calls_repository_item_read_and_writes_to_view()
    {
@@ -43,20 +21,13 @@ public class Unobscured_Tests
 
       var mockView = new Mock<IView>();
 
-      using var factory =
+      var command =
          new Unobscured(
             mockView.Object,
             repository.Object,
             "/test");
 
-      var command = factory.Create(".unobscured");
-      if (command == null)
-      {
-         Assert.Fail("command is null");
-         return;
-      }
-
-      await command.ExecuteAsync();
+      await command.ExecuteAsync("unobscured", []);
       
       mockView.Verify(m => m.WriteLine(content), Times.Once);
    }
@@ -72,14 +43,14 @@ public class Unobscured_Tests
       string input,
       string suggestions)
    {
-      using var factory =
+      var command =
          new Unobscured(
             Mock.Of<IView>(),
             Mock.Of<IRepository>(),
             "/test");
 
       Assert.That(
-         factory.Suggestions(input),
+         command.Suggestions(input),
          Is.EqualTo(
             string.IsNullOrEmpty(suggestions)
                ? []

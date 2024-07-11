@@ -1,30 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
 
 namespace pwd.contexts.session.commands;
 
-public sealed class Export
-   : CommandServicesBase
-{
-   private readonly IView _view;
-
-   public Export(
+public sealed class Export(
       IView view)
+   : CommandBase
+{
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      _view = view;
-   }
-
-   public override ICommand? Create(
-      string input)
-   {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "export", var name) =>
-            new DelegateCommand(() => _view.WriteLine("Not implemented")),
-         _ => null
-      };
+      view.WriteLine("Not implemented");
+      return Task.CompletedTask;
    }
 
    public override IReadOnlyList<string> Suggestions(

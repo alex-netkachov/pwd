@@ -9,28 +9,6 @@ namespace pwd.tests.contexts.file.commands;
 
 public class Print_Tests
 {
-   [TestCase("", true)]
-   [TestCase(".", false)]
-   [TestCase(".p", false)]
-   [TestCase("print", false)]
-   [TestCase(".print", true)]
-   [TestCase(".print ", true)]
-   [TestCase(".print test", true)]
-   public void Parse_creates_command(
-      string input,
-      bool creates)
-   {
-      using var factory =
-         new Print(
-            Mock.Of<IView>(),
-            Mock.Of<IRepository>(),
-            "/");
-
-      var command = factory.Create(input);
-
-      Assert.That(command, creates ? Is.Not.Null : Is.Null);
-   }
-
    [Test]
    public async Task Execute_calls_repository_item_read_and_writes_to_view()
    {
@@ -44,20 +22,13 @@ public class Print_Tests
          .Setup(m => m.ReadAsync("/test"))
          .Returns(Task.FromResult(content));
 
-      using var factory =
+      var command =
          new Print(
             mockView.Object,
             repository.Object,
             "/test");
 
-      var command = factory.Create(".print");
-      if (command == null)
-      {
-         Assert.Fail("command is null");
-         return;
-      }
-
-      await command.ExecuteAsync();
+      await command.ExecuteAsync("print", []);
       
       mockView.Verify(m => m.WriteLine(output), Times.Once);
    }
@@ -73,14 +44,14 @@ public class Print_Tests
       string input,
       string suggestions)
    {
-      using var factory =
+      var command =
          new Print(
             Mock.Of<IView>(),
             Mock.Of<IRepository>(),
             "/");
 
       Assert.That(
-         factory.Suggestions(input),
+         command.Suggestions(input),
          Is.EqualTo(
             string.IsNullOrEmpty(suggestions)
                ? []

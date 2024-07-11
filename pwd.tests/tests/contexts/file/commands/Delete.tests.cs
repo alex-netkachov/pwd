@@ -10,29 +10,6 @@ namespace pwd.tests.contexts.file.commands;
 
 public class Delete_Tests
 {
-   [TestCase("", false)]
-   [TestCase(".", false)]
-   [TestCase(".r", false)]
-   [TestCase("rm", false)]
-   [TestCase(".rm", true)]
-   [TestCase(".rm ", true)]
-   [TestCase(".rm test", true)]
-   public void Parse_creates_command(
-      string input,
-      bool creates)
-   {
-      using var factory =
-         new Delete(
-            Mock.Of<IState>(),
-            Mock.Of<IView>(),
-            Mock.Of<IRepository>(),
-            "/");
-
-      var command = factory.Create(input);
-
-      Assert.That(command, creates ? Is.Not.Null : Is.Null);
-   }
-
    [Test]
    public async Task Execute_calls_repository_delete()
    {
@@ -49,21 +26,14 @@ public class Delete_Tests
 
       var repository = new Mock<IRepository>();
 
-      using var factory =
+      var command =
          new Delete(
             mockState.Object,
             mockView.Object,
             repository.Object,
             "/test");
 
-      var command = factory.Create(".rm");
-      if (command == null)
-      {
-         Assert.Fail("command is null");
-         return;
-      }
-
-      await command.ExecuteAsync();
+      await command.ExecuteAsync("rm", []);
       
       repository.Verify(m => m.Delete("/test"), Times.Once);
    }
@@ -81,7 +51,7 @@ public class Delete_Tests
    {
       var repository = new Mock<IRepository>();
 
-      using var factory =
+      var factory =
          new Delete(
             Mock.Of<IState>(),
             Mock.Of<IView>(),

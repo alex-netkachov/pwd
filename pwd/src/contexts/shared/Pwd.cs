@@ -1,29 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
 
 namespace pwd.contexts.shared;
 
-public sealed class Pwd
-   : CommandServicesBase
+public sealed class Pwd(IView view) : CommandBase
 {
-   private readonly IView _view;
-
-   public Pwd(
-      IView view)
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      _view = view;
-   }
-
-   public override ICommand? Create(
-      string input)
-   {
-      return input switch
-      {
-         ".pwd" => new DelegateCommand(() => _view.WriteLine(Shared.Password())),
-         _ => null
-      };
+      view.WriteLine(Shared.Password());
+      return Task.CompletedTask;
    }
 
    public override IReadOnlyList<string> Suggestions(
@@ -33,6 +25,6 @@ public sealed class Pwd
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
          ? new[] { key }
-         : Array.Empty<string>();
+         : [];
    }
 }

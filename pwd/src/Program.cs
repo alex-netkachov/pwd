@@ -29,7 +29,8 @@ public static class Program
    internal static IHost SetupHost(
          IConsole console,
          IFileSystem fs,
-         IView view)
+         IView view,
+         Action<ILoggingBuilder>? configureLogging = null)
    {
       var builder = Host.CreateDefaultBuilder();
       builder.ConfigureServices(
@@ -37,7 +38,8 @@ public static class Program
          {
             services
                .AddLogging(
-                  loggingBuilder => loggingBuilder.ClearProviders())
+                  configureLogging
+                  ?? (loggingBuilder => loggingBuilder.ClearProviders()))
                .AddSingleton(fs)
                .AddSingleton(view)
                .AddSingleton(console)

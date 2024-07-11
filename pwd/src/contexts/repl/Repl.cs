@@ -9,33 +9,6 @@ using pwd.ui.readline;
 
 namespace pwd.contexts.repl;
 
-public interface ICommandServices
-   : IDisposable
-{
-   ICommand? Create(
-      string input);
-
-   IReadOnlyList<string> Suggestions(
-      string input);
-}
-
-public abstract class CommandServicesBase
-   : ICommandServices
-{
-   public abstract ICommand? Create(
-      string input);
-
-   public virtual IReadOnlyList<string> Suggestions(
-      string input)
-   {
-      return Array.Empty<string>();
-   }
-
-   public virtual void Dispose()
-   {
-   }
-}
-
 /// <summary>
 ///   Repl is a Read-Eval-Print-Loop (REPL) context. It serves as a foundational
 ///   context for other command-line user interface contexts.
@@ -72,7 +45,11 @@ public abstract class CommandServicesBase
 ///
 ///   The command can be stopped by pressing Ctrl+C.
 /// </remarks>
-public abstract class Repl
+public abstract class Repl(
+      ILogger<Repl> logger,
+      IView view,
+      IReadOnlyDictionary<string, ICommand> commands,
+      string defaultCommand)
    : IContext,
      ISuggestionsProvider
 {
@@ -83,40 +60,34 @@ public abstract class Repl
 
    private State? _state;
 
-   private readonly ILogger<Repl> _logger;
-   private readonly IView _view;
-   private readonly IReadOnlyCollection<ICommandServices> _commandFactories;
-
-   protected Repl(
-      ILogger<Repl> logger,
-      IView view,
-      IReadOnlyCollection<ICommandServices> commandFactories)
-   {
-      _logger = logger;
-      _view = view;
-      _state = null;
-      _commandFactories = commandFactories;
-   }
-
    public async Task ProcessAsync(
       string input,
-      CancellationToken cancellationToken = default)
+      CancellationToken token = default)
    {
-      _logger.LogInformation($"{nameof(Repl)}.{nameof(ProcessAsync)}: processing '{input}'");
+      logger.LogInformation($"{nameof(ProcessAsync)}: processing '{input}'");
+
+      var parts = Shared.ParseCommand(input);
+      if (string.IsNullOrEmpty(parts.Name))
+      {
+         parts =
+            input == ".."
+               ? new("..", "up", [])
+               : (input, defaultCommand, input == "" ? [] : input.Split(' '));
+      }
 
       var command =
-         _commandFactories
-            .Select(item => item.Create(input))
-            .FirstOrDefault(item => item != null);
-
+         commands
+            .FirstOrDefault(
+               item => item.Key.Equals(parts.Name, StringComparison.OrdinalIgnoreCase))
+            .Value;
       if (command == null)
       {
-         _logger.LogInformation($"no commands for input '{input}'");
+         logger.LogInformation($"no commands for input '{input}'");
          return;
       }
 
-      _logger.LogInformation($"executing command {command}");
-      await command.ExecuteAsync(cancellationToken);
+      logger.LogInformation($"executing command {command}");
+      await command.ExecuteAsync(parts.Name, parts.Parameters, token);
    }
 
    protected virtual string Prompt()
@@ -148,21 +119,21 @@ public abstract class Repl
             {
                var prompt = Prompt();
 
-               _logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
+               logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
 
-               input = (await _view.ReadAsync(new($"{prompt}> "), this, token)).Trim();
+               input = (await view.ReadAsync(new($"{prompt}> "), this, token)).Trim();
 
-               _logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
+               logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
             }
             catch (OperationCanceledException e) when (e.CancellationToken == token)
             {
                // StopAsync() is called
-               _logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...) has been cancelled");
+               logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...) has been cancelled");
                break;
             }
             catch (Exception e)
             {
-               _logger.LogError($"waiting for the user's input ended with the following exception: {e}");
+               logger.LogError($"waiting for the user's input ended with the following exception: {e}");
                continue;
             }
 
@@ -177,7 +148,7 @@ public abstract class Repl
             }
             catch (Exception e)
             {
-               _logger.LogError($"Executing the command '{input}' ended with the following exception: {e}");
+               logger.LogError($"Executing the command '{input}' ended with the following exception: {e}");
             }
          }
 
@@ -213,14 +184,13 @@ public abstract class Repl
    public virtual IReadOnlyList<string> Suggestions(
       string input)
    {
-      return _commandFactories
-         .SelectMany(item => item.Suggestions(input))
+      return commands
+         .SelectMany(item => item.Value.Suggestions(input))
          .ToList();
    }
 
    public void Dispose()
    {
-      foreach (var factory in _commandFactories)
-         factory.Dispose();
+      // empty
    }
 }

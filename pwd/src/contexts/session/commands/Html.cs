@@ -1,35 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 
 namespace pwd.contexts.session.commands;
 
-public sealed class Html
-   : CommandServicesBase
-{
-   private readonly IExporter _exporter;
-
-   public Html(
+public sealed class Html(
       IExporter exporter)
+   : CommandBase
+{
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      _exporter = exporter;
-   }
+      var exportName =
+         (parameters.ElementAtOrDefault(0) ?? "") switch
+         {
+            "" => "index.html",
+            var value => value
+         };
 
-   public override ICommand? Create(
-      string input)
-   {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "html", var path) =>
-            new DelegateCommand(async _ =>
-            {
-               await _exporter.Export(
-                  string.IsNullOrEmpty(path)
-                     ? "_index.html"
-                     : path);
-            }),
-         _ => null
-      };
+      await exporter.Export(exportName);
    }
 
    public override IReadOnlyList<string> Suggestions(

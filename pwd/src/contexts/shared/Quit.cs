@@ -1,29 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
+using pwd.ui;
 
 namespace pwd.contexts.shared;
 
-public sealed class Quit
-   : CommandServicesBase
-{
-   private readonly IState _state;
-
-   public Quit(
+public sealed class Quit(
       IState state)
+   : CommandBase
+{
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      _state = state;
-   }
-
-   public override ICommand? Create(
-      string input)
-   {
-      return input switch
-      {
-         ".quit" => new DelegateCommand(
-            cancellationToken => _state.DisposeAsync().AsTask().WaitAsync(cancellationToken)),
-         _ => null
-      };
+      state.DisposeAsync().AsTask().WaitAsync(token);
+      return Task.CompletedTask;
    }
 
    public override IReadOnlyList<string> Suggestions(

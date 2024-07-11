@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using pwd.contexts.repl;
 using pwd.contexts.file;
-using pwd.core;
 using pwd.core.abstractions;
+using pwd.ui;
 
 namespace pwd.contexts.session.commands;
 
@@ -18,39 +21,34 @@ public sealed class Open(
       IFileFactory fileFactory,
       ILock @lock,
       IState state)
-   : CommandServicesBase
+   : CommandBase
 {
    private readonly ILogger _logger = logger;
-   private readonly IRepository _repository = repository;
-   private readonly IFileFactory _fileFactory = fileFactory;
-   private readonly ILock _lock = @lock;
-   private readonly IState _state = state;
 
-    public override ICommand? Create(
-      string input)
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      switch (Shared.ParseCommand(input))
+      _logger.LogInformation(
+         $"{nameof(Open)}.{nameof(ExecuteAsync)}: created command from '{name + " " + parameters}'");
+
+      var path = parameters.FirstOrDefault() ?? "";
+
+      if (!repository.FileExist(path))
       {
-         case (_, "open", var name):
-            _logger.LogInformation($"{nameof(Open)}.{nameof(Create)}: created command from '{input}'");
-
-            return new DelegateCommand(() =>
-            {
-               if (!_repository.FileExist(name))
-               {
-                  _logger.LogInformation($"{nameof(Open)}.{nameof(DelegateCommand)}: '{name}' is not a file");
-                  return;
-               }
-
-               _logger.LogInformation($"{nameof(Open)}.{nameof(DelegateCommand)}: opening file context for '{name}'");
-
-               var fileContext = _fileFactory.Create(_repository, _lock, name);
-               var _ = _state.OpenAsync(fileContext);
-            });
-         default:
-            return null;
+         _logger.LogInformation($"{nameof(ExecuteAsync)}: '{path}' is not a file");
+         return Task.CompletedTask;
       }
+
+      _logger.LogInformation($"{nameof(ExecuteAsync)}: opening file context for '{path}'");
+
+      var fileContext = fileFactory.Create(repository, @lock, path);
+      var _ = state.OpenAsync(fileContext);
+
+      return Task.CompletedTask;
    }
+
 
    public override IReadOnlyList<string> Suggestions(
       string input)

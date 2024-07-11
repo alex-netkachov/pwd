@@ -34,11 +34,13 @@ public sealed class Session
       ILogger<Session> logger,
       IRepository repository,
       IView view,
-      IReadOnlyCollection<ICommandServices> factories)
+      IReadOnlyDictionary<string, ICommand> factories,
+      string defaultCommand)
       : base(
          logger,
          view,
-         factories)
+         factories,
+         defaultCommand)
    {
       _repository = repository;
    }
@@ -88,22 +90,24 @@ public sealed class SessionFactory(
     public ISession Create(
       IRepository repository,
       ILock @lock)
-   {
+    {
+       var commands =
+          new Dictionary<string, ICommand>
+          {
+             { "list", new List(loggerFactory.CreateLogger<List>(), repository, fileFactory, @lock, state, view) },
+             { "add", new Add(state, newFileFactory, repository) },
+             { "export", new Export(view) },
+             { "help", new Help(view) },
+             { "open", new Open(loggerFactory.CreateLogger<Open>(), repository, fileFactory, @lock, state) }
+          };
+
+      Shared.CommandFactories(commands, state, @lock, view);
+
       return new Session(
          loggerFactory.CreateLogger<Session>(),
          repository,
          view,
-         Array.Empty<ICommandServices>()
-            .Concat(
-               new ICommandServices[]
-               {
-                  new Add(state, newFileFactory, repository),
-                  new Export(view),
-                  new Help(view),
-                  new Open(loggerFactory.CreateLogger<Open>(), repository, fileFactory, @lock, state)
-               })
-            .Concat(Shared.CommandFactories(state, @lock, view))
-            .Concat(new ICommandServices[] { new List(loggerFactory.CreateLogger<List>(), repository, fileFactory, @lock, state, view) })
-            .ToArray());
+         commands,
+         "list");
    }
 }

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
 using pwd.ui;
@@ -10,21 +12,16 @@ public sealed class Check(
       IView view,
       IRepository repository,
       string path)
-   : CommandServicesBase
+   : CommandBase
 {
-   public override ICommand? Create(
-      string input)
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "check", _) => new DelegateCommand(async _ =>
-         {
-            var content = await repository.ReadAsync(path);
-            if (Shared.CheckYaml(content) is { Message: var msg })
-               view.WriteLine(msg);
-         }),
-         _ => null
-      };
+      var content = await repository.ReadAsync(path);
+      if (Shared.CheckYaml(content) is { Message: var msg })
+         view.WriteLine(msg);
    }
 
    public override IReadOnlyList<string> Suggestions(

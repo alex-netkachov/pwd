@@ -9,28 +9,6 @@ namespace pwd.tests.contexts.file.commands;
 
 public class Check_Tests
 {
-   [TestCase("", false)]
-   [TestCase(".", false)]
-   [TestCase(".ch", false)]
-   [TestCase("check", false)]
-   [TestCase(".check", true)]
-   [TestCase(".check ", true)]
-   [TestCase(".check test", true)]
-   public void Create_creates_command(
-      string input,
-      bool creates)
-   {
-      using var factory =
-         new Check(
-            Mock.Of<IView>(),
-            Mock.Of<IRepository>(),
-            "/");
-
-      var command = factory.Create(input);
-
-      Assert.That(command, creates ? Is.Not.Null : Is.Null);
-   }
-
    [TestCase("content", 0)]
    [TestCase("\"test", 1)]
    public async Task Execute_checks_the_content(
@@ -44,20 +22,13 @@ public class Check_Tests
 
       var mockView = new Mock<IView>();
 
-      using var factory =
+      var command =
          new Check(
             mockView.Object,
             repository.Object,
             "/test");
 
-      var command = factory.Create(".check");
-      if (command == null)
-      {
-         Assert.Fail("command is null");
-         return;
-      }
-
-      await command.ExecuteAsync();
+      await command.ExecuteAsync("check", []);
 
       mockView.Verify(
          m => m.WriteLine(It.IsAny<string>()),
@@ -76,7 +47,7 @@ public class Check_Tests
       string input,
       string suggestions)
    {
-      using var factory =
+      var factory =
          new Check(
             Mock.Of<IView>(),
             Mock.Of<IRepository>(),

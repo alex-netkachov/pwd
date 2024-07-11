@@ -1,8 +1,12 @@
 ﻿# pwd.core
 
+`pwd` core library. Contains the basic functionality for the `pwd` application. 
+
 - AES Cipher
 - Base64 URL encoding
 - Filesystem Repository
+
+More details are in the [types](<types.md>) article.
 
 ## Examples
 

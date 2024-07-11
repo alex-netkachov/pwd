@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
@@ -13,22 +14,29 @@ public sealed class CopyField(
       IClipboard clipboard,
       IRepository repository,
       string path)
-   : CommandServicesBase
+   : CommandBase
 {
    private readonly string _content = "";
 
-    public override ICommand? Create(
-      string input)
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return Shared.ParseCommand(input) switch
+      switch (name)
       {
-         (_, "ccp", _) => new DelegateCommand(async _ => await Copy("password")),
-         (_, "ccu", _) => new (async _ => await Copy("user")),
-         (_, "cc", var name) when !string.IsNullOrEmpty(name) => new (async _ => await Copy(name)),
-         _ => null
-      };
+         case "ccp":
+            await Copy("password");
+            break;
+         case "ccu":
+            await Copy("user");
+            break;
+         case "cc":
+            await Copy(parameters.ElementAtOrDefault(0) ?? "");
+            break;
+      }
    }
-   
+
    private async Task Copy(
       string path)
    {

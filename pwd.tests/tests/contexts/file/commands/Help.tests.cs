@@ -9,43 +9,16 @@ namespace pwd.tests.contexts.file.commands;
 
 public class Help_Tests
 {
-   [TestCase("", false)]
-   [TestCase(".", false)]
-   [TestCase(".h", false)]
-   [TestCase("help", false)]
-   [TestCase(".help", true)]
-   [TestCase(".help ", true)]
-   [TestCase(".help test", true)]
-   public void Parse_creates_command(
-      string input,
-      bool creates)
-   {
-      using var factory =
-         new Help(
-            Mock.Of<IView>());
-
-      var command = factory.Create(input);
-
-      Assert.That(command, creates ? Is.Not.Null : Is.Null);
-   }
-
    [Test]
    public async Task Execute_writes_to_view()
    {
       var mockView = new Mock<IView>();
 
-      using var factory =
+      var command =
          new Help(
             mockView.Object);
 
-      var command = factory.Create(".help");
-      if (command == null)
-      {
-         Assert.Fail("command is null");
-         return;
-      }
-
-      await command.ExecuteAsync();
+      await command.ExecuteAsync("help", []);
 
       mockView.Verify(m => m.WriteLine(It.IsAny<string>()), Times.Once);
    }
@@ -61,7 +34,7 @@ public class Help_Tests
       string input,
       string suggestions)
    {
-      using var factory =
+      var factory =
          new Help(
             Mock.Of<IView>());
 

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core;
 using pwd.core.abstractions;
@@ -11,20 +13,15 @@ public sealed class Unobscured(
       IView view,
       IRepository repository,
       string path)
-   : CommandServicesBase
+   : CommandBase
 {
-   public override ICommand? Create(
-      string input)
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "unobscured", _) => new DelegateCommand(async cancellationToken =>
-         {
-            var content = await repository.ReadAsync(path);
-            view.WriteLine(content);
-         }),
-         _ => null
-      };
+      var content = await repository.ReadAsync(path);
+      view.WriteLine(content);
    }
 
    public override IReadOnlyList<string> Suggestions(

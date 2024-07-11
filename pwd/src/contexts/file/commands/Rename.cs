@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using pwd.contexts.repl;
 using pwd.core;
@@ -11,27 +14,24 @@ public sealed class Rename(
       ILogger<Rename> logger,
       IRepository repository,
       string path)
-   : CommandServicesBase
+   : CommandBase
 {
-    public override ICommand? Create(
-      string input)
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      logger.LogInformation($"{nameof(Rename)}.{nameof(Create)}: start with '{input}'");
+      logger.LogInformation($"{nameof(ExecuteAsync)}: start");
 
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "rename", var name) when !string.IsNullOrEmpty(name) =>
-            new DelegateCommand(
-               () =>
-               {
-                  logger.LogInformation($"{nameof(Rename)}.{nameof(DelegateCommand)}: start");
+      var newName = parameters.ElementAtOrDefault(0) ?? "";
+      if (newName == "")
+         return Task.CompletedTask;
 
-                  repository.Move(
-                     path,
-                     name);
-               }),
-         _ => null
-      };
+      repository.Move(
+         path,
+         newName);
+      
+      return Task.CompletedTask;
    }
 
    public override IReadOnlyList<string> Suggestions(

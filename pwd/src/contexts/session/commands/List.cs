@@ -18,26 +18,20 @@ public sealed class List(
       ILock @lock,
       IState state,
       IView view)
-   : CommandServicesBase
+   : CommandBase
 {
    private readonly ILogger _logger = logger;
-   private readonly IRepository _repository = repository;
-   private readonly IFileFactory _fileFactory = fileFactory;
-   private readonly ILock _lock = @lock;
-   private readonly IState _state = state;
-   private readonly IView _view = view;
 
-    public override ICommand? Create(
-      string input)
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return new DelegateCommand(cancellationToken => Exec(input, cancellationToken));
+      var match = parameters.FirstOrDefault() ?? "";
+      Exec(match, token);
+      return Task.CompletedTask;
    }
 
-   public ICommand Command()
-   {
-      return new DelegateCommand(cancellationToken => Exec("", cancellationToken));
-   }
-   
    private Task Exec(
       string input,
       CancellationToken token)
@@ -51,23 +45,23 @@ public sealed class List(
          _logger.LogInformation($"{context}: enumerating all the files as there is no user input");
 
          var items =
-            _repository
+            repository
                .List(".")
-               .Select(item => _repository.GetRelativePath(item, "."))
+               .Select(item => repository.GetRelativePath(item, "."))
                .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
                .ToList();
 
-         _view.WriteLine(string.Join("\n", items));
+         view.WriteLine(string.Join("\n", items));
       }
       else
       {
          // show files and folders
          var items =
-            _repository
+            repository
                .List(
                   ".",
                   new ListOptions(false, true, false))
-               .Select(item => _repository.GetRelativePath(item, "."))
+               .Select(item => repository.GetRelativePath(item, "."))
                .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                .ToList();
 
@@ -82,7 +76,7 @@ public sealed class List(
          _logger.LogInformation($"chosen item: {chosen}");
 
          if (chosen == null)
-            _view.WriteLine(string.Join("\n", items.OrderBy(item => item)));
+            view.WriteLine(string.Join("\n", items.OrderBy(item => item)));
          else
             Open(chosen);
       }
@@ -93,8 +87,8 @@ public sealed class List(
    private void Open(
       string name)
    {
-      var file = _fileFactory.Create(_repository, _lock, name);
-      _ = _state.OpenAsync(file);
+      var file = fileFactory.Create(repository, @lock, name);
+      _ = state.OpenAsync(file);
    }
 
    public override IReadOnlyList<string> Suggestions(

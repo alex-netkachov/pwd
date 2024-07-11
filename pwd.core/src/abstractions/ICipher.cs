@@ -107,11 +107,11 @@ public static class CipherExtensions
    public static async Task<byte[]> EncryptAsync(
       this ICipher cipher,
       string input,
-      CancellationToken cancellationToken = default)
+      CancellationToken token = default)
    {
       using var inputStream = input.AsStream();
       using var outputStream = new MemoryStream();
-      await cipher.EncryptAsync(inputStream, outputStream, cancellationToken);
+      await cipher.EncryptAsync(inputStream, outputStream, token);
       return outputStream.ToArray();
    }
 
@@ -156,11 +156,11 @@ public static class CipherExtensions
    public static async Task<string> DecryptStringAsync(
       this ICipher cipher,
       byte[] data,
-      CancellationToken cancellationToken = default)
+      CancellationToken token = default)
    {
       using var inputStream = data.AsStream();
       using var outputStream = new MemoryStream();
-      await cipher.DecryptAsync(inputStream, outputStream, cancellationToken);
+      await cipher.DecryptAsync(inputStream, outputStream, token);
 
       var utf8WithException =
          new UTF8Encoding(
@@ -184,22 +184,6 @@ public static class CipherExtensions
       {
          output = null;
          return false;
-      }
-   }
-
-   public static async Task<(bool, string?)> TryDecryptStringAsync(
-      this ICipher cipher,
-      byte[] data,
-      CancellationToken token = default)
-   {
-      try
-      {
-         var output = await DecryptStringAsync(cipher, data, token);
-         return (true, output);
-      }
-      catch
-      {
-         return (false, null);
       }
    }
 }

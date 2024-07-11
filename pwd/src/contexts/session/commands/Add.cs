@@ -1,40 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
-using pwd.core;
 using pwd.core.abstractions;
+using pwd.ui;
 
 namespace pwd.contexts.session.commands;
 
-public sealed class Add
-   : CommandServicesBase
-{
-   private readonly IState _state;
-   private readonly INewFileFactory _newFileFactory;
-   private readonly IRepository _repository;
-
-   public Add(
+public sealed class Add(
       IState state,
       INewFileFactory newFileFactory,
       IRepository repository)
+   : CommandBase
+{
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      _state = state;
-      _newFileFactory = newFileFactory;
-      _repository = repository;
-   }
+      var fileName = parameters.FirstOrDefault() ?? "";
+      if (fileName == "")
+         return;
 
-   public override ICommand? Create(
-      string input)
-   {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "add", var name) =>
-            new DelegateCommand(async cancellationToken =>
-            {
-               await _state.OpenAsync(_newFileFactory.Create(_repository, name)).WaitAsync(cancellationToken);
-            }),
-         _ => null
-      };
+      var file = newFileFactory.Create(repository, fileName);
+
+      await state.OpenAsync(file).WaitAsync(token);
    }
 
    public override IReadOnlyList<string> Suggestions(

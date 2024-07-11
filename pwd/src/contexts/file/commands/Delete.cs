@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
 using pwd.ui;
@@ -11,26 +13,21 @@ public sealed class Delete(
       IView view,
       IRepository repository,
       string path)
-   : CommandServicesBase
+   : CommandBase
 {
-    public override ICommand? Create(
-      string input)
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "rm", _) => new DelegateCommand(async cancellationToken =>
-         {
-            if (!await view.ConfirmAsync($"Delete '{path}'?", Answer.No, cancellationToken))
-               return;
+      if (!await view.ConfirmAsync($"Delete '{path}'?", Answer.No, token))
+         return;
 
-            repository.Delete(path);
+      repository.Delete(path);
 
-            view.WriteLine($"'{path}' has been deleted.");
+      view.WriteLine($"'{path}' has been deleted.");
 
-            _ = state.BackAsync();
-         }),
-         _ => null
-      };
+      _ = state.BackAsync();
    }
 
    public override IReadOnlyList<string> Suggestions(

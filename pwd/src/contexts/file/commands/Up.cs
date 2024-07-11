@@ -1,21 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
+using pwd.ui;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Up(
       IState state)
-   : CommandServicesBase
+   : CommandBase
 {
-   public override ICommand? Create(
-      string input)
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return input switch
-      {
-         ".." => new DelegateCommand(() => state.BackAsync()),
-         _ => null
-      };
+      _ = state.BackAsync();
+      return Task.CompletedTask;
    }
 
    public override IReadOnlyList<string> Suggestions(

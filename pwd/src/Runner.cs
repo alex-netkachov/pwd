@@ -16,7 +16,7 @@ public interface IRunner
       string executable,
       string? arguments = null,
       string? input = null,
-      CancellationToken cancellationToken = default);
+      CancellationToken token = default);
 }
 
 public class Runner
@@ -76,7 +76,7 @@ public class Runner
       string executable,
       string? arguments = null,
       string? input = null,
-      CancellationToken cancellationToken = default)
+      CancellationToken token = default)
    {
       Process? process = null;
 
@@ -92,7 +92,7 @@ public class Runner
                process = Process.Start(startInfo);
                if (process == null)
                   throw new($"Starting the executable '{executable}' failed.");
-               await process.WaitForExitAsync(cancellationToken);
+               await process.WaitForExitAsync(token);
             }
             catch (Exception e)
             {
@@ -118,7 +118,7 @@ public class Runner
             await stdin.WriteAsync(input);
             stdin.Close();
 
-            await process.WaitForExitAsync(cancellationToken);
+            await process.WaitForExitAsync(token);
          }
          catch (Exception e)
          {

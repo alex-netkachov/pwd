@@ -1,29 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
 
 namespace pwd.contexts.shared;
 
-public sealed class Clear
-   : CommandServicesBase
-{
-   private readonly IView _view;
-
-   public Clear(
+public sealed class Clear(
       IView view)
+   : CommandBase
+{
+   public override Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      _view = view;
-   }
-
-   public override ICommand? Create(
-      string input)
-   {
-      return input switch
-      {
-         ".clear" => new DelegateCommand(_view.Clear),
-         _ => null
-      };
+      view.Clear();
+      return Task.CompletedTask;
    }
 
    public override IReadOnlyList<string> Suggestions(
@@ -33,6 +27,6 @@ public sealed class Clear
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
          ? new[] { key }
-         : Array.Empty<string>();
+         : [];
    }
 }

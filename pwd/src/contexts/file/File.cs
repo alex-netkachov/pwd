@@ -1,7 +1,5 @@
-using System;
 using System.Collections.Generic;
 using System.IO.Abstractions;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -38,15 +36,18 @@ public sealed class File
    private readonly string _path;
 
    /// <summary>Encrypted file context.</summary>
-   public File(ILogger<File> logger,
+   public File(
+         ILogger<File> logger,
          IView view,
          IRepository repository,
          string path,
-         IReadOnlyCollection<ICommandServices> factories)
+         IReadOnlyDictionary<string, ICommand> factories,
+         string defaultCommand)
       : base(
          logger,
          view,
-         factories)
+         factories,
+         defaultCommand)
    {
       _repository = repository;
       _path = repository.GetFullPath(path);
@@ -62,9 +63,8 @@ public sealed class File
    {
       _repository.SetWorkingFolder(_repository.GetFolder(_path));
 
-      var print = new Print(_view, _repository, _path).Create("");
-      if (print != null)
-         await print.ExecuteAsync();
+      var print = new Print(_view, _repository, _path);
+      await print.ExecuteAsync("", [], CancellationToken.None);
 
       _cts = new();
 
@@ -114,25 +114,30 @@ public sealed class FileFactory(
       ILock @lock,
       string path)
    {
+      var copyField = new CopyField(clipboard, repository, path);
+      var commands =
+         new Dictionary<string, ICommand>
+         {
+            { "check", new Check(view, repository, path) },
+            { "ccp", copyField },
+            { "ccu", copyField },
+            { "cc", copyField },
+            { "rm", new Delete(state, view, repository, path) },
+            { "edit", new Edit(environmentVariables, runner, view, fs, repository, path) },
+            { "help", new Help(view) },
+            { "rename", new Rename(loggerFactory.CreateLogger<Rename>(), repository, path) },
+            { "unobscured", new Unobscured(view, repository, path) },
+            { "up", new Up(state) },
+            { "print", new Print(view, repository, path) }
+         };
+      Shared.CommandFactories(commands, state, @lock, view);
+
       return new File(
          loggerFactory.CreateLogger<File>(),
          view,
          repository,
          path,
-         Array.Empty<ICommandServices>()
-            .Concat(new ICommandServices[]
-            {
-               new Check(view, repository, path),
-               new CopyField(clipboard, repository, path),
-               new Delete(state, view, repository, path),
-               new Edit(environmentVariables, runner, view, fs, repository, path),
-               new Help(view),
-               new Rename(loggerFactory.CreateLogger<Rename>(), repository, path),
-               new Unobscured(view, repository, path),
-               new Up(state)
-            })
-            .Concat(Shared.CommandFactories(state, @lock, view))
-            .Concat(new ICommandServices[] { new Print(view, repository, path) })
-            .ToArray());
+         commands,
+         "print");
    }
 }

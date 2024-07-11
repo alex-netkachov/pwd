@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO.Abstractions;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
 using pwd.ui;
@@ -14,60 +17,57 @@ public sealed class Edit(
       IFileSystem fs,
       IRepository repository,
       string path)
-   : CommandServicesBase
+   : CommandBase
 {
-   public override ICommand? Create(
-      string input)
+   public override async Task ExecuteAsync(
+      string name,
+      string[] parameters,
+      CancellationToken token = default)
    {
-      return Shared.ParseCommand(input) switch
-      {
-         (_, "edit", var editor) => new DelegateCommand(async cancellationToken =>
+      var editor =
+         (parameters.ElementAtOrDefault(0) ?? "") switch
          {
-            var chosenEditor =
-               string.IsNullOrEmpty(editor)
-                  ? environmentVariables.Get("EDITOR")
-                  : editor;
+            "" => environmentVariables.Get("EDITOR"),
+            var value => value
+         };
 
-            if (string.IsNullOrEmpty(chosenEditor))
-            {
-               view.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
-               return;
-            }
+      if (string.IsNullOrEmpty(editor))
+      {
+         view.WriteLine("The editor is not specified and the environment variable EDITOR is not set.");
+         return;
+      }
 
-            var content = await repository.ReadAsync(path);
+      var content = await repository.ReadAsync(path);
 
-            var tmpFileName = fs.Path.GetTempFileName();
+      var tmpFileName = fs.Path.GetTempFileName();
 
-            try
-            {
-               await fs.File.WriteAllTextAsync(tmpFileName, content, cancellationToken);
+      try
+      {
+         await fs.File.WriteAllTextAsync(tmpFileName, content, token);
 
-               var exception =
-                  await runner.RunAsync(
-                     chosenEditor,
-                     arguments: tmpFileName,
-                     cancellationToken: cancellationToken);
+         var exception =
+            await runner.RunAsync(
+               editor,
+               arguments: tmpFileName,
+               token: token);
 
-               if (exception != null)
-                  view.Write($"Cannot start the editor. Reason: {exception.Message}");
+         if (exception != null)
+            view.Write($"Cannot start the editor. Reason: {exception.Message}");
 
-               var updated = await fs.File.ReadAllTextAsync(tmpFileName, cancellationToken);
-               if (updated == content ||
-                   !await view.ConfirmAsync("Update the content?", Answer.Yes, cancellationToken))
-               {
-               }
-               else
-               {
-                  await repository.WriteAsync(path, updated);
-               }
-            }
-            finally
-            {
-               fs.File.Delete(tmpFileName);
-            }
-         }),
-         _ => null
-      };
+         var updated = await fs.File.ReadAllTextAsync(tmpFileName, token);
+         if (updated == content ||
+             !await view.ConfirmAsync("Update the content?", Answer.Yes, token))
+         {
+         }
+         else
+         {
+            await repository.WriteAsync(path, updated);
+         }
+      }
+      finally
+      {
+         fs.File.Delete(tmpFileName);
+      }
    }
 
    public override IReadOnlyList<string> Suggestions(

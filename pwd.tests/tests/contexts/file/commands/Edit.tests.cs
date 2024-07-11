@@ -15,31 +15,6 @@ namespace pwd.tests.contexts.file.commands;
 
 public class Edit_Tests
 {
-   [TestCase("", false)]
-   [TestCase(".", false)]
-   [TestCase(".ed", false)]
-   [TestCase("edit", false)]
-   [TestCase(".edit", true)]
-   [TestCase(".edit ", true)]
-   [TestCase(".edit notepad", true)]
-   public void Parse_creates_command(
-      string input,
-      bool creates)
-   {
-      using var factory =
-         new Edit(
-            Mock.Of<IEnvironmentVariables>(),
-            Mock.Of<IRunner>(),
-            Mock.Of<IView>(),
-            Mock.Of<IFileSystem>(),
-            Mock.Of<IRepository>(),
-            "/test");
-
-      var command = factory.Create(input);
-
-      Assert.That(command, creates ? Is.Not.Null : Is.Null);
-   }
-
    [TestCase("", "", ".edit", "", "EDITOR is not set")]
    [TestCase("notepad", "", ".edit notepad", "", "")]
    public async Task Execute_edits_and_updates_the_content_of_the_item(
@@ -79,7 +54,7 @@ public class Edit_Tests
          .Setup(m => m.ReadAsync("/test"))
          .Returns(Task.FromResult("content"));
       
-      using var factory =
+      var command =
          new Edit(
             mockEnvironmentVariables.Object,
             mockRunner.Object,
@@ -88,14 +63,9 @@ public class Edit_Tests
             repository.Object,
             "/test");
 
-      var command = factory.Create(input);
-      if (command == null)
-      {
-         Assert.Fail("command is null");
-         return;
-      }
-
-      await command.ExecuteAsync();
+      await command.ExecuteAsync(
+         "edit",
+         editor == "" ? [] : [editor]);
 
       switch (outcome)
       {
