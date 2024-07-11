@@ -24,7 +24,7 @@ namespace pwd;
 public record Settings(
    TimeSpan LockTimeout);
 
-public static partial class Program
+public static class Program
 {
    internal static IHost SetupHost(
          IConsole console,

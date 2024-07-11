@@ -7,6 +7,7 @@ using System;
 using Castle.Core.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using pwd.core.abstractions;
 using pwd.ui;
 using pwd.ui.readline;
 
@@ -164,7 +165,6 @@ public class Integration_Tests
       var expected = string.Join("\n",
          "Password: ******",
          "",
-         "repository contains 0 files",
          "It seems that you are creating a new repository. Please confirm your password: ******",
          "> .quit\n");
       var actual = console.GetScreen();
@@ -173,7 +173,8 @@ public class Integration_Tests
    
    [Test]
    [CancelAfter(3000)]
-   public async Task Initialise_with_repository_with_files()
+   public async Task Initialise_with_repository_with_files(
+      CancellationToken token)
    {
       var notifications = Channel.CreateUnbounded<IViewNotification>();
       var input = Channel.CreateUnbounded<string>();
@@ -182,34 +183,35 @@ public class Integration_Tests
          var reader = notifications.Reader;
          var writer = input.Writer;
 
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         await writer.WriteAsync("file1\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         await writer.WriteAsync(".rm\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Confirm>());
-         await writer.WriteAsync("y\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         await writer.WriteAsync(".quit\n");
+         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<ReadPassword>());
+         await writer.WriteAsync("secret\n", token);
+         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Read>());
+         await writer.WriteAsync("file1\n", token);
+         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Read>());
+         await writer.WriteAsync(".rm\n", token);
+         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Confirm>());
+         await writer.WriteAsync("y\n", token);
+         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Read>());
+         await writer.WriteAsync(".quit\n", token);
       });
 
       var fs = Shared.GetMockFs();
-      var repository = Shared.CreateRepository(fs);
-      await repository.WriteAsync(
-         "/file1",
-         "content1");
 
       using var console = new TestConsole(input.Reader);
       using var reader = new ConsoleReader(console);
       var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
 
       using var host = Program.SetupHost(console, fs, view);
+      var repositoryFactory = host.Services.GetRequiredService<RepositoryFactory>();
+      var repository = repositoryFactory("/container/test", "secret");
+      await repository.WriteAsync(
+         "file1",
+         "content1");
+
       await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
          ".",
-         "repository contains 1 file",
          "> file1",
          "content1",
          "file1> .rm",
