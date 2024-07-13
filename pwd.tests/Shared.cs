@@ -15,8 +15,8 @@ using pwd.mocks;
 using pwd.core;
 using pwd.core.abstractions;
 using pwd.ui;
-using pwd.ui.console;
-using pwd.ui.readline;
+using pwd.ui.abstractions;
+using Console = pwd.ui.Console;
 
 namespace pwd;
 
@@ -154,8 +154,8 @@ public static class Shared
    private static void Test_AutoCompletionHandler()
    {
       var fs = GetMockFs().FileLayout1();
-      var console = new StandardConsole();
-      var view = new ConsoleView(console, new ConsoleReader(console));
+      var console = new Console();
+      var view = new View(console, new Reader(console));
 
       var repository =
          new FolderRepository(

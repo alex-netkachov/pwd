@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.file.commands;
 

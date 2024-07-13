@@ -7,6 +7,7 @@ using pwd.contexts.file;
 using pwd.contexts.session.commands;
 using pwd.core.abstractions;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.session;
 
@@ -26,7 +27,7 @@ public interface ISessionFactory
 /// <summary>Repository working session context.</summary>
 public sealed class Session
    : Repl,
-      ISession
+     ISession
 {
    private readonly IRepository _repository;
 

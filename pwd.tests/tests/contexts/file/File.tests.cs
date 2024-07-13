@@ -3,6 +3,7 @@ using Moq;
 using NUnit.Framework;
 using pwd.core.abstractions;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file;
 

@@ -4,8 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.ui;
-using pwd.ui.readline;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.repl;
 
@@ -121,7 +120,7 @@ public abstract class Repl(
 
                logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
 
-               input = (await view.ReadAsync(new($"{prompt}> "), this, token)).Trim();
+               input = (await view.ReadAsync(new($"{prompt}> "), this, null, token)).Trim();
 
                logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
             }

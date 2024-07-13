@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using pwd.core.abstractions;
 using pwd.ui;
-using pwd.ui.readline;
+using pwd.ui.abstractions;
 
 namespace pwd.tests;
 
@@ -80,8 +80,8 @@ public class Integration_Tests
       });
       
       using var console = new TestConsole(input.Reader);
-      using var reader = new ConsoleReader(console);
-      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
 
       using var host =
          Program.SetupHost(
@@ -158,8 +158,8 @@ public class Integration_Tests
       });
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new ConsoleReader(console);
-      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
 
       using var host = Program.SetupHost(console, fs, view);
 
@@ -203,8 +203,8 @@ public class Integration_Tests
       var fs = Shared.GetMockFs();
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new ConsoleReader(console);
-      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
 
       using var host =
          Program.SetupHost(
@@ -259,8 +259,8 @@ public class Integration_Tests
       var fs = Shared.GetMockFs();
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new ConsoleReader(console);
-      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
 
       using var host = Program.SetupHost(console, fs, view);
       await Program.Run(host, DefaultSettings);
@@ -299,8 +299,8 @@ public class Integration_Tests
       var fs = Shared.GetMockFs();
 
       using var console = new TestConsole(input.Reader);
-      using var reader = new ConsoleReader(console);
-      var view = new ViewWithNotifications(new ConsoleView(console, reader), notifications.Writer);
+      using var reader = new Reader(console);
+      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
 
       using var host = Program.SetupHost(console, fs, view);
 
@@ -371,9 +371,10 @@ public class Integration_Tests
       public Task<string> ReadAsync(
          string prompt = "",
          ISuggestionsProvider? suggestionsProvider = null,
+         IHistoryProvider? historyProvider = null,
          CancellationToken token = default)
       {
-         var task = _view.ReadAsync(prompt, suggestionsProvider, token);
+         var task = _view.ReadAsync(prompt, suggestionsProvider, historyProvider, token);
          Notify(new Read());
          return task;
       }
@@ -390,6 +391,14 @@ public class Integration_Tests
       public void Clear()
       {
          _view.Clear();
+      }
+
+      public void Activate()
+      {
+      }
+
+      public void Deactivate()
+      {
       }
 
       private void Notify(

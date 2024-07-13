@@ -4,7 +4,7 @@ using pwd.core.extensions;
 namespace pwd.core.abstractions;
 
 /// <summary>
-///   Creates cipher with optional initialisation data.
+///   Creates a cipher with optional initialisation data.
 /// </summary>
 public delegate ICipher CipherFactory(
    string password,

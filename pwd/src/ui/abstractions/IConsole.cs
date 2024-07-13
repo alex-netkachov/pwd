@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 
-namespace pwd.ui.console;
+namespace pwd.ui.abstractions;
 
 public interface IConsole
    : IObservable<ConsoleKeyInfo>

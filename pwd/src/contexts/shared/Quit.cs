@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.shared;
 
@@ -27,6 +28,6 @@ public sealed class Quit(
       return !string.Equals(input, key, StringComparison.OrdinalIgnoreCase) &&
              key.StartsWith(input, StringComparison.OrdinalIgnoreCase)
          ? new[] { key }
-         : Array.Empty<string>();
+         : [];
    }
 }

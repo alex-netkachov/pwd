@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace pwd.ui;
+namespace pwd.ui.abstractions;
 
 /// <summary>
 ///   Represents a currently active operational context, such as a list,

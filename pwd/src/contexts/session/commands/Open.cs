@@ -8,6 +8,7 @@ using pwd.contexts.repl;
 using pwd.contexts.file;
 using pwd.core.abstractions;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.session.commands;
 

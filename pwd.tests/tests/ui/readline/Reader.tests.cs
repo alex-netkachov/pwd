@@ -5,7 +5,8 @@ using NUnit.Framework;
 using System.Threading.Tasks;
 using System.Linq;
 using System;
-using pwd.ui.readline;
+using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.tests.ui.readline;
 
@@ -28,7 +29,7 @@ public sealed class Reader_Tests
          await channel.Writer.WriteAsync(keys);
       });
       using var console = new TestConsole(channel.Reader);
-      var reader = new ConsoleReader(console);
+      var reader = new Reader(console);
       var input = await reader.ReadAsync();
       Assert.That(input, Is.EqualTo(expected));
    }
@@ -37,7 +38,7 @@ public sealed class Reader_Tests
    public void Disposing_reader_cancels_reading()
    {
       var channel = Channel.CreateUnbounded<string>();
-      var reader = new ConsoleReader(new TestConsole(channel.Reader));
+      var reader = new Reader(new TestConsole(channel.Reader));
       var task1 = reader.ReadAsync();
       var task2 = reader.ReadAsync();
       reader.Dispose();
@@ -58,7 +59,7 @@ public sealed class Reader_Tests
       string expected)
    {
       var channel = Channel.CreateUnbounded<string>();
-      var reader = new ConsoleReader(new TestConsole(channel.Reader));
+      var reader = new Reader(new TestConsole(channel.Reader));
       var mockSuggestionsProvider = new Mock<ISuggestionsProvider>();
       mockSuggestionsProvider
          .Setup(m => m!.Suggestions(It.IsAny<string>()))

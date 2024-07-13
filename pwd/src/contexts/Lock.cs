@@ -4,7 +4,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using pwd.ui;
-using pwd.ui.console;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts;
 

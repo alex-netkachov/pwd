@@ -1,6 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.mocks;
 

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.shared;
 
@@ -26,7 +27,7 @@ public sealed class Lock(
             @lock.Disable();
             return;
          case "pin":
-            @lock.Pin(token);
+            await @lock.Pin(token);
             return;
          case "pwd":
             @lock.Password();

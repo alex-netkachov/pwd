@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using pwd.ui.console;
+using pwd.ui.abstractions;
 
 namespace pwd.mocks;
 
@@ -63,7 +63,7 @@ public sealed class TestConsole
          {
             initial = _state;
             if (_state.Disposed)
-               throw new ObjectDisposedException(nameof(StandardConsole));
+               throw new ObjectDisposedException(nameof(Console));
             updated = _state with { Observers = initial.Observers.Add(observer) };
          } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
       }

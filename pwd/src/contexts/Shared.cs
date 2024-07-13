@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using pwd.contexts.repl;
 using pwd.contexts.shared;
 using pwd.ui;
+using pwd.ui.abstractions;
 using YamlDotNet.RepresentationModel;
 
 namespace pwd.contexts;

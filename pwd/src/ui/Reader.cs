@@ -4,11 +4,11 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using pwd.ui.console;
+using pwd.ui.abstractions;
 
-namespace pwd.ui.readline;
+namespace pwd.ui;
 
-public sealed class ConsoleReader
+public sealed class Reader
    : IReader,
      IDisposable
 {
@@ -27,7 +27,7 @@ public sealed class ConsoleReader
    private readonly ChannelWriter<bool> _requests;
    private readonly CancellationTokenSource _cts;
 
-   public ConsoleReader(
+   public Reader(
       IConsole console)
    {
       _console = console;
@@ -111,21 +111,22 @@ public sealed class ConsoleReader
    public Task<string> ReadAsync(
       string prompt = "",
       ISuggestionsProvider? suggestionsProvider = null,
-      CancellationToken cancellationToken = default)
+      IHistoryProvider? historyProvider = null,
+      CancellationToken token = default)
    {
       return Enqueue(
-         tcs => ReadAsyncInt(prompt, suggestionsProvider, tcs, cancellationToken),
-         cancellationToken);
+         tcs => ReadAsyncInt(prompt, suggestionsProvider, tcs, token),
+         token);
    }
    
    /// <summary>Simple async reading from the console. Supports BS, Ctrl+U. Ignores control keys (e.g. tab).</summary>
    public Task<string> ReadPasswordAsync(
       string prompt = "",
-      CancellationToken cancellationToken = default)
+      CancellationToken token = default)
    {
       return Enqueue(
-         tcs => ReadPasswordAsyncInt(prompt, tcs, cancellationToken),
-         cancellationToken);
+         tcs => ReadPasswordAsyncInt(prompt, tcs, token),
+         token);
    }
 
    private Task<string> Enqueue(
@@ -140,7 +141,7 @@ public sealed class ConsoleReader
       {
          var initial = _state;
          if (_state.Disposed)
-            throw new ObjectDisposedException(nameof(ConsoleReader));
+            throw new ObjectDisposedException(nameof(Reader));
          var updated = _state with { Queue = initial.Queue.Enqueue(new(TaskFactory, tcs, cancellationToken)) };
          if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
             continue;
@@ -157,13 +158,13 @@ public sealed class ConsoleReader
       string prompt,
       ISuggestionsProvider? suggestionsProvider,
       TaskCompletionSource<string> tcs,
-      CancellationToken cancellationToken)
+      CancellationToken token = default)
    {
-      using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
-      var token = cts.Token;
-      token.Register(() => tcs.TrySetCanceled());
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, token);
+      var localToken = cts.Token;
+      localToken.Register(() => tcs.TrySetCanceled());
 
-      token.ThrowIfCancellationRequested();
+      localToken.ThrowIfCancellationRequested();
 
       _console.Write(prompt);
 
@@ -184,9 +185,9 @@ public sealed class ConsoleReader
                while (!channel.Writer.TryWrite(key)) /* empty*/;
             }));
 
-      while (!token.IsCancellationRequested)
+      while (!localToken.IsCancellationRequested)
       {
-         var key = await channel.Reader.ReadAsync(token);
+         var key = await channel.Reader.ReadAsync(localToken);
 
          if (key.Key != ConsoleKey.Tab)
          {
@@ -275,13 +276,13 @@ public sealed class ConsoleReader
    private async Task ReadPasswordAsyncInt(
       string prompt,
       TaskCompletionSource<string> tcs,
-      CancellationToken cancellationToken)
+      CancellationToken token = default)
    {
-      using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
-      var token = cts.Token;
-      token.Register(() => tcs.TrySetCanceled());
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, token);
+      var localToken = cts.Token;
+      localToken.Register(() => tcs.TrySetCanceled());
 
-      token.ThrowIfCancellationRequested();
+      localToken.ThrowIfCancellationRequested();
 
       _console.Write(prompt);
       
@@ -295,9 +296,9 @@ public sealed class ConsoleReader
 
       var input = new List<char>();
       var position = 0;
-      while (!token.IsCancellationRequested)
+      while (!localToken.IsCancellationRequested)
       {
-         var key = await channel.Reader.ReadAsync(token);
+         var key = await channel.Reader.ReadAsync(localToken);
 
          switch (key.Modifiers == ConsoleModifiers.Control, key.Key)
          {
@@ -328,8 +329,13 @@ public sealed class ConsoleReader
 
       input.RemoveAt(position - 1);
 
-      var tail = position < input.Count ? new string(input.ToArray())[position..] : "";
+      var tail =
+         position < input.Count
+            ? new string(input.ToArray())[position..]
+            : "";
+
       MoveLeft(1, ref position);
+
       WriteAndMoveBack($"{tail} ");
    }
 
@@ -343,8 +349,13 @@ public sealed class ConsoleReader
       var length = input.Count;
       input.RemoveRange(0, position);
 
-      var tail = position < input.Count ? new string(input.ToArray())[position..] : "";
+      var tail =
+         position < input.Count
+            ? new string(input.ToArray())[position..]
+            : "";
+
       MoveLeft(position, ref position);
+
       WriteAndMoveBack(tail + new string(' ', length - tail.Length));
    }
 
@@ -357,7 +368,10 @@ public sealed class ConsoleReader
       if (char.IsControl(@char))
          return;
 
-      var tail = position < input.Count ? new string(input.ToArray())[position..] : "";
+      var tail =
+         position < input.Count
+            ? new string(input.ToArray())[position..]
+            : "";
 
       input.Insert(position, @char);
 

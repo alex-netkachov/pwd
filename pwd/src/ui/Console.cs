@@ -3,10 +3,11 @@ using System.Collections.Immutable;
 using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.ui.abstractions;
 
-namespace pwd.ui.console;
+namespace pwd.ui;
 
-public sealed class StandardConsole
+public sealed class Console
    : IConsole,
      IDisposable
 {
@@ -17,7 +18,7 @@ public sealed class StandardConsole
    private State _state;
    private readonly CancellationTokenSource _cts;
 
-   public StandardConsole()
+   public Console()
    {
       _state = new(false, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
 
@@ -29,7 +30,7 @@ public sealed class StandardConsole
       {
          while (!token.IsCancellationRequested)
          {
-            if (!Console.KeyAvailable)
+            if (!System.Console.KeyAvailable)
             {
                // Delay between user pressing the key and processing this key by the app.
                // Should be small enough so the user does not notice an input lag and big
@@ -41,7 +42,7 @@ public sealed class StandardConsole
             if (token.IsCancellationRequested)
                break;
 
-            var key = Console.ReadKey(true);
+            var key = System.Console.ReadKey(true);
             var state = _state;
             foreach (var item in state.Observers)
                item.OnNext(key);
@@ -49,7 +50,7 @@ public sealed class StandardConsole
       }, token);
    }
 
-   public int BufferWidth => Console.BufferWidth;
+   public int BufferWidth => System.Console.BufferWidth;
    
    public void Dispose()
    {
@@ -98,25 +99,25 @@ public sealed class StandardConsole
    public void Write(
       object? value)
    {
-      Console.Write(value);
+      System.Console.Write(value);
    }
 
    public void WriteLine(
       object? value)
    {
-      Console.WriteLine(value);
+      System.Console.WriteLine(value);
    }
 
    public Point GetCursorPosition()
    {
-      var (left, top) = Console.GetCursorPosition();
+      var (left, top) = System.Console.GetCursorPosition();
       return new(left, top);
    }
 
    public void SetCursorPosition(
       Point point)
    {
-      Console.SetCursorPosition(
+      System.Console.SetCursorPosition(
          point.X,
          point.Y);
    }
@@ -124,9 +125,9 @@ public sealed class StandardConsole
    public void Clear()
    {
       // clears the console and its buffer
-      Console.Write("\x1b[2J\x1b[3J");
+      System.Console.Write("\x1b[2J\x1b[3J");
 
       // followed by the standard clear
-      Console.Clear();
+      System.Console.Clear();
    }
 }

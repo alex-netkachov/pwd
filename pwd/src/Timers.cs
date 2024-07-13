@@ -16,27 +16,20 @@ public interface ITimers
       Action action);
 }
 
-public sealed class Timer
+public sealed class Timer(
+      System.Threading.Timer timer)
    : ITimer
 {
-   private readonly System.Threading.Timer _timer;
-
-   public Timer(
-      System.Threading.Timer timer)
-   {
-      _timer = timer;
-   }
-
    public void Change(
       TimeSpan dueTime,
       TimeSpan period)
    {
-      _timer.Change(dueTime, period);
+      timer.Change(dueTime, period);
    }
 
    public void Dispose()
    {
-      _timer.Dispose();
+      timer.Dispose();
    }
 }
 

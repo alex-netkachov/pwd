@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.session.commands;
 

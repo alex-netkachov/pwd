@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using pwd.core.abstractions;
 using pwd.ui;
-using pwd.ui.readline;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts;
 
@@ -64,7 +64,7 @@ public sealed class NewFile
          string input;
          try
          {
-            input = (await _view.ReadAsync(new($"+> "), this, _cts.Token)).Trim();
+            input = (await _view.ReadAsync(new($"+> "), this, null, _cts.Token)).Trim();
          }
          catch (OperationCanceledException e) when (e.CancellationToken == _cts.Token)
          {

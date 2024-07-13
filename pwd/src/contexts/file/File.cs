@@ -7,6 +7,7 @@ using pwd.contexts.repl;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
 using pwd.ui;
+using pwd.ui.abstractions;
 
 namespace pwd.contexts.file;
 

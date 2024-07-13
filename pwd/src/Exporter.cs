@@ -71,17 +71,10 @@ public sealed class Exporter
    }
 }
 
-public sealed class ExporterFactory
+public sealed class ExporterFactory(
+      IFileSystem fs)
    : IExporterFactory
 {
-   private readonly IFileSystem _fs;
-
-   public ExporterFactory(
-      IFileSystem fs)
-   {
-      _fs = fs;
-   }
-
    public IExporter Create(
       ICipher cipher,
       IRepository repository)
@@ -89,6 +82,6 @@ public sealed class ExporterFactory
       return new Exporter(
          cipher,
          repository,
-         _fs);
+         fs);
    }
 }
