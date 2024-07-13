@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using pwd.contexts.repl;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
+using pwd.library.interfaced;
 using pwd.ui;
 using pwd.ui.abstractions;
 

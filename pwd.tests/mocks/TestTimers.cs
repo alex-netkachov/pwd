@@ -1,48 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace pwd.mocks;
 
-public sealed class TestTimer
-   : ITimer
-{
-   private readonly TestTimers _timers;
-   private readonly Action _action;
-   private TimeSpan _period;
-
-   public TestTimer(
+public sealed class TestTimer(
       TestTimers timers,
       Action action)
-   {
-      _timers = timers;
-      _action = action;
-      Time = TimeSpan.MaxValue;
-   }
-   
-   public TimeSpan Time { get; private set; }
+   : ITimer
+{
+   private TimeSpan _period;
+
+   public TimeSpan Time { get; private set; } = TimeSpan.MaxValue;
 
    public void Dispose()
    {
-      _timers.Remove(this);
+      timers.Remove(this);
    }
 
-   public void Change(
+   public bool Change(
       TimeSpan dueTime,
       TimeSpan period)
    {
       _period = period;
-      Time = _timers.Time.Add(dueTime);
+      Time = timers.Time.Add(dueTime);
+      return true;
    }
 
    public void Run()
    {
-      _action();
-      Time = _timers.Time.Add(_period);
+      action();
+      Time = timers.Time.Add(_period);
+   }
+
+   public ValueTask DisposeAsync()
+   {
+      return ValueTask.CompletedTask;
    }
 }
 
 public sealed class TestTimers
-   : ITimers
 {
    private readonly List<TestTimer> _timers = new();
 

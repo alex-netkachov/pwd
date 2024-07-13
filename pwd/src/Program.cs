@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -13,6 +14,7 @@ using pwd.contexts.file;
 using pwd.contexts.session;
 using pwd.core;
 using pwd.core.abstractions;
+using pwd.library.interfaced;
 using pwd.ui;
 using pwd.ui.abstractions;
 using Console = pwd.ui.Console;
@@ -44,11 +46,11 @@ public static class Program
                .AddSingleton(view)
                .AddSingleton(console)
                .AddSingleton<IRunner, Runner>()
-               .AddSingleton<ITimers, Timers>()
+               .AddSingleton<Func<Action, ITimer>>(_ => action => new Timer(_ => action()))
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IState, State>()
                .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
-               .AddTransient<RepositoryFactory>(
+               .AddSingleton<RepositoryFactory>(
                   provider =>
                      (path, password) =>
                      {

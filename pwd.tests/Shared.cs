@@ -14,6 +14,7 @@ using pwd.contexts.session;
 using pwd.mocks;
 using pwd.core;
 using pwd.core.abstractions;
+using pwd.library.interfaced;
 using pwd.ui;
 using pwd.ui.abstractions;
 using Console = pwd.ui.Console;

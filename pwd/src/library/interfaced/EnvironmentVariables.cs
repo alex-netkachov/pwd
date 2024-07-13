@@ -1,17 +1,17 @@
 ﻿using System;
 
-namespace pwd;
+namespace pwd.library.interfaced;
 
 public interface IEnvironmentVariables
 {
-   string Get(
+   string GetEnvironmentVariable(
       string key);
 }
 
 public sealed class EnvironmentVariables
    : IEnvironmentVariables
 {
-   public string Get(
+   public string GetEnvironmentVariable(
       string key)
    {
       return Environment.GetEnvironmentVariable(key) ?? "";

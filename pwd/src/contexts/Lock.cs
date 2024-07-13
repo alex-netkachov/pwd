@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.ui;
+using pwd.library.delegated;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts;
@@ -51,7 +51,7 @@ public sealed class Lock
       IState state,
       IView view,
       IConsole console,
-      ITimers timers,
+      Func<Action, ITimer> timerFactory,
       string password,
       TimeSpan interactionTimeout)
    {
@@ -64,7 +64,7 @@ public sealed class Lock
       _lockType = LockType.None;
       _lockToken = "";
       
-      _idleTimer = timers.Create(() =>
+      _idleTimer = timerFactory(() =>
       {
          // timer only starts once
          _state.OpenAsync(this);
@@ -77,7 +77,7 @@ public sealed class Lock
       Task.Run(async () =>
       {
          console.Subscribe(
-            new DelegatedObserver<ConsoleKeyInfo>(key =>
+            new Observer<ConsoleKeyInfo>(key =>
             {
                while (!channel.Writer.TryWrite(key)) /* empty */ ;
             }));
@@ -171,7 +171,7 @@ public sealed class LockFactory(
       IState state,
       IView view,
       IConsole console,
-      ITimers timers)
+      Func<Action, ITimer> timerFactory)
    : ILockFactory
 {
    public ILock Create(
@@ -183,7 +183,7 @@ public sealed class LockFactory(
          state,
          view,
          console,
-         timers,
+         timerFactory,
          password,
          interactionTimeout);
    }

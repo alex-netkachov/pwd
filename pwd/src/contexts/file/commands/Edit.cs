@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
+using pwd.library.interfaced;
 using pwd.ui;
 using pwd.ui.abstractions;
 
@@ -28,7 +29,7 @@ public sealed class Edit(
       var editor =
          (parameters.ElementAtOrDefault(0) ?? "") switch
          {
-            "" => environmentVariables.Get("EDITOR"),
+            "" => environmentVariables.GetEnvironmentVariable("EDITOR"),
             var value => value
          };
 

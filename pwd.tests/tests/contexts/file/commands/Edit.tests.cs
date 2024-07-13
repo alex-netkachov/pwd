@@ -8,6 +8,7 @@ using Moq;
 using NUnit.Framework;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
+using pwd.library.interfaced;
 using pwd.mocks;
 using pwd.ui;
 using pwd.ui.abstractions;
@@ -27,7 +28,7 @@ public class Edit_Tests
    {
       var mockEnvironmentVariables = new Mock<IEnvironmentVariables>();
       mockEnvironmentVariables
-         .Setup(m => m.Get("EDITOR"))
+         .Setup(m => m.GetEnvironmentVariable("EDITOR"))
          .Returns(editor);
 
       var mockFileSystem = new MockFileSystem();

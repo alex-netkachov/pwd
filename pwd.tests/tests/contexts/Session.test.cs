@@ -7,6 +7,7 @@ using NUnit.Framework;
 using pwd.contexts.file;
 using pwd.core;
 using pwd.core.abstractions;
+using pwd.library.interfaced;
 using pwd.mocks;
 using pwd.ui;
 using pwd.ui.abstractions;

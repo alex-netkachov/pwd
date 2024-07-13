@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.library.delegated;
 using pwd.ui.abstractions;
 
 namespace pwd.ui;
@@ -83,7 +84,7 @@ public sealed class Console
          } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
       }
 
-      return new DelegatedDisposable(() =>
+      return new Disposable(() =>
       {
          State initial, updated;
          do

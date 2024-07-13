@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using pwd.library.delegated;
 using pwd.ui.abstractions;
 
 namespace pwd.ui;
@@ -180,7 +181,7 @@ public sealed class Reader
       var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
       var subscription =
          _console.Subscribe(
-            new DelegatedObserver<ConsoleKeyInfo>(key =>
+            new Observer<ConsoleKeyInfo>(key =>
             {
                while (!channel.Writer.TryWrite(key)) /* empty*/;
             }));
@@ -289,7 +290,7 @@ public sealed class Reader
       var channel = Channel.CreateUnbounded<ConsoleKeyInfo>();
       var subscription =
          _console.Subscribe(
-            new DelegatedObserver<ConsoleKeyInfo>(key =>
+            new Observer<ConsoleKeyInfo>(key =>
             {
                while (!channel.Writer.TryWrite(key)) /* empty*/;
             }));

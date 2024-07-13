@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using pwd.library.delegated;
 using pwd.ui.abstractions;
 
 namespace pwd.mocks;
@@ -70,7 +71,7 @@ public sealed class TestConsole
 
       OnSubscriber?.Invoke(this, EventArgs.Empty);
 
-      return new DelegatedDisposable(() =>
+      return new Disposable(() =>
       {
          State initial, updated;
          do

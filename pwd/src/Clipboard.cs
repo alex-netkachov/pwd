@@ -30,12 +30,12 @@ public sealed class Clipboard
    public Clipboard(
       ILogger<Clipboard> logger,
       IRunner runner,
-      ITimers timers)
+      Func<Action, ITimer> timerFactory)
    {
       _logger = logger;
       _runner = runner;
 
-      _cleaner = timers.Create(Clear);
+      _cleaner = timerFactory(Clear);
 
       _cts = new();
 
