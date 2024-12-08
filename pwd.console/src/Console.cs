@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Drawing;
-using System.Threading;
-using System.Threading.Tasks;
-using pwd.library.delegated;
-using pwd.ui.abstractions;
+using pwd.console.delegated;
+using pwd.console.abstractions;
 
-namespace pwd.ui;
+namespace pwd.console;
 
 public sealed class Console
    : IConsole,

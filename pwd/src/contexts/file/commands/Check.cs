@@ -20,7 +20,7 @@ public sealed class Check(
       string[] parameters,
       CancellationToken token = default)
    {
-      var content = await repository.ReadAsync(path);
+      var content = await repository.ReadTextAsync(path);
       if (Shared.CheckYaml(content) is { Message: var msg })
          view.WriteLine(msg);
    }

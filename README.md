@@ -2,26 +2,24 @@
 
 `pwd` is a cross-platform console-based password manager.
 
-It functions as a contextual REPL (read-eval-print loop) tool. Passwords, along
+It is a REPL (read-eval-print loop) tool. Passwords, along
 with other sensitive information such as keys or notes, are stored in
 AES-encrypted files.
 
 Main features:
 
-- Helps protect your sensitive information, such as passwords, keys, and notes,
-  by providing commands for navigating, accessing, and managing
-  password-protected files.
+- Encrypts your passwords, keys, and notes with AES.
+- Provides commands for accessing and managing encrypted files.
 - Cross-platform, meaning it functions wherever .NET is supported (Windows,
   macOS, Linux).
 - Free from vendor lock-in: the encrypted files can be managed with well-known
   open-source tools such as OpenSSL.
 - Portable: no installation required.
-- One file per entry, which makes it easy to manage and merge changes.
-- Minimum dependencies.
+- Minimum dependencies, open-source.
 
 ## Requirements
 
-Latest [.NET](https://dotnet.microsoft.com/download).
+Latest [.NET Runtime](https://dotnet.microsoft.com/download).
 
 ## Install
 
@@ -38,9 +36,21 @@ git clone https://github.com/alex-netkachov/pwd.git
 In the terminal application (such as
 [Windows Terminal](https://github.com/microsoft/terminal), Command Prompt,
 xterm, etc.), navigate to the folder where you want to store your
-password files, and either execute the downloaded file or run `pwd.sh`
-(for Unix-like systems) or `pwd.bat` (for Windows) from the cloned
-repository.
+password files, and either execute the downloaded file or run 
+`pwd.ps1` from the cloned repository.
+
+```pwsh
+C:\Users\User> mkdir Tools
+C:\Users\User> cd Tools
+C:\Users\User\Tools> git clone https://github.com/alex-netkachov/pwd.git
+C:\Users\User\Tools> cd ..
+C:\Users\User> mkdir Passwords
+C:\Users\User> cd Passwords
+C:\Users\User\Passwords> ..\Tools\pwd\pwd.ps1
+Determining projects to restore...
+...
+Password: 
+```
 
 ## Quickstart
 
@@ -94,8 +104,6 @@ According to <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Ch
 the number if iterations for PBKDF2 is 600,000.
 
 ## Motivation
-
-From the author:
 
 Over the years, I have come up with a list of requirements for password
 management software:

@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace pwd.ui.abstractions;
+namespace pwd.console.abstractions;
 
 public interface ISuggestionsProvider
 {

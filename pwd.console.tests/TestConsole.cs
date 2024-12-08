@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Drawing;
-using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 using pwd.console.abstractions;
 using pwd.console.delegated;
 
-namespace pwd.mocks;
+namespace pwd.console.tests;
 
 public sealed class TestConsole
    : IConsole,

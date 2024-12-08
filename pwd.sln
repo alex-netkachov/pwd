@@ -7,7 +7,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.core", "pwd.core\pwd.co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.core.tests", "pwd.core.tests\pwd.core.tests.csproj", "{3051E680-5EC0-47E2-9E67-E5FE6ED18586}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "core", "core", "{9A433ABD-05A0-401F-A88E-A63DBBB4D9AE}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Files", "Files", "{E65295A1-8527-4C4E-A3DB-E9A06AC6B819}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		test.ps1 = test.ps1
+		pwd.ps1 = pwd.ps1
+		release.ps1 = release.ps1
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.console", "pwd.console\pwd.console.csproj", "{8D1731CF-7214-43E7-B6E1-63375FF2E434}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libraries", "libraries", "{64E95845-E469-4433-B466-1D1FD960122E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.console.tests", "pwd.console.tests\pwd.console.tests.csproj", "{64938099-77D0-4CB1-9A2C-C60EC410DF59}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,9 +43,19 @@ Global
 		{3051E680-5EC0-47E2-9E67-E5FE6ED18586}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3051E680-5EC0-47E2-9E67-E5FE6ED18586}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3051E680-5EC0-47E2-9E67-E5FE6ED18586}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D1731CF-7214-43E7-B6E1-63375FF2E434}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D1731CF-7214-43E7-B6E1-63375FF2E434}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D1731CF-7214-43E7-B6E1-63375FF2E434}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D1731CF-7214-43E7-B6E1-63375FF2E434}.Release|Any CPU.Build.0 = Release|Any CPU
+		{64938099-77D0-4CB1-9A2C-C60EC410DF59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{64938099-77D0-4CB1-9A2C-C60EC410DF59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{64938099-77D0-4CB1-9A2C-C60EC410DF59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{64938099-77D0-4CB1-9A2C-C60EC410DF59}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{6A387C7D-58C2-4260-9BED-B1A2AE34B448} = {9A433ABD-05A0-401F-A88E-A63DBBB4D9AE}
-		{3051E680-5EC0-47E2-9E67-E5FE6ED18586} = {9A433ABD-05A0-401F-A88E-A63DBBB4D9AE}
+		{8D1731CF-7214-43E7-B6E1-63375FF2E434} = {64E95845-E469-4433-B466-1D1FD960122E}
+		{6A387C7D-58C2-4260-9BED-B1A2AE34B448} = {64E95845-E469-4433-B466-1D1FD960122E}
+		{3051E680-5EC0-47E2-9E67-E5FE6ED18586} = {64E95845-E469-4433-B466-1D1FD960122E}
+		{64938099-77D0-4CB1-9A2C-C60EC410DF59} = {64E95845-E469-4433-B466-1D1FD960122E}
 	EndGlobalSection
 EndGlobal

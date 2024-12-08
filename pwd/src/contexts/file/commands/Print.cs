@@ -21,7 +21,7 @@ public sealed class Print(
       string[] parameters,
       CancellationToken token = default)
    {
-      var content = await repository.ReadAsync(path);
+      var content = await repository.ReadTextAsync(path);
 
       var obscured =
          Regex.Replace(

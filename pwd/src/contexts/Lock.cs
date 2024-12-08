@@ -3,7 +3,8 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.library.delegated;
+using pwd.console.abstractions;
+using pwd.console.delegated;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts;

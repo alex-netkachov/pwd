@@ -17,7 +17,7 @@ public class Unobscured_Tests
 
       var repository = new Mock<IRepository>();
       repository
-         .Setup(m => m.ReadAsync("/test"))
+         .Setup(m => m.ReadTextAsync("/test"))
          .Returns(Task.FromResult(content));
 
       var mockView = new Mock<IView>();

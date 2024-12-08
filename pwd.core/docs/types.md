@@ -2,7 +2,7 @@
 
 ## ICipher
 
-Interface. Represents a deterministic cipher that can encrypt and decrypt data.
+A cipher. It encrypts and decrypts streams of data. Implementation can provide an initialisation data that can be used to create a new cipher with the same configuration. If the same initialisation data is used to create a cipher, the cipher produces the same output for the same input. 
 
 Implementations: `AesCipher`
 
@@ -21,7 +21,7 @@ class ICipher {
 
 ## IStringEncoder
 
-Interface. Represents a string encoder that can encode and decode strings.
+A string encoder. It encodes and decodes stream of data to and from strings.
 
 Implementations: `Base64Url`
 
@@ -39,7 +39,7 @@ class IStringEncoder {
 
 ## IRepository
 
-Interface. Represents a repository that can read and write encrypted files.
+A repository with encrypted files.
 
 Implementations: `FolderRepository`
 
@@ -52,8 +52,8 @@ class IRepository {
     string SetCurrentFolder(string path)
     void Write(string path, string value)
     Task WriteAsync(string path, string value)
-    string Read(string path)
-    Task<string> ReadAsync(string path)
+    string ReadText(string path)
+    Task<string> ReadTextAsync(string path)
     void CreateFolder(string path)
     void Delete(string path)
     void Move(string path, string newLocation)
@@ -63,6 +63,6 @@ class IRepository {
 }
 ```
 
-Repository paths are relative to the repository root and use forward slashes as separators. The root is the repository's root folder. For example, the path `folder/file.txt` refers to a file named `file.txt` in a folder named `folder` in the repository's root folder.
+Repository paths are relative to the current folder and use forward slashes as separators. For example, the path `folder/file.txt` refers to a file named `file.txt` in a folder named `folder` in the repository's root folder.
 
-Repository names can contain any character except for the forward slash. Repository paths are case-sensitive. The names `.` and `..` are considered folders (current folder and parent folder, respectively).
+Repository names can contain any character except for the forward slash. Repository paths are case-sensitive. The names `.` and `..` are considered folders (current folder and parent folder).

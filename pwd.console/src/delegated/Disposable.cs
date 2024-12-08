@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading;
-
-namespace pwd.library.delegated;
+﻿namespace pwd.console.delegated;
 
 public class Disposable(
       Action disposeAction,

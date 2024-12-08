@@ -7,6 +7,8 @@ using System;
 using Castle.Core.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using pwd.console;
+using pwd.console.abstractions;
 using pwd.core.abstractions;
 using pwd.ui;
 using pwd.ui.abstractions;

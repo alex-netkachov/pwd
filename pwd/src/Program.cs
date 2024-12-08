@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using pwd.console;
+using pwd.console.abstractions;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
@@ -17,7 +19,7 @@ using pwd.core.abstractions;
 using pwd.library.interfaced;
 using pwd.ui;
 using pwd.ui.abstractions;
-using Console = pwd.ui.Console;
+using Console = pwd.console.Console;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
 

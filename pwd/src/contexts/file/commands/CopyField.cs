@@ -50,7 +50,7 @@ public sealed class CopyField(
    private async Task<string> Field(
       string name)
    {
-      var content = await repository.ReadAsync(path);
+      var content = await repository.ReadTextAsync(path);
 
       using var input = new StringReader(content);
 

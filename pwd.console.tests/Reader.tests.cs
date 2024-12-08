@@ -1,14 +1,8 @@
 ﻿using System.Threading.Channels;
 using Moq;
-using pwd.mocks;
-using NUnit.Framework;
-using System.Threading.Tasks;
-using System.Linq;
-using System;
-using pwd.ui;
-using pwd.ui.abstractions;
+using pwd.console.abstractions;
 
-namespace pwd.tests.ui.readline;
+namespace pwd.console.tests;
 
 public sealed class Reader_Tests
 {
@@ -23,11 +17,14 @@ public sealed class Reader_Tests
       string expected)
    {
       var channel = Channel.CreateUnbounded<string>();
-      Shared.Run(async () =>
-      {
-         await Task.Delay(100);
-         await channel.Writer.WriteAsync(keys);
-      });
+
+      _ =
+         new Func<Task>(async () =>
+         {
+            await Task.Delay(100);
+            await channel.Writer.WriteAsync(keys);
+         }).Invoke();
+
       using var console = new TestConsole(channel.Reader);
       var reader = new Reader(console);
       var input = await reader.ReadAsync();

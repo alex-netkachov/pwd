@@ -56,11 +56,11 @@ public interface IRepository
       string value);
 
    /// <summary>Reads the file content.</summary>
-   string Read(
+   string ReadText(
       string path);
    
    /// <summary>Reads the file content.</summary>
-   Task<string> ReadAsync(
+   Task<string> ReadTextAsync(
       string path);
 
    /// <summary>Creates a folder.</summary>

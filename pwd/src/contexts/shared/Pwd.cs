@@ -8,7 +8,9 @@ using pwd.ui.abstractions;
 
 namespace pwd.contexts.shared;
 
-public sealed class Pwd(IView view) : CommandBase
+public sealed class Pwd(
+      IView view)
+   : CommandBase
 {
    public override Task ExecuteAsync(
       string name,

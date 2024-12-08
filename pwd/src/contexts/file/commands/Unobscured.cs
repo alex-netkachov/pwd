@@ -21,7 +21,7 @@ public sealed class Unobscured(
       string[] parameters,
       CancellationToken token = default)
    {
-      var content = await repository.ReadAsync(path);
+      var content = await repository.ReadTextAsync(path);
       view.WriteLine(content);
    }
 

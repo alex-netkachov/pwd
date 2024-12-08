@@ -159,7 +159,7 @@ public class FolderRepository
          encrypted);
    }
    
-   public string Read(
+   public string ReadText(
       string path)
    {
       var localPath = ToFilesystemPath(path);
@@ -170,7 +170,7 @@ public class FolderRepository
       return Encoding.UTF8.GetString(output.ToArray());
    }
 
-   public async Task<string> ReadAsync(
+   public async Task<string> ReadTextAsync(
       string path)
    {
       var localPath = ToFilesystemPath(path);

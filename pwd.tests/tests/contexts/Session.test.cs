@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using pwd.console;
 using pwd.contexts.file;
 using pwd.core;
 using pwd.core.abstractions;

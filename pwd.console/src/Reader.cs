@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Threading;
+﻿using System.Collections.Immutable;
 using System.Threading.Channels;
-using System.Threading.Tasks;
-using pwd.library.delegated;
-using pwd.ui.abstractions;
+using pwd.console.delegated;
+using pwd.console.abstractions;
 
-namespace pwd.ui;
+namespace pwd.console;
 
 public sealed class Reader
    : IReader,

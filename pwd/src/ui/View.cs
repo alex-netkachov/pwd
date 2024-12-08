@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.ui.abstractions;
 
 namespace pwd.ui;

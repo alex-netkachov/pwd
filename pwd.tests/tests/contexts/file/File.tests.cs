@@ -16,7 +16,7 @@ public class File_Tests
 
       var repository = new Mock<IRepository>();
       repository
-         .Setup(m => m.ReadAsync(It.IsAny<string>()))
+         .Setup(m => m.ReadTextAsync(It.IsAny<string>()))
          .Returns(Task.FromResult("password: secret"));
 
       var file =

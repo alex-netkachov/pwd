@@ -39,7 +39,7 @@ public sealed class Edit(
          return;
       }
 
-      var content = await repository.ReadAsync(path);
+      var content = await repository.ReadTextAsync(path);
 
       var tmpFileName = fs.Path.GetTempFileName();
 

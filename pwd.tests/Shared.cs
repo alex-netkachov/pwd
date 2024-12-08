@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using pwd.console;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
@@ -17,7 +18,7 @@ using pwd.core.abstractions;
 using pwd.library.interfaced;
 using pwd.ui;
 using pwd.ui.abstractions;
-using Console = pwd.ui.Console;
+using Console = pwd.console.Console;
 
 namespace pwd;
 

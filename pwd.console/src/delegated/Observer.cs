@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace pwd.library.delegated;
+﻿namespace pwd.console.delegated;
 
 public class Observer<T>(
       Action<T> onNext,
