@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
 using pwd.contexts.file;
 using pwd.contexts.session.commands;
 using pwd.core.abstractions;
-using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts.session;
@@ -32,22 +33,24 @@ public sealed class Session
    private readonly IRepository _repository;
 
    public Session(
-      ILogger<Session> logger,
-      IRepository repository,
-      IView view,
-      IReadOnlyDictionary<string, ICommand> factories,
-      string defaultCommand)
+         ILogger<Session> logger,
+         IRepository repository,
+         Func<IView> viewFactory,
+         IReadOnlyDictionary<string, ICommand> factories,
+         string defaultCommand)
       : base(
          logger,
-         view,
+         () => Task.FromResult(default(IView)),
+         viewFactory,
          factories,
          defaultCommand)
    {
       _repository = repository;
    }
 
-   public override IReadOnlyList<string> Suggestions(
-      string input)
+   public override IReadOnlyList<string> Get(
+      string input,
+      int position)
    {
       if (!input.StartsWith('.'))
       {
@@ -75,7 +78,7 @@ public sealed class Session
             ".export",
          }
          .Where(item => item.StartsWith(input))
-         .Concat(base.Suggestions(input))
+         .Concat(base.Get(input, position))
          .ToArray();
    }
 }
@@ -83,7 +86,7 @@ public sealed class Session
 public sealed class SessionFactory(
       ILoggerFactory loggerFactory,
       IState state,
-      IView view,
+      Func<IView> viewFactory,
       IFileFactory fileFactory,
       INewFileFactory newFileFactory)
    : ISessionFactory
@@ -95,19 +98,19 @@ public sealed class SessionFactory(
        var commands =
           new Dictionary<string, ICommand>
           {
-             { "list", new List(loggerFactory.CreateLogger<List>(), repository, fileFactory, @lock, state, view) },
+             { "list", new List(loggerFactory.CreateLogger<List>(), repository, fileFactory, @lock, state) },
              { "add", new Add(state, newFileFactory, repository) },
-             { "export", new Export(view) },
-             { "help", new Help(view) },
+             { "export", new Export() },
+             { "help", new Help() },
              { "open", new Open(loggerFactory.CreateLogger<Open>(), repository, fileFactory, @lock, state) }
           };
 
-      Shared.CommandFactories(commands, state, @lock, view);
+      Shared.CommandFactories(commands, state, @lock);
 
       return new Session(
          loggerFactory.CreateLogger<Session>(),
          repository,
-         view,
+         viewFactory,
          commands,
          "list");
    }

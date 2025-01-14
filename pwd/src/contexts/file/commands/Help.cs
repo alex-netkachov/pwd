@@ -4,26 +4,18 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Help
    : CommandBase
 {
-   private readonly IView _view;
-
-   public Help(
-      IView view)
-   {
-      _view = view;
-   }
-
    public override async Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
 
@@ -33,13 +25,13 @@ public sealed class Help
 
       if (stream == null)
       {
-         _view.WriteLine("help file is missing");
+         view.WriteLine("help file is missing");
          return;
       }
 
       using var reader = new StreamReader(stream);
       var content = await reader.ReadToEndAsync();
-      _view.WriteLine(content.TrimEnd());
+      view.WriteLine(content.TrimEnd());
    }
 
    public override IReadOnlyList<string> Suggestions(

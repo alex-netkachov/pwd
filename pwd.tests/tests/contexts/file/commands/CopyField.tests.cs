@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
 
@@ -35,6 +36,7 @@ public class CopyField_Tests
             "/test");
 
       await command.ExecuteAsync(
+         Mock.Of<IView>(),
          commandName,
          commandArgs == "" ? [] : commandArgs.Split(" "));
       

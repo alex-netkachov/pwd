@@ -1,121 +1,133 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using pwd.console.abstractions;
-using pwd.console.delegated;
 
-namespace pwd.mocks;
+namespace pwd.console.mocks;
 
-public sealed class TestConsole
+public sealed class TestConsole(
+      IReadOnlyList<string>? values = null)
    : IConsole,
      IDisposable
 {
-   private record State(
-      bool Disposed,
-      ImmutableList<IObserver<ConsoleKeyInfo>> Observers);
+   private readonly Lock _lock = new();
+   private readonly CancellationTokenSource _cts = new();
+   private readonly List<StringBuilder> _writes = [new()];
 
-   private State _state;
+   private bool _disposed;
+   private readonly List<Action<ConsoleKeyInfo>> _observers = [];
+   private Action<ConsoleKeyInfo>? _interceptor;
+   private int _valuesIndex = -1;
 
-   private readonly CancellationTokenSource _cts;
-   private readonly List<StringBuilder> _writes;
+   public int BufferWidth => -1;
 
-   public event EventHandler<EventArgs>? OnSubscriber;
+   public int BufferHeight => -1;
 
-   public TestConsole(
-      ChannelReader<string> reader)
+   public IDisposable Observe(
+      Action<ConsoleKeyInfo> action)
    {
-      _writes = new() { new() };
-
-      _state = new(false, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
-
-      _cts = new();
-
-      var token = _cts.Token;
-
-      Task.Run(async () =>
+      lock (_lock)
       {
-         while (!token.IsCancellationRequested)
-         {
-            var input = await reader.ReadAsync(token);
-            var infos = TestInputToKeyCodeInfos(input);
+         ObjectDisposedException.ThrowIf(_disposed, this);
 
-            var state = _state;
-            foreach (var info in infos)
-            foreach (var item in state.Observers)
-               item.OnNext(info);
-         }
-      }, token);
-   }
-
-   public int BufferWidth => 80;
-
-   public IDisposable Subscribe(
-      IObserver<ConsoleKeyInfo> observer)
-   {
-      {
-         State initial, updated;
-         do
-         {
-            initial = _state;
-            if (_state.Disposed)
-               throw new ObjectDisposedException(nameof(Console));
-            updated = _state with { Observers = initial.Observers.Add(observer) };
-         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+         _observers.Add(action);
       }
-
-      OnSubscriber?.Invoke(this, EventArgs.Empty);
 
       return new Disposable(() =>
       {
-         State initial, updated;
-         do
+         lock (_lock)
          {
-            initial = _state;
-            if (_state.Disposed)
-               break;
-            updated = _state with { Observers = initial.Observers.Remove(observer) };
-         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+            _observers.Remove(action);
+         }
+      });
+   }
+   
+   public IDisposable Intercept(
+      Action<ConsoleKeyInfo> action)
+   {
+      lock (_lock)
+      {
+         ObjectDisposedException.ThrowIf(_disposed, this);
 
+         if (_interceptor != null)
+            throw new InvalidOperationException("Interceptor already set.");
+
+         _interceptor = action;
+      }
+      
+      var token = _cts.Token;
+
+      Task.Run(() =>
+      {
+         lock (_lock)
+         {
+            if ((values ?? []).ElementAtOrDefault(++_valuesIndex) is not { } input)
+               return;
+
+            var keys = TestInputToKeyCodeInfos(input);
+
+            foreach (var key in keys)
+            {
+               foreach (var item in _observers)
+                  item.Invoke(key);
+               _interceptor?.Invoke(key);
+            }
+         }
+      }, token);
+
+      return new Disposable(() =>
+      {
+         lock (_lock)
+         {
+            _interceptor = null;
+         }
       });
    }
 
    public void Dispose()
    {
-      State initial;
-      while (true)
+      lock (_lock)
       {
-         initial = _state;
-         if (initial.Disposed)
+         if (_disposed)
             return;
-         var updated = new State(true, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
-         if (initial == Interlocked.CompareExchange(ref _state, updated, initial))
-            break;
+
+         _disposed = true;
       }
 
       _cts.Cancel();
       _cts.Dispose();
-
-      foreach (var item in initial.Observers)
-         item.OnCompleted();
    }
 
    public void Write(
       object? value = null)
    {
-      _writes.Last().Append(Convert.ToString(value) ?? "");
+      lock (_lock)
+      {
+         _writes
+            .Last()
+            .Append(
+               Convert.ToString(value)
+               ?? "");
+      }
    }
 
    public void WriteLine(
       object? value = null)
    {
-      _writes.Last().Append(Convert.ToString(value) ?? "");
-      _writes.Add(new());
+      lock (_lock)
+      {
+         _writes
+            .Last()
+            .Append(
+               Convert.ToString(value)
+               ?? "");
+
+         _writes.Add(new());
+      }
    }
 
    public Point GetCursorPosition()
@@ -130,13 +142,22 @@ public sealed class TestConsole
 
    public void Clear()
    {
-      _writes.Clear();
-      _writes.Add(new());
+      lock (_lock)
+      {
+         _writes.Clear();
+         _writes.Add(new());
+      }
    }
 
    public string GetScreen()
    {
-      return string.Join("\n", _writes.Select(item => item.ToString()));
+      lock (_lock)
+      {
+         return string.Join(
+            "\n",
+            _writes
+               .Select(item => item.ToString()));
+      }
    }
 
    private static IReadOnlyList<ConsoleKeyInfo> TestInputToKeyCodeInfos(

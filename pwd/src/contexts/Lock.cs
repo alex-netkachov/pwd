@@ -3,8 +3,8 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using pwd.console;
 using pwd.console.abstractions;
-using pwd.console.delegated;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts;
@@ -34,7 +34,8 @@ public enum LockType
 }
 
 public sealed class Lock
-   : ILock
+   : Views,
+     ILock
 {
    private readonly ILogger _logger;
    private readonly IState _state;
@@ -50,7 +51,7 @@ public sealed class Lock
    public Lock(
       ILogger<Lock> logger,
       IState state,
-      IView view,
+      Func<IView> viewFactory,
       IConsole console,
       Func<Action, ITimer> timerFactory,
       string password,
@@ -58,7 +59,7 @@ public sealed class Lock
    {
       _logger = logger;
       _state = state;
-      _view = view;
+      _view = viewFactory();
       _password = password;
       _interactionTimeout = interactionTimeout;
 
@@ -77,11 +78,11 @@ public sealed class Lock
       
       Task.Run(async () =>
       {
-         console.Subscribe(
-            new Observer<ConsoleKeyInfo>(key =>
+         console.Observe(
+            key =>
             {
                while (!channel.Writer.TryWrite(key)) /* empty */ ;
-            }));
+            });
 
          while (true)
          {
@@ -132,7 +133,7 @@ public sealed class Lock
          Timeout.InfiniteTimeSpan);
    }
 
-   public async Task StartAsync()
+   public async Task Activate()
    {
       while (true)
       {
@@ -157,7 +158,7 @@ public sealed class Lock
       _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
    }
 
-   public Task StopAsync()
+   public Task Deactivate()
    {
       return Task.CompletedTask;
    }
@@ -170,7 +171,7 @@ public sealed class Lock
 public sealed class LockFactory(
       ILoggerFactory loggerFactory,
       IState state,
-      IView view,
+      Func<IView> viewFactory,
       IConsole console,
       Func<Action, ITimer> timerFactory)
    : ILockFactory
@@ -182,7 +183,7 @@ public sealed class LockFactory(
       return new Lock(
          loggerFactory.CreateLogger<Lock>(),
          state,
-         view,
+         viewFactory,
          console,
          timerFactory,
          password,

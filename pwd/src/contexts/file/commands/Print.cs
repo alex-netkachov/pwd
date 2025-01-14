@@ -3,22 +3,21 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Print(
-      IView view,
       IRepository repository,
       string path)
    : CommandBase
 {
    public override async Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
       var content = await repository.ReadTextAsync(path);

@@ -47,12 +47,16 @@ public sealed class StateChangeReader(
 public interface IState
    : IAsyncDisposable
 {
-   /// <summary>Sends stopping signal to the active context, removes it from the top, and activates
-   /// the context that is on top of the stack. Completes when the new context is active.</summary>
+   /// <summary>
+   ///   Sends stopping signal to the active context, removes it from the top, and activates
+   ///   the context that is on top of the stack. Completes when the new context is active.
+   /// </summary>
    Task BackAsync();
 
-   /// <summary>Sends stopping signal to the active context, puts the new one on top of the stack, and activates
-   /// it. Completes when the new context is active.</summary>
+   /// <summary>
+   ///   Sends stopping signal to the active context, puts the new one on top of the stack, and activates
+   ///   it. Completes when the new context is active.
+   /// </summary>
    Task OpenAsync(
       IContext context);
 

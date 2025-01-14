@@ -1,17 +1,15 @@
 using System.IO.Abstractions;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using pwd.console;
+using pwd.console.abstractions;
 using pwd.contexts.file;
 using pwd.core;
 using pwd.core.abstractions;
 using pwd.library.interfaced;
 using pwd.mocks;
 using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts;
 
@@ -28,7 +26,7 @@ public sealed class Session_Tests
    {
       var view = new Mock<IView>();
       var session = Shared.CreateSessionContext(view: view.Object);
-      await session.ProcessAsync(".help");
+      await session.ProcessAsync(view.Object, ".help");
       view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
    }
 
@@ -44,16 +42,16 @@ public sealed class Session_Tests
    {
       const string text = "test";
 
-      var state = new State(Mock.Of<ILogger<State>>());
+      var state =
+         new State(
+            Mock.Of<ILogger<State>>(),
+            Mock.Of<IPresenter>());
 
       var fs = Shared.GetMockFs();
       CreateFoldersAndFiles(fs);
       var repository = Shared.CreateRepository(fs);
 
-      var channel = Channel.CreateUnbounded<string>();
-      var console = new TestConsole(channel.Reader);
-      var reader = new Reader(console);
-      var view = new View(console, reader);
+      var firstView = new TestView([]);
 
       var fileFactory =
          new FileFactory(
@@ -63,20 +61,23 @@ public sealed class Session_Tests
             Mock.Of<IClipboard>(),
             fs,
             state,
-            view);
+            () => firstView);
 
       var session =
          Shared.CreateSessionContext(
             Mock.Of<ILogger>(),
             repository,
-            view: view,
             state: state,
+            view: firstView,
             fileFactory: fileFactory);
 
       //logger.Info($"{nameof(Session_Tests)}.{nameof(open_file)}: processing input");
-      await session.ProcessAsync($".open {file}");
+      var view = new TestView([]);
+      await session.ProcessAsync(view, $".open {file}");
 
-      Assert.That(console.GetScreen(), Is.EqualTo(text + "\n"));
+      Assert.That(
+         view.GetOutput(),
+         Is.EqualTo(text + "\n"));
    }
    
    private static void CreateFoldersAndFiles(

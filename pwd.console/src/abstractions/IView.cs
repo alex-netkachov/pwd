@@ -1,8 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
-using pwd.console.abstractions;
 
-namespace pwd.ui.abstractions;
+namespace pwd.console.abstractions;
 
 /// <summary>Answers to a confirmation question.</summary>
 public enum Answer
@@ -12,13 +11,8 @@ public enum Answer
 }
 
 public interface IView
+   : IConsole
 {
-   void Write(
-      string text);
-
-   void WriteLine(
-      string text);
-
    /// <summary>Requests a confirmation from the user, i.e. asks yes/no question.</summary>
    /// <remarks>Cancelling the request with the cancellation token raises TaskCanceledException.</remarks>
    Task<bool> ConfirmAsync(
@@ -35,8 +29,8 @@ public interface IView
    /// </remarks>
    Task<string> ReadAsync(
       string prompt = "",
-      ISuggestionsProvider? suggestionsProvider = null,
-      IHistoryProvider? historyProvider = null,
+      ISuggestions? suggestions = null,
+      IHistory? history = null,
       CancellationToken token = default);
 
    /// <summary>Reads the line from the console.</summary>
@@ -49,13 +43,11 @@ public interface IView
       string prompt = "",
       CancellationToken token = default);
 
-   /// <summary>Clears the console and its buffer, if possible.</summary>
-   void Clear();
-
    /// <summary>
    ///   Restores the view state, including the read operation.
    /// </summary>
-   void Activate();
+   void Activate(
+      IConsole console);
 
    /// <summary>
    ///   Stops reading the input.

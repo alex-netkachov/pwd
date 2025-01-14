@@ -4,10 +4,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
 using pwd.contexts.file;
 using pwd.core.abstractions;
-using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts.session.commands;
@@ -27,14 +27,15 @@ public sealed class Open(
    private readonly ILogger _logger = logger;
 
    public override Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
       _logger.LogInformation(
          $"{nameof(Open)}.{nameof(ExecuteAsync)}: created command from '{name + " " + parameters}'");
 
-      var path = parameters.FirstOrDefault() ?? "";
+      var path = (parameters ?? []).FirstOrDefault() ?? "";
 
       if (!repository.FileExist(path))
       {

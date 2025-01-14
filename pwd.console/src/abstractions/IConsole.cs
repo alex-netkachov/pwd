@@ -4,15 +4,16 @@ using System.Drawing;
 namespace pwd.console.abstractions;
 
 public interface IConsole
-   : IObservable<ConsoleKeyInfo>
 {
    int BufferWidth { get; }
+   
+   int BufferHeight { get; }
 
    void Write(
-      object? value = null);
+      object? value);
 
    void WriteLine(
-      object? value = null);
+      object? value);
 
    Point GetCursorPosition();
 
@@ -20,4 +21,10 @@ public interface IConsole
       Point point);
 
    void Clear();
+   
+   IDisposable Observe(
+      Action<ConsoleKeyInfo> action);
+   
+   IDisposable Intercept(
+      Action<ConsoleKeyInfo> action);
 }

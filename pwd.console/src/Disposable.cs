@@ -1,4 +1,7 @@
-﻿namespace pwd.console.delegated;
+﻿using System;
+using System.Threading;
+
+namespace pwd.console;
 
 public class Disposable(
       Action disposeAction,

@@ -4,30 +4,29 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
 using pwd.library.interfaced;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.contexts.file.commands;
 
 public sealed class Edit(
       IEnvironmentVariables environmentVariables,
       IRunner runner,
-      IView view,
       IFileSystem fs,
       IRepository repository,
       string path)
    : CommandBase
 {
    public override async Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
       var editor =
-         (parameters.ElementAtOrDefault(0) ?? "") switch
+         ((parameters ?? []).ElementAtOrDefault(0) ?? "") switch
          {
             "" => environmentVariables.GetEnvironmentVariable("EDITOR"),
             var value => value

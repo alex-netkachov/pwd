@@ -1,5 +1,9 @@
+using System.Collections.Generic;
 using System.IO.Abstractions.TestingHelpers;
+using System.Linq;
+using System.Threading.Tasks;
 using pwd.core.abstractions;
+using pwd.core.mocks;
 
 namespace pwd.core.tests;
 

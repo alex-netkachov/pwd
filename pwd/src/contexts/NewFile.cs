@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using pwd.console;
 using pwd.console.abstractions;
 using pwd.core.abstractions;
 using pwd.ui.abstractions;
@@ -26,8 +27,9 @@ public interface INewFileFactory
 }
 
 public sealed class NewFile
-   : INewFile,
-      ISuggestionsProvider
+   : Views,
+     INewFile,
+     ISuggestions
 {
    private readonly CancellationTokenSource _cts;
 
@@ -43,21 +45,23 @@ public sealed class NewFile
       ILogger<NewFile> logger,
       IRepository repository,
       IState state,
-      IView view,
+      Func<IView> viewFactory,
       string name)
    {
       _logger = logger;
       _state = state;
       _repository = repository;
-      _view = view;
+      _view = viewFactory();
       _name = name;
 
       _cts = new();
 
       _content = new();
+      
+      Publish(_view);
    }
    
-   public async Task StartAsync()
+   public async Task Activate()
    {
       while (true)
       {
@@ -99,14 +103,15 @@ public sealed class NewFile
       }
    }
 
-   public Task StopAsync()
+   public Task Deactivate()
    {
       _cts.Cancel();
       return Task.CompletedTask;
    }
 
-   public IReadOnlyList<string> Suggestions(
-      string input)
+   public IReadOnlyList<string> Get(
+      string input,
+      int position)
    {
       return new[]
          {
@@ -140,7 +145,7 @@ public sealed class NewFile
 public sealed class NewFileFactory(
       ILoggerFactory loggerFactory,
       IState state,
-      IView view)
+      Func<IView> viewFactory)
    : INewFileFactory
 {
    public INewFile Create(
@@ -151,7 +156,7 @@ public sealed class NewFileFactory(
          loggerFactory.CreateLogger<NewFile>(),
          repository,
          state,
-         view,
+         viewFactory,
          name);
    }
 }

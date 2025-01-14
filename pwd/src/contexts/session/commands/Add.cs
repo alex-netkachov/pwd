@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
-using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts.session.commands;
@@ -17,11 +17,12 @@ public sealed class Add(
    : CommandBase
 {
    public override async Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
-      var fileName = parameters.FirstOrDefault() ?? "";
+      var fileName = (parameters ?? []).FirstOrDefault() ?? "";
       if (fileName == "")
          return;
 

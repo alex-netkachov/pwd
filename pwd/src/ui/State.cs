@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using pwd.console.abstractions;
 using pwd.ui.abstractions;
 
 namespace pwd.ui;
@@ -18,13 +19,17 @@ public class State
       ImmutableList<Channel<IStateChange>> Subscribers);
 
    private readonly ILogger<State> _logger;
+   private readonly IPresenter _presenter;
 
    private StateInt _state;
 
    public State(
-      ILogger<State> logger)
+      ILogger<State> logger,
+      IPresenter presenter)
    {
       _logger = logger;
+      _presenter = presenter;
+
       _state = new(
          false,
          ImmutableStack<IContext>.Empty,
@@ -84,10 +89,10 @@ public class State
          break;
       }
 
-      await removed.StopAsync();
       removed.Dispose();
+
       if (active != null)
-         await active.StartAsync();
+         _presenter.Show(active);
    }
 
    public async Task OpenAsync(
@@ -98,7 +103,6 @@ public class State
          nameof(OpenAsync),
          context.GetType().Name);
 
-      IContext? previous;
       while (true)
       {
          var initial = _state;
@@ -107,20 +111,12 @@ public class State
          var updated = initial with { Stack = initial.Stack.Push(context) };
          if (initial != Interlocked.CompareExchange(ref _state, updated, initial))
             continue;
-         previous = initial.Stack.IsEmpty ? null : initial.Stack.Peek();
          break;
       }
 
-      if (previous != null)
-      {
-         _logger.LogInformation("stopping the context");
+      _logger.LogInformation("showing the context");
 
-         await previous.StopAsync();
-      }
-
-      _logger.LogInformation("starting the context");
-
-      await context.StartAsync();
+      _presenter.Show(context);
    }
 
    public async ValueTask DisposeAsync()
@@ -147,7 +143,7 @@ public class State
       }
 
       if (active != null)
-         await active.StopAsync();
+         active.Dispose();
 
       foreach (var context in contexts)
          context.Dispose();

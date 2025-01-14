@@ -2,9 +2,9 @@
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
-using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
@@ -30,11 +30,13 @@ public class Delete_Tests
       var command =
          new Delete(
             mockState.Object,
-            mockView.Object,
             repository.Object,
             "/test");
 
-      await command.ExecuteAsync("rm", []);
+      await command.ExecuteAsync(
+         mockView.Object,
+         "rm",
+         []);
       
       repository.Verify(m => m.Delete("/test"), Times.Once);
    }
@@ -55,7 +57,6 @@ public class Delete_Tests
       var factory =
          new Delete(
             Mock.Of<IState>(),
-            Mock.Of<IView>(),
             repository.Object,
             "/test");
 

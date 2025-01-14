@@ -1,10 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
 
@@ -21,17 +20,16 @@ public class Check_Tests
          .Setup(m => m.ReadTextAsync("/test"))
          .Returns(Task.FromResult(fileContent));
 
-      var mockView = new Mock<IView>();
+      var view = new Mock<IView>();
 
       var command =
          new Check(
-            mockView.Object,
             repository.Object,
             "/test");
 
-      await command.ExecuteAsync("check", []);
+      await command.ExecuteAsync(view.Object, "check", []);
 
-      mockView.Verify(
+      view.Verify(
          m => m.WriteLine(It.IsAny<string>()),
          Times.Exactly(errors));
    }
@@ -50,7 +48,6 @@ public class Check_Tests
    {
       var factory =
          new Check(
-            Mock.Of<IView>(),
             Mock.Of<IRepository>(),
             "/");
 

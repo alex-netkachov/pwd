@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
 using pwd.core.abstractions;
 using YamlDotNet.RepresentationModel;
@@ -19,8 +20,9 @@ public sealed class CopyField(
    private readonly string _content = "";
 
    public override async Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
       switch (name)
@@ -32,7 +34,7 @@ public sealed class CopyField(
             await Copy("user");
             break;
          case "cc":
-            await Copy(parameters.ElementAtOrDefault(0) ?? "");
+            await Copy((parameters ?? []).ElementAtOrDefault(0) ?? "");
             break;
       }
    }

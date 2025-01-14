@@ -1,10 +1,8 @@
 ﻿using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
-using pwd.core;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
 
@@ -16,10 +14,12 @@ public class Help_Tests
       var mockView = new Mock<IView>();
 
       var command =
-         new Help(
-            mockView.Object);
+         new Help();
 
-      await command.ExecuteAsync("help", []);
+      await command.ExecuteAsync(
+         mockView.Object,
+         "help",
+         []);
 
       mockView.Verify(m => m.WriteLine(It.IsAny<string>()), Times.Once);
    }
@@ -36,8 +36,7 @@ public class Help_Tests
       string suggestions)
    {
       var factory =
-         new Help(
-            Mock.Of<IView>());
+         new Help();
 
       Assert.That(
          factory.Suggestions(input),

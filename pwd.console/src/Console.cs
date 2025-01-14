@@ -1,6 +1,8 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
-using pwd.console.delegated;
+using System.Threading;
+using System.Threading.Tasks;
 using pwd.console.abstractions;
 
 namespace pwd.console;
@@ -9,17 +11,15 @@ public sealed class Console
    : IConsole,
      IDisposable
 {
-   private record State(
-      bool Disposed,
-      ImmutableList<IObserver<ConsoleKeyInfo>> Observers);
+   private readonly Lock _lock = new();
 
-   private State _state;
+   private bool _disposed;
+   private readonly List<Action<ConsoleKeyInfo>> _observers = [];
+   private Action<ConsoleKeyInfo>? _interceptor;
    private readonly CancellationTokenSource _cts;
 
    public Console()
    {
-      _state = new(false, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
-
       _cts = new();
 
       var token = _cts.Token;
@@ -41,56 +41,73 @@ public sealed class Console
                break;
 
             var key = System.Console.ReadKey(true);
-            var state = _state;
-            foreach (var item in state.Observers)
-               item.OnNext(key);
+
+            lock (_lock)
+            {
+               foreach (var item in _observers)
+                  item.Invoke(key);
+               _interceptor?.Invoke(key);
+            }
          }
       }, token);
    }
 
    public int BufferWidth => System.Console.BufferWidth;
    
+   public int BufferHeight => System.Console.BufferHeight;
+
    public void Dispose()
    {
-      State initial, updated;
-      do
+      lock (_lock)
       {
-         initial = _state;
-         if (initial.Disposed)
+         if (_disposed)
             return;
-         updated = new State(true, ImmutableList<IObserver<ConsoleKeyInfo>>.Empty);
-      } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+
+         _disposed = true;
+      }
 
       _cts.Cancel();
       _cts.Dispose();
-      
-      foreach (var item in initial.Observers)
-         item.OnCompleted();
    }
    
-   public IDisposable Subscribe(
-      IObserver<ConsoleKeyInfo> observer)
+   public IDisposable Observe(
+      Action<ConsoleKeyInfo> action)
    {
+      lock (_lock)
       {
-         State initial, updated;
-         do
-         {
-            initial = _state;
-            ObjectDisposedException.ThrowIf(_state.Disposed, this);
-            updated = _state with { Observers = initial.Observers.Add(observer) };
-         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+         ObjectDisposedException.ThrowIf(_disposed, this);
+
+         _observers.Add(action);
       }
 
       return new Disposable(() =>
       {
-         State initial, updated;
-         do
+         lock (_lock)
          {
-            initial = _state;
-            if (initial.Disposed)
-               return;
-            updated = _state with { Observers = initial.Observers.Remove(observer) };
-         } while (initial != Interlocked.CompareExchange(ref _state, updated, initial));
+            _observers.Remove(action);
+         }
+      });
+   }
+   
+   public IDisposable Intercept(
+      Action<ConsoleKeyInfo> action)
+   {
+      lock (_lock)
+      {
+         ObjectDisposedException.ThrowIf(_disposed, this);
+
+         if (_interceptor != null)
+            throw new InvalidOperationException("Interceptor already set.");
+
+         _interceptor = action;
+      }
+
+      return new Disposable(() =>
+      {
+         lock (_lock)
+         {
+            _interceptor = null;
+         }
       });
    }
 
@@ -127,5 +144,53 @@ public sealed class Console
 
       // followed by the standard clear
       System.Console.Clear();
+   }
+}
+
+public static class ConsoleExtensions
+{
+   public static void WriteAndMoveBack(
+      this IConsole console,
+      string text)
+   {
+      var position = console.GetCursorPosition();
+      console.Write(text);
+      console.SetCursorPosition(position);
+   }
+   
+   public static void MoveLeft(
+      this IConsole console,
+      int steps)
+   {
+      var cursorPosition = console.GetCursorPosition();
+      var (left, top) = (cursorPosition.X, cursorPosition.Y);
+      for (var i = 0; i < steps; i++)
+      {
+         left--;
+         if (left != -1)
+            continue;
+         left = console.BufferWidth - 1;
+         top--;
+      }
+
+      console.SetCursorPosition(new(left, top));
+   }
+   
+   public static void MoveRight(
+      this IConsole console,
+      int steps)
+   {
+      var width = console.BufferWidth;
+      var cursorPosition = console.GetCursorPosition();
+      var (left, top) = (cursorPosition.X, cursorPosition.Y);
+      for (var i = 0; i < steps; i++)
+      {
+         left++;
+         if (left != width)
+            continue;
+         left = 0;
+         top++;
+      }
+      console.SetCursorPosition(new(left, top));
    }
 }

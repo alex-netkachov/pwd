@@ -6,7 +6,6 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using pwd.contexts.repl;
 using pwd.contexts.shared;
-using pwd.ui;
 using pwd.ui.abstractions;
 using YamlDotNet.RepresentationModel;
 
@@ -87,12 +86,11 @@ public static class Shared
    public static void CommandFactories(
       Dictionary<string, ICommand> commands,
       IState state,
-      ILock @lock,
-      IView view)
+      ILock @lock)
    {
-      commands.Add("clear", new Clear(view));
-      commands.Add("pwd", new Pwd(view));
-      commands.Add("lock", new shared.Lock(state, view, @lock));
+      commands.Add("clear", new Clear());
+      commands.Add("pwd", new Pwd());
+      commands.Add("lock", new shared.Lock(state, @lock));
       commands.Add("quit", new Quit(state));
    }
 }

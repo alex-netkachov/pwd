@@ -1,10 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
 
@@ -25,11 +24,13 @@ public class Print_Tests
 
       var command =
          new Print(
-            mockView.Object,
             repository.Object,
             "/test");
 
-      await command.ExecuteAsync("print", []);
+      await command.ExecuteAsync(
+         mockView.Object,
+         "print",
+         []);
       
       mockView.Verify(m => m.WriteLine(output), Times.Once);
    }
@@ -47,7 +48,6 @@ public class Print_Tests
    {
       var command =
          new Print(
-            Mock.Of<IView>(),
             Mock.Of<IRepository>(),
             "/");
 

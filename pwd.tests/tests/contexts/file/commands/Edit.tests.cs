@@ -1,17 +1,14 @@
 ﻿using System;
-using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
 using pwd.library.interfaced;
-using pwd.mocks;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
 
@@ -60,12 +57,12 @@ public class Edit_Tests
          new Edit(
             mockEnvironmentVariables.Object,
             mockRunner.Object,
-            mockView.Object,
             mockFileSystem,
             repository.Object,
             "/test");
 
       await command.ExecuteAsync(
+         mockView.Object,
          "edit",
          editor == "" ? [] : [editor]);
 

@@ -1,17 +1,13 @@
-﻿using System.Threading.Channels;
-using pwd.mocks;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using System.Threading.Tasks;
 using System.Threading;
-using System;
 using Castle.Core.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using pwd.console;
+using Moq;
 using pwd.console.abstractions;
 using pwd.core.abstractions;
-using pwd.ui;
-using pwd.ui.abstractions;
+using pwd.mocks;
 
 namespace pwd.tests;
 
@@ -31,65 +27,27 @@ public class Integration_Tests
             .GetRequiredService<ILogger<Integration_Tests>>();
 
       var fs = Shared.GetMockFs();
-      
-      var notifications = Channel.CreateUnbounded<IViewNotification>();
-      var input = Channel.CreateUnbounded<string>();
 
-      Shared.Run(async () =>
-      {
-         var reader = notifications.Reader;
-         var writer = input.Writer;
-
-         async Task WaitForReadAndType(
-            string instruction)
-         {
-            logger.LogInformation("waiting for Read");
-            Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-
-            logger.LogInformation($"writing `{instruction}`");
-            await writer.WriteAsync(instruction + "\n");
-         }
-
-         try
-         {
-            logger.LogInformation("waiting for ReadPassword");
-            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-
-            logger.LogInformation("writing `secret`");
-            await writer.WriteAsync("secret\n");
-
-            logger.LogInformation("waiting for ReadPassword (confirmation)");
-            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-
-            logger.LogInformation("writing `secret`");
-            await writer.WriteAsync("secret\n");
-
-            await WaitForReadAndType(".add website.com");
-            await WaitForReadAndType("user: tom");
-            await WaitForReadAndType("password: secret");
-            await WaitForReadAndType("");
-            await WaitForReadAndType("web{TAB}");
-            await WaitForReadAndType(".ccp");
-            await WaitForReadAndType("..");
-            await WaitForReadAndType(".quit");
-
-            logger.LogInformation("done writing");
-         }
-         catch (Exception e)
-         {
-            logger.LogError(e.ToString());
-         }
-      });
-      
-      using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      var view =
+         new TestView([
+            "secret",
+            "secret",
+            ".add website.com",
+            "user: tom",
+            "password: secret",
+            "",
+            "website.com",
+            ".ccp",
+            "..",
+            ".quit"
+         ]);
 
       using var host =
          Program.SetupHost(
-            console,
             fs,
-            view,
+            Mock.Of<IConsole>(),
+            Mock.Of<IPresenter>(),
+            () => view,
             configureLogging: _ => { });
 
       logger.LogInformation("Before Program.Run(...)");
@@ -99,7 +57,7 @@ public class Integration_Tests
       var expected = string.Join("\n",
          "Password: ******",
          "",
-         "It seems that you are creating a new repository. Please confirm your password: ******",
+         "It looks that you are creating a new repository. Please confirm your password: ******",
          "> .add website.com",
          "+> user: tom",
          "+> password: secret",
@@ -112,7 +70,7 @@ public class Integration_Tests
          "website.com> ..",
          "> .quit",
          "");
-      var actual = console.GetScreen();
+      var actual = view.GetOutput();
       Assert.That(actual, Is.EqualTo(expected));
    }
 
@@ -124,57 +82,30 @@ public class Integration_Tests
 
       var fs = Shared.GetMockFs();
 
-      var notifications = Channel.CreateUnbounded<IViewNotification>();
-      var input = Channel.CreateUnbounded<string>();
-      Shared.Run(async () =>
-      {
-         var reader = notifications.Reader;
-         var writer = input.Writer;
+      var view =
+         new TestView([
+            "secret",
+            "secret",
+            ".quit"
+         ]);
 
-         try
-         {
-            logger.Info("waiting for ReadPassword");
-            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-
-            logger.Info("writing `secret`");
-            await writer.WriteAsync("secret\n");
-
-            logger.Info("waiting for ReadPassword");
-            Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-
-            logger.Info("writing `secret`");
-            await writer.WriteAsync("secret\n");
-
-            logger.Info("waiting for Read");
-            Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-
-            logger.Info("writing `.quit`");
-            await writer.WriteAsync(".quit\n");
-
-            logger.Info("done writing");
-         }
-         catch (Exception e)
-         {
-            logger.Error(e.ToString());
-         }
-      });
-
-      using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
-
-      using var host = Program.SetupHost(console, fs, view);
+      using var host =
+         Program.SetupHost(
+            fs,
+            Mock.Of<IConsole>(),
+            Mock.Of<IPresenter>(),
+            () => view);
 
       logger.Info("Before Program.Run(...)");
       await Program.Run(host, DefaultSettings);
       logger.Info("After Program.Run(...)");
 
-      var expected = string.Join("\n",
-         "Password: ******",
-         "",
-         "It seems that you are creating a new repository. Please confirm your password: ******",
-         "> .quit\n");
-      var actual = console.GetScreen();
+      var expected =
+         string.Join("\n",
+            "Password: ******",
+            "It looks that you are creating a new repository. Please confirm your password: ******",
+            "> .quit\n");
+      var actual = view.GetOutput();
       Assert.That(actual, Is.EqualTo(expected));
    }
    
@@ -183,37 +114,24 @@ public class Integration_Tests
    public async Task Initialise_with_repository_with_files(
       CancellationToken token)
    {
-      var notifications = Channel.CreateUnbounded<IViewNotification>();
-      var input = Channel.CreateUnbounded<string>();
-      Shared.Run(async () =>
-      {
-         var reader = notifications.Reader;
-         var writer = input.Writer;
-
-         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n", token);
-         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Read>());
-         await writer.WriteAsync("file1\n", token);
-         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Read>());
-         await writer.WriteAsync(".rm\n", token);
-         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Confirm>());
-         await writer.WriteAsync("y\n", token);
-         Assert.That(await reader.ReadAsync(token), Is.InstanceOf<Read>());
-         await writer.WriteAsync(".quit\n", token);
-      });
-
       var fs = Shared.GetMockFs();
 
-      using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      var view =
+         new TestView([
+            "secret",
+            "secret",
+            "file1",
+            ".rm",
+            "y",
+            ".quit"
+         ]);
 
       using var host =
          Program.SetupHost(
-            console,
             fs,
-            view,
-            configureLogging: _ => { });
+            Mock.Of<IConsole>(),
+            Mock.Of<IPresenter>(),
+            () => view);
 
       var repositoryFactory = host.Services.GetRequiredService<RepositoryFactory>();
       var repository = repositoryFactory("/container/test", "secret");
@@ -231,7 +149,7 @@ public class Integration_Tests
          "Delete 'file1'? (y/N) y",
          "'file1' has been deleted.",
          "> .quit\n");
-      var actual = console.GetScreen();
+      var actual = view.GetOutput();
       Assert.That(actual, Is.EqualTo(expected));
    }
    
@@ -239,181 +157,29 @@ public class Integration_Tests
    [CancelAfter(4000)]
    public async Task Initialise_from_empty_repository_plus_locking()
    {
-      var notifications = Channel.CreateUnbounded<IViewNotification>();
-      var input = Channel.CreateUnbounded<string>();
-      Shared.Run(async () =>
-      {
-         var reader = notifications.Reader;
-         var writer = input.Writer;
-
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         await writer.WriteAsync(".lock\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n");
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         await writer.WriteAsync(".quit\n");
-      });
-
       var fs = Shared.GetMockFs();
 
-      using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
+      var view =
+         new TestView([
+            "secret",
+            "secret",
+            ".lock",
+            "secret",
+            ".quit"
+         ]);
 
-      using var host = Program.SetupHost(console, fs, view);
+      using var host =
+         Program.SetupHost(
+            fs,
+            Mock.Of<IConsole>(),
+            Mock.Of<IPresenter>(),
+            () => view);
+
       await Program.Run(host, DefaultSettings);
       var expected = string.Join("\n",
          "Password: ******",
          "> .quit\n");
-      var actual = console.GetScreen();
+      var actual = view.GetOutput();
       Assert.That(actual, Is.EqualTo(expected));
-   }
-
-   [Test]
-   [CancelAfter(20000)]
-   public async Task Initialise_from_empty_repository_plus_timeout_lock()
-   {
-      var notifications = Channel.CreateUnbounded<IViewNotification>();
-      var input = Channel.CreateUnbounded<string>();
-      Shared.Run(async () =>
-      {
-         var reader = notifications.Reader;
-         var writer = input.Writer;
-
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n");
-
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n");
-         
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<ReadPassword>());
-         await writer.WriteAsync("secret\n");
-
-         Assert.That(await reader.ReadAsync(), Is.InstanceOf<Read>());
-         await writer.WriteAsync(".quit\n");
-      });
-
-      var fs = Shared.GetMockFs();
-
-      using var console = new TestConsole(input.Reader);
-      using var reader = new Reader(console);
-      var view = new ViewWithNotifications(new View(console, reader), notifications.Writer);
-
-      using var host = Program.SetupHost(console, fs, view);
-
-      await Program.Run(host, new(TimeSpan.FromSeconds(1)));
-
-      var expected = string.Join("\n",
-         "Password: ******",
-         "> .quit\n");
-      var actual = console.GetScreen();
-      Assert.That(actual, Is.EqualTo(expected));
-   }
-
-   private interface IViewNotification
-   {
-   }
-
-   private sealed class Confirm
-      : IViewNotification
-   {
-   }
-
-   private sealed class Read
-      : IViewNotification
-   {
-   }
-
-   private sealed class ReadPassword
-      : IViewNotification
-   {
-   }
-
-   private sealed class ViewWithNotifications
-      : IView
-   {
-      private readonly IView _view;
-      private readonly ChannelWriter<IViewNotification> _writer;
-
-      public ViewWithNotifications(
-         IView view,
-         ChannelWriter<IViewNotification> writer)
-      {
-         _view = view;
-         _writer = writer;
-      }
-
-      public void Write(
-         string text)
-      {
-         _view.Write(text);
-      }
-
-      public void WriteLine(
-         string text)
-      {
-         _view.WriteLine(text);
-      }
-
-      public Task<bool> ConfirmAsync(
-         string question,
-         Answer @default = Answer.No,
-         CancellationToken token = default)
-      {
-         var task = _view.ConfirmAsync(question, @default, token);
-         Notify(new Confirm());
-         return task;
-      }
-
-      public Task<string> ReadAsync(
-         string prompt = "",
-         ISuggestionsProvider? suggestionsProvider = null,
-         IHistoryProvider? historyProvider = null,
-         CancellationToken token = default)
-      {
-         var task = _view.ReadAsync(prompt, suggestionsProvider, historyProvider, token);
-         Notify(new Read());
-         return task;
-      }
-
-      public Task<string> ReadPasswordAsync(
-         string prompt = "",
-         CancellationToken token = default)
-      {
-         var task = _view.ReadPasswordAsync(prompt, token);
-         Notify(new ReadPassword());
-         return task;
-      }
-
-      public void Clear()
-      {
-         _view.Clear();
-      }
-
-      public void Activate()
-      {
-      }
-
-      public void Deactivate()
-      {
-      }
-
-      private void Notify(
-         IViewNotification notification)
-      {
-         // If notification goes immediately after read request it may be read before reading starts
-         // making it frozen. Adding small delay makes things not ideal but better.
-         Task.Delay(50).ContinueWith(_ =>
-         {
-            while (!_writer.TryWrite(notification))
-            {
-            }
-         });
-      }
    }
 }

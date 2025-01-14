@@ -4,19 +4,18 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.contexts.session.commands;
 
-public sealed class Help(
-      IView view)
+public sealed class Help
    : CommandBase
 {
    public override async Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
       await using var stream =

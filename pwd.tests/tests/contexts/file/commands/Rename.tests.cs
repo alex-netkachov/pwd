@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
 
@@ -20,7 +21,10 @@ public class Rename_Tests
             repository.Object,
             "/test");
 
-      await command.ExecuteAsync("rename", ["ok"]);
+      await command.ExecuteAsync(
+         Mock.Of<IView>(),
+         "rename",
+         ["ok"]);
       
       repository.Verify(
          m => m.Move("/test", "ok"),

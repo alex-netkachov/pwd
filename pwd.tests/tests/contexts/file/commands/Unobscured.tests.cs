@@ -1,10 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
 using pwd.core.abstractions;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
 
@@ -24,11 +23,12 @@ public class Unobscured_Tests
 
       var command =
          new Unobscured(
-            mockView.Object,
             repository.Object,
             "/test");
 
-      await command.ExecuteAsync("unobscured", []);
+      await command.ExecuteAsync(
+         mockView.Object,
+         "unobscured");
       
       mockView.Verify(m => m.WriteLine(content), Times.Once);
    }
@@ -46,7 +46,6 @@ public class Unobscured_Tests
    {
       var command =
          new Unobscured(
-            Mock.Of<IView>(),
             Mock.Of<IRepository>(),
             "/test");
 

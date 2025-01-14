@@ -25,7 +25,4 @@
     <ProjectReference Include="..\pwd.console\pwd.console.csproj" />
     <ProjectReference Include="..\pwd\pwd.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="tests\ui\readline\" />
-  </ItemGroup>
 </Project>

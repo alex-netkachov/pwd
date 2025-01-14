@@ -4,10 +4,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
 using pwd.contexts.file;
 using pwd.core.abstractions;
-using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts.session.commands;
@@ -17,23 +17,24 @@ public sealed class List(
       IRepository repository,
       IFileFactory fileFactory,
       ILock @lock,
-      IState state,
-      IView view)
+      IState state)
    : CommandBase
 {
    private readonly ILogger _logger = logger;
 
    public override Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
-      var match = parameters.FirstOrDefault() ?? "";
-      Exec(match, token);
+      var match = (parameters ?? []).FirstOrDefault() ?? "";
+      Exec(view, match, token);
       return Task.CompletedTask;
    }
 
    private Task Exec(
+      IView view,
       string input,
       CancellationToken token)
    {

@@ -60,6 +60,11 @@
           "System.Diagnostics.EventLog": "6.0.0"
         }
       },
+      "coverlet.collector": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "tW3lsNS+dAEII6YGUX/VMoJjBS1QvsxqJeqLaJXub08y1FSjasFPtQ4UBUsudE9PNrzLjooClMsPtY2cZLdXpQ=="
+      },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
         "resolved": "17.12.0",
@@ -420,6 +425,17 @@
       },
       "pwd.console": {
         "type": "Project"
+      },
+      "pwd.console.tests": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.NET.Test.Sdk": "[17.8.0, )",
+          "Moq": "[4.20.70, )",
+          "NUnit": "[4.1.0, )",
+          "NUnit3TestAdapter": "[4.5.0, )",
+          "coverlet.collector": "[6.0.0, )",
+          "pwd.console": "[1.0.0, )"
+        }
       },
       "pwd.core": {
         "type": "Project",

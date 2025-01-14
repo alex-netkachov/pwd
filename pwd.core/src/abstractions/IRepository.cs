@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
 namespace pwd.core.abstractions;
 
 public delegate IRepository RepositoryFactory(

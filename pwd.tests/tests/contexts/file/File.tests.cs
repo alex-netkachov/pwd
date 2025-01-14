@@ -1,8 +1,10 @@
+using System;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.core.abstractions;
-using pwd.ui;
+using pwd.mocks;
 using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file;
@@ -12,7 +14,7 @@ public class File_Tests
    [Test]
    public async Task empty_input_prints_the_content_with_obscured_passwords()
    {
-      var view = new Mock<IView>();
+      var firstView = new TestView([]);
 
       var repository = new Mock<IRepository>();
       repository
@@ -21,11 +23,16 @@ public class File_Tests
 
       var file =
          Shared.CreateFileContext(
-            view: view.Object,
+            view: firstView,
             repository: repository.Object);
 
-      await file.ProcessAsync("");
-      view.Verify(m => m.WriteLine("password: ************"), Times.Once);
+      var view = new TestView([]);
+
+      await file.ProcessAsync(view, "");
+
+      Assert.That(
+         view.GetOutput(),
+         Is.EqualTo("password: ************\n"));
    }
    
    [Test]
@@ -33,16 +40,22 @@ public class File_Tests
    {
       var state = new Mock<IState>();
       var file = Shared.CreateFileContext(state: state.Object);
-      await file.ProcessAsync("..");
+      await file.ProcessAsync(Mock.Of<IView>(), "..");
       state.Verify(m => m.BackAsync(), Times.Once);
    }
 
    [Test]
    public async Task help_prints_the_content_of_the_help_file()
    {
-      var view = new Mock<IView>();
-      var file = Shared.CreateFileContext(view: view.Object, content: "password: secret");
-      await file.ProcessAsync(".help");
-      view.Verify(m => m.WriteLine(It.IsRegex(@"\.help")), Times.Once);
+      var firstView = new TestView([]);
+      var file = Shared.CreateFileContext(view: firstView, content: "password: secret");
+
+      var view = new TestView([]);
+      await file.ProcessAsync(view, ".help");
+      Assert.That(
+         view
+            .GetOutput()
+            .StartsWith("Commands:", StringComparison.Ordinal),
+         Is.True);
    }
 }

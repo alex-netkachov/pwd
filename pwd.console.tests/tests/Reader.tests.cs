@@ -1,6 +1,12 @@
-﻿using System.Threading.Channels;
+﻿using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using Moq;
 using pwd.console.abstractions;
+using pwd.console.readers;
+using pwd.console.mocks;
 
 namespace pwd.console.tests;
 
@@ -16,31 +22,30 @@ public sealed class Reader_Tests
       string keys,
       string expected)
    {
-      var channel = Channel.CreateUnbounded<string>();
-
-      _ =
-         new Func<Task>(async () =>
-         {
-            await Task.Delay(100);
-            await channel.Writer.WriteAsync(keys);
-         }).Invoke();
-
-      using var console = new TestConsole(channel.Reader);
-      var reader = new Reader(console);
-      var input = await reader.ReadAsync();
+      using var console = new TestConsole([keys]);
+      var reader = new CommandReader(console);
+      var input =
+         await reader.ReadAsync(
+            "",
+            CancellationToken.None);
       Assert.That(input, Is.EqualTo(expected));
    }
 
    [Test]
    public void Disposing_reader_cancels_reading()
    {
-      var channel = Channel.CreateUnbounded<string>();
-      var reader = new Reader(new TestConsole(channel.Reader));
-      var task1 = reader.ReadAsync();
-      var task2 = reader.ReadAsync();
+      var reader =
+         new CommandReader(
+            new TestConsole());
+
+      var input =
+         reader.ReadAsync(
+            "",
+            CancellationToken.None);
+
       reader.Dispose();
-      Assert.That(task1.IsCanceled);
-      Assert.That(task2.IsCanceled);
+
+      Assert.That(input.IsCanceled);
    }
 
    [TestCase("{TAB}\n", "test1")]
@@ -56,23 +61,26 @@ public sealed class Reader_Tests
       string expected)
    {
       var channel = Channel.CreateUnbounded<string>();
-      var reader = new Reader(new TestConsole(channel.Reader));
-      var mockSuggestionsProvider = new Mock<ISuggestionsProvider>();
-      mockSuggestionsProvider
-         .Setup(m => m!.Suggestions(It.IsAny<string>()))
-         .Returns<string>(input =>
+      var suggestions = new Mock<ISuggestions>();
+      suggestions
+         .Setup(m => m.Get(It.IsAny<string>(), It.IsAny<int>()))
+         .Returns<string, int>((input, position) =>
          {
             return new[] { "test1", "test2", "ok" }
                .Where(item => item.StartsWith(input, StringComparison.OrdinalIgnoreCase))
                .ToList();
          });
-      var inputTask = reader.ReadAsync(suggestionsProvider: mockSuggestionsProvider.Object);
 
-      await Task.Delay(100);
-      await channel.Writer.WriteAsync(keys);
+      var reader =
+         new CommandReader(
+            new TestConsole([keys]),
+            suggestions.Object);
 
-      var input = await inputTask;
-      
-      Assert.That(input, Is.EqualTo(expected));
+      var input =
+         reader.ReadAsync(
+            "",
+            CancellationToken.None);
+
+      Assert.That(input.Result, Is.EqualTo(expected));
    }
 }

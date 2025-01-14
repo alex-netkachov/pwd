@@ -31,9 +31,10 @@ public record Settings(
 public static class Program
 {
    internal static IHost SetupHost(
-         IConsole console,
          IFileSystem fs,
-         IView view,
+         IConsole console, 
+         IPresenter presenter,
+         Func<IView> viewFactory,
          Action<ILoggingBuilder>? configureLogging = null)
    {
       var builder = Host.CreateDefaultBuilder();
@@ -45,13 +46,14 @@ public static class Program
                   configureLogging
                   ?? (loggingBuilder => loggingBuilder.ClearProviders()))
                .AddSingleton(fs)
-               .AddSingleton(view)
                .AddSingleton(console)
+               .AddSingleton(presenter)
                .AddSingleton<IRunner, Runner>()
                .AddSingleton<Func<Action, ITimer>>(_ => action => new Timer(_ => action()))
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IState, State>()
                .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
+               .AddSingleton<Func<IView>>(_ => viewFactory)
                .AddSingleton<RepositoryFactory>(
                   provider =>
                      (path, password) =>
@@ -77,10 +79,11 @@ public static class Program
 
       var host = builder.Build();
 
-      TaskScheduler.UnobservedTaskException += (sender, args) =>
-      {
-         console.WriteLine(args.Exception.ToString());
-      };
+      TaskScheduler.UnobservedTaskException +=
+         (_, args) =>
+         {
+            System.Console.WriteLine(args.Exception.ToString());
+         };
 
       return host;
    }
@@ -92,7 +95,9 @@ public static class Program
       var services = host.Services;
 
       var fs = services.GetRequiredService<IFileSystem>();
-      var view = services.GetRequiredService<IView>();
+      var presenter = services.GetRequiredService<IPresenter>();
+      var view = services.GetRequiredService<Func<IView>>().Invoke();
+      presenter.Show(view);
 
       // read the password and initialise ciphers 
       var password = await view.ReadPasswordAsync("Password: ");
@@ -145,7 +150,7 @@ public static class Program
       if (!existingRepository)
       {
          var confirmPassword =
-            await view.ReadPasswordAsync("It seems that you are creating a new repository. Please confirm your password: ");
+            await view.ReadPasswordAsync("It looks that you are creating a new repository. Please confirm your password: ");
          if (confirmPassword != password)
          {
             view.WriteLine("passwords do not match");
@@ -166,7 +171,12 @@ public static class Program
       string[] args)
    {
       var console = new Console();
-      var view = new View(console, new Reader(console));
+      var presenter = new Presenter(console);
+      
+      var view = new View();
+
+      presenter.Show(view);
+      
       var fs = new FileSystem();
 
       var isGitRepository =
@@ -186,7 +196,12 @@ public static class Program
          }
       }
 
-      using var host = SetupHost(console, fs, view);
+      using var host =
+         SetupHost(
+            fs,
+            console,
+            presenter,
+            () => new View());
 
       await Run(host, new(TimeSpan.FromMinutes(5)));
 

@@ -1,5 +1,6 @@
 ##
-# Publishes and runs pwd. Makes a repository in this folder if it doesn't exist.
+# Publishes and runs pwd. Opens the repository from the current folder
+# or creates a new one if it doesn't exist.
 #
 
 # Get the directory of the script

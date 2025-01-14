@@ -3,24 +3,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
-using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts.shared;
 
 public sealed class Lock(
       IState state,
-      IView view,
       ILock @lock)
    : CommandBase
 {
    public override async Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
-      var action = parameters.FirstOrDefault() ?? "";
+      var action = (parameters ?? []).FirstOrDefault() ?? "";
       switch (action)
       {
          case "disable":

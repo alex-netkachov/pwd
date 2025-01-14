@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using pwd.console;
 using pwd.console.abstractions;
 using pwd.ui.abstractions;
 
@@ -45,26 +46,84 @@ namespace pwd.contexts.repl;
 ///
 ///   The command can be stopped by pressing Ctrl+C.
 /// </remarks>
-public abstract class Repl(
+public abstract class Repl
+   : Views,
+     IContext,
+     ISuggestions
+{
+   private readonly object _lock = new { };
+
+   private readonly ILogger<Repl> _logger;
+   private readonly IReadOnlyDictionary<string, ICommand> _commands;
+   private readonly string _defaultCommand;
+
+   private readonly CancellationTokenSource _cts = new();
+   private bool _disposed;
+
+   protected Repl(
       ILogger<Repl> logger,
-      IView view,
+      Func<Task<IView?>> initialise,
+      Func<IView> viewFactory,
       IReadOnlyDictionary<string, ICommand> commands,
       string defaultCommand)
-   : IContext,
-     ISuggestionsProvider
-{
-   private record State(
-      TaskCompletionSource Starting,
-      TaskCompletionSource Stopped,
-      CancellationTokenSource Cancel);
+   {
+      _logger = logger;
+      _commands = commands;
+      _defaultCommand = defaultCommand;
 
-   private State? _state;
+      var token = _cts.Token;
+
+      Task.Run(async () =>
+      {
+         if (token.IsCancellationRequested)
+            return;
+
+         if (await initialise() is { } startView)
+         {
+            Publish(startView);
+         }
+
+         while (!token.IsCancellationRequested)
+         {
+            var view = viewFactory();
+
+            Publish(view);
+
+            string input;
+            try
+            {
+               var prompt = Prompt();
+
+               _logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
+
+               input = (await view.ReadAsync(new($"{prompt}> "), this, null, token)).Trim();
+
+               _logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
+            }
+            catch (Exception e)
+            {
+               _logger.LogError($"waiting for the user's input ended with the following exception: {e}");
+               continue;
+            }
+
+            try
+            {
+               await ProcessAsync(view, input, token);
+            }
+            catch (Exception e)
+            {
+               _logger.LogError($"Executing the command '{input}' ended with the following exception: {e}");
+            }
+         }
+      }, token);
+   }
 
    public async Task ProcessAsync(
+      IView view,
       string input,
       CancellationToken token = default)
    {
-      logger.LogInformation($"{nameof(ProcessAsync)}: processing '{input}'");
+      _logger.LogInformation($"{nameof(ProcessAsync)}: processing '{input}'");
 
       var parts = Shared.ParseCommand(input);
       if (string.IsNullOrEmpty(parts.Name))
@@ -72,22 +131,22 @@ public abstract class Repl(
          parts =
             input == ".."
                ? new("..", "up", [])
-               : (input, defaultCommand, input == "" ? [] : input.Split(' '));
+               : (input, defaultCommand: _defaultCommand, input == "" ? [] : input.Split(' '));
       }
 
       var command =
-         commands
+         _commands
             .FirstOrDefault(
                item => item.Key.Equals(parts.Name, StringComparison.OrdinalIgnoreCase))
             .Value;
       if (command == null)
       {
-         logger.LogInformation($"no commands for input '{input}'");
+         _logger.LogInformation($"no commands for input '{input}'");
          return;
       }
 
-      logger.LogInformation($"executing command {command}");
-      await command.ExecuteAsync(parts.Name, parts.Parameters, token);
+      _logger.LogInformation($"executing command {command}");
+      await command.ExecuteAsync(view, parts.Name, parts.Parameters, token);
    }
 
    protected virtual string Prompt()
@@ -95,102 +154,28 @@ public abstract class Repl(
       return "";
    }
 
-   public virtual Task StartAsync()
+   public virtual IReadOnlyList<string> Get(
+      string input,
+      int position)
    {
-      var initial = _state;
-      if (initial != null)
-         return initial.Starting.Task;
-      var state = new State(new(), new(), new());
-      var current = Interlocked.CompareExchange(ref _state, state, initial);
-      if (initial != current)
-      {
-         state.Cancel.Dispose();
-         return state.Starting.Task;
-      }
-
-      var token = state.Cancel.Token;
-
-      Task.Run(async () =>
-      {
-         while (!token.IsCancellationRequested)
-         {
-            string input;
-            try
-            {
-               var prompt = Prompt();
-
-               logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
-
-               input = (await view.ReadAsync(new($"{prompt}> "), this, null, token)).Trim();
-
-               logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
-            }
-            catch (OperationCanceledException e) when (e.CancellationToken == token)
-            {
-               // StopAsync() is called
-               logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...) has been cancelled");
-               break;
-            }
-            catch (Exception e)
-            {
-               logger.LogError($"waiting for the user's input ended with the following exception: {e}");
-               continue;
-            }
-
-            try
-            {
-               await ProcessAsync(input, token);
-            }
-            catch (TaskCanceledException e) when (e.CancellationToken == token)
-            {
-               // StopAsync() is called
-               break;
-            }
-            catch (Exception e)
-            {
-               logger.LogError($"Executing the command '{input}' ended with the following exception: {e}");
-            }
-         }
-
-         state.Stopped.TrySetResult();
-         state.Cancel.Dispose();
-      }, token);
-
-      state.Starting.SetResult();
-
-      return state.Starting.Task;
-   }
-
-   public virtual Task StopAsync()
-   {
-      State? state;
-      while (true)
-      {
-         state = _state;
-
-         if (state == null)
-            // this method is called for the already stopped context
-            return Task.CompletedTask;
-
-         if (state == Interlocked.CompareExchange(ref _state, null, state))
-            break;
-      }
-
-      state.Cancel.Cancel();
-      state.Cancel.Dispose();
-      return state.Stopped.Task;
-   }
-
-   public virtual IReadOnlyList<string> Suggestions(
-      string input)
-   {
-      return commands
+      return _commands
          .SelectMany(item => item.Value.Suggestions(input))
          .ToList();
    }
 
    public void Dispose()
    {
-      // empty
+      if (_disposed)
+         return;
+
+      lock (_lock)
+      {
+         if (_disposed)
+            return;
+
+         _disposed = true;
+         _cts.Cancel();
+         _cts.Dispose();
+      }
    }
 }

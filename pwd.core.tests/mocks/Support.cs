@@ -1,10 +1,12 @@
-﻿using System.IO.Abstractions;
+﻿using System;
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using pwd.core.abstractions;
 
-namespace pwd.core.tests;
+namespace pwd.core.mocks;
 
 public static class Support
 {

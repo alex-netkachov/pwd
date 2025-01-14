@@ -1,8 +1,8 @@
 ﻿using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using pwd.console.abstractions;
 using pwd.contexts.file.commands;
-using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.tests.contexts.file.commands;
@@ -18,7 +18,9 @@ public class Up_Tests
          new Up(
             mockState.Object);
 
-      await command.ExecuteAsync("..", []);
+      await command.ExecuteAsync(
+         Mock.Of<IView>(),
+         "..");
 
       mockState.Verify(m => m.BackAsync(), Times.Once);
    }

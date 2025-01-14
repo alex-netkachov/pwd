@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using pwd.console;
+using pwd.console.abstractions;
 using pwd.contexts;
 using pwd.contexts.file;
 using pwd.contexts.session;
@@ -16,7 +17,6 @@ using pwd.mocks;
 using pwd.core;
 using pwd.core.abstractions;
 using pwd.library.interfaced;
-using pwd.ui;
 using pwd.ui.abstractions;
 using Console = pwd.console.Console;
 
@@ -49,6 +49,8 @@ public static class Shared
                .AddSingleton(fs ?? Mock.Of<IFileSystem>())
                .AddSingleton(repository ?? Mock.Of<IRepository>())
                .AddSingleton(state ?? Mock.Of<IState>())
+               .AddSingleton(Mock.Of<IPresenter>())
+               .AddSingleton<Func<IView>>(_ => () => view ?? Mock.Of<IView>())
                .AddSingleton(view ?? Mock.Of<IView>())
                .AddSingleton(@lock ?? Mock.Of<ILock>())
                .AddSingleton<IFileFactory, FileFactory>());
@@ -56,7 +58,6 @@ public static class Shared
       using var host = builder.Build();
 
       return CreateFileContext(path, name, content, host);
-
    }
 
    private static File CreateFileContext(
@@ -97,6 +98,8 @@ public static class Shared
                .AddSingleton(view ?? Mock.Of<IView>())
                .AddSingleton(fileFactory ?? Mock.Of<IFileFactory>())
                .AddSingleton(newFileFactory ?? Mock.Of<INewFileFactory>())
+               .AddSingleton(Mock.Of<IPresenter>())
+               .AddSingleton<Func<IView>>(_ => () => view ?? Mock.Of<IView>())
                .AddSingleton(@lock ?? Mock.Of<ILock>())
                .AddSingleton<ISessionFactory, SessionFactory>());
 
@@ -157,7 +160,8 @@ public static class Shared
    {
       var fs = GetMockFs().FileLayout1();
       var console = new Console();
-      var view = new View(console, new Reader(console));
+      var view = new View();
+      view.Activate(console);
 
       var repository =
          new FolderRepository(
@@ -169,14 +173,14 @@ public static class Shared
             "");
 
       var session = CreateSessionContext(Mock.Of<ILogger>(), repository, view: view);
-      Assert.That(string.Join(";", session.Suggestions("../")), Is.EqualTo("../test"));
-      Assert.That(string.Join(";", session.Suggestions("")), Is.EqualTo("encrypted;regular_dir"));
-      Assert.That(string.Join(";", session.Suggestions("enc")), Is.EqualTo("encrypted"));
-      Assert.That(string.Join(";", session.Suggestions("encrypted")), Is.EqualTo("encrypted"));
-      Assert.That(string.Join(";", session.Suggestions("regular_dir")), Is.EqualTo("regular_dir"));
-      Assert.That(string.Join(";", session.Suggestions("regular_dir/")), Is.EqualTo("regular_dir/encrypted"));
-      Assert.That(string.Join(";", session.Suggestions("regular_dir/enc")), Is.EqualTo("regular_dir/encrypted"));
-      Assert.That(string.Join(";", session.Suggestions("regular_dir/encrypted")), Is.EqualTo("regular_dir/encrypted"));
+      Assert.That(string.Join(";", session.Get("../", -1)), Is.EqualTo("../test"));
+      Assert.That(string.Join(";", session.Get("", -1)), Is.EqualTo("encrypted;regular_dir"));
+      Assert.That(string.Join(";", session.Get("enc", -1)), Is.EqualTo("encrypted"));
+      Assert.That(string.Join(";", session.Get("encrypted", -1)), Is.EqualTo("encrypted"));
+      Assert.That(string.Join(";", session.Get("regular_dir", -1)), Is.EqualTo("regular_dir"));
+      Assert.That(string.Join(";", session.Get("regular_dir/", -1)), Is.EqualTo("regular_dir/encrypted"));
+      Assert.That(string.Join(";", session.Get("regular_dir/enc", -1)), Is.EqualTo("regular_dir/encrypted"));
+      Assert.That(string.Join(";", session.Get("regular_dir/encrypted", -1)), Is.EqualTo("regular_dir/encrypted"));
    }
    
    public static void Run(

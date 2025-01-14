@@ -2,19 +2,18 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using pwd.console.abstractions;
 using pwd.contexts.repl;
-using pwd.ui;
-using pwd.ui.abstractions;
 
 namespace pwd.contexts.session.commands;
 
-public sealed class Export(
-      IView view)
+public sealed class Export
    : CommandBase
 {
    public override Task ExecuteAsync(
+      IView view,
       string name,
-      string[] parameters,
+      string[]? parameters = null,
       CancellationToken token = default)
    {
       view.WriteLine("Not implemented");
