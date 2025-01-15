@@ -180,14 +180,21 @@ public static class Program
             "yyyyMMdd_hhmmss",
             CultureInfo.InvariantCulture);
 
-      Log.Logger =
-         new LoggerConfiguration()
+      var loggerConfiguration =
+         new LoggerConfiguration();
+      
+      if (args.Contains("--debug"))
+      {
+         loggerConfiguration
             .MinimumLevel.Debug()
             .Enrich.FromLogContext()
             .WriteTo.File(
                $"pwd_{logSuffix}.log",
-               outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
-            .CreateLogger();
+               outputTemplate:
+               "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}");
+      }
+
+      Log.Logger = loggerConfiguration.CreateLogger();
 
       var console = new Console();
 

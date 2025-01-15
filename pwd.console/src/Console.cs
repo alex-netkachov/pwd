@@ -171,7 +171,6 @@ public static class ConsoleExtensions
       this IConsole console,
       string text)
    {
-      // TODO: if writing creates new line, move back to the previous line
       var position = console.GetCursorPosition();
       console.Write(text);
       console.SetCursorPosition(position);

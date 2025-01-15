@@ -2,14 +2,13 @@
 
 `pwd` is a cross-platform console-based password manager.
 
-It is a REPL (read-eval-print loop) tool. Passwords, along
-with other sensitive information such as keys or notes, are stored in
-AES-encrypted files.
+It helps you protect passwords and other sensitive information such as
+keys or notes by placing them in AES-encrypted files.
 
 Main features:
 
 - Encrypts your passwords, keys, and notes with AES.
-- Provides commands for accessing and managing encrypted files.
+- Provides a command-line tool (REPL) for accessing and managing encrypted files.
 - Cross-platform, meaning it functions wherever .NET is supported (Windows,
   macOS, Linux).
 - Free from vendor lock-in: the encrypted files can be managed with well-known

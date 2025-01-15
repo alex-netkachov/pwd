@@ -4,8 +4,8 @@ using System.Threading;
 namespace pwd.console;
 
 public class Disposable(
-      Action disposeAction,
-      Action? finaliseAction = null)
+      Action? dispose = null,
+      Action? finalise = null)
    : IDisposable
 {
    private int _disposed;
@@ -14,12 +14,12 @@ public class Disposable(
    {
       if (Interlocked.Increment(ref _disposed) > 1)
          return;
-      disposeAction();
+      dispose?.Invoke();
       GC.SuppressFinalize(this);
    }
 
    ~Disposable()
    {
-      finaliseAction?.Invoke();
+      finalise?.Invoke();
    }
 }

@@ -13,8 +13,7 @@ using pwd.ui.abstractions;
 namespace pwd.contexts.session.commands;
 
 /// <summary>
-///   Opens repository file, if the path is relative,
-///   or filesystem file, if the path is absolute (TODO).
+///   Opens repository file.
 /// </summary>
 public sealed class Open(
       ILogger<Open> logger,

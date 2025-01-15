@@ -7,8 +7,7 @@ namespace pwd.console;
 public class Presenter(
       ILogger<Presenter> logger,
       IConsole console)
-   : IPresenter,
-     IObserver<IView>
+   : IPresenter
 {
    private readonly object _lock = new { };
 
@@ -44,35 +43,31 @@ public class Presenter(
          _subscription?.Dispose();
          _view?.Deactivate();
          _view = null;
-         _subscription = views.Subscribe(this);
-      }
-   }
 
-   void IObserver<IView>.OnCompleted()
-   {
-      lock (_lock)
-      {
-         _subscription?.Dispose();
-      }
-   }
+         _subscription =
+            views.Subscribe(
+               new Observer<IView>(
+                  value =>
+                  {
+                     logger.LogDebug(
+                        "OnNext(IView {Id})",
+                        value.Id);
 
-   void IObserver<IView>.OnError(
-      Exception error)
-   {
-   }
-
-   void IObserver<IView>.OnNext(
-      IView value)
-   {
-      logger.LogDebug(
-         "OnNext({Id})",
-         value.Id);
-
-      lock (_lock)
-      {
-         _view?.Deactivate();
-         _view = value;
-         value.Activate(console);
+                     lock (_lock)
+                     {
+                        _view?.Deactivate();
+                        _view = value;
+                        value.Activate(console);
+                     }
+                  },
+                  _ => { },
+                  () =>
+                  {
+                     lock (_lock)
+                     {
+                        _subscription?.Dispose();
+                     }
+                  }));
       }
    }
 }

@@ -23,9 +23,6 @@ public sealed class PasswordReader(
 
    public void Dispose()
    {
-      if (_disposed)
-         return;
-
       lock (_lock)
       {
          if (_disposed)
@@ -50,13 +47,9 @@ public sealed class PasswordReader(
       string prompt,
       CancellationToken token)
    {
-      if (_disposed)
-         throw new ObjectDisposedException(nameof(PasswordReader));
-
       lock (_lock)
       {
-         if (_disposed)
-            throw new ObjectDisposedException(nameof(PasswordReader));
+         ObjectDisposedException.ThrowIf(_disposed, this);
          
          var promptTcs =
             new TaskCompletionSource<string>();

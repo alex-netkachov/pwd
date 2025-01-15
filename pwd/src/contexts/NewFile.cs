@@ -7,9 +7,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.console;
 using pwd.console.abstractions;
 using pwd.core.abstractions;
+using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts;
@@ -27,7 +27,7 @@ public interface INewFileFactory
 }
 
 public sealed class NewFile
-   : Views,
+   : ContextBase,
      INewFile,
      ISuggestions
 {
@@ -42,11 +42,12 @@ public sealed class NewFile
    private readonly string _name;
 
    public NewFile(
-      ILogger<NewFile> logger,
-      IRepository repository,
-      IState state,
-      Func<IView> viewFactory,
-      string name)
+         ILogger<NewFile> logger,
+         IRepository repository,
+         IState state,
+         Func<IView> viewFactory,
+         string name)
+      : base(logger)
    {
       _logger = logger;
       _state = state;
@@ -76,7 +77,6 @@ public sealed class NewFile
             break;
          }
 
-         // TODO: it does not look like this is the right wau to handle it
          if (input == ".quit")
             break;
 

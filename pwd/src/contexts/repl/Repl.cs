@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.console;
 using pwd.console.abstractions;
+using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts.repl;
@@ -51,7 +51,8 @@ public abstract class Repl(
       Func<IView> viewFactory,
       IReadOnlyDictionary<string, ICommand> commands,
       string defaultCommand)
-   : Views,
+   : ContextBase(
+         logger),
      IContext,
      ISuggestions
 {

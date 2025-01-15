@@ -3,8 +3,8 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using pwd.console;
 using pwd.console.abstractions;
+using pwd.ui;
 using pwd.ui.abstractions;
 
 namespace pwd.contexts;
@@ -34,11 +34,12 @@ public enum LockType
 }
 
 public sealed class Lock
-   : Views,
+   : ContextBase,
      ILock
 {
    private readonly ILogger _logger;
    private readonly IState _state;
+   private readonly Func<IView> _viewFactory;
    private readonly IView _view;
    private readonly string _password;
 
@@ -49,17 +50,18 @@ public sealed class Lock
    private string _lockToken;
 
    public Lock(
-      ILogger<Lock> logger,
-      IState state,
-      Func<IView> viewFactory,
-      IConsole console,
-      Func<Action, ITimer> timerFactory,
-      string password,
-      TimeSpan interactionTimeout)
+         ILogger<Lock> logger,
+         IState state,
+         Func<IView> viewFactory,
+         IConsole console,
+         Func<Action, ITimer> timerFactory,
+         string password,
+         TimeSpan interactionTimeout)
+      : base(logger)
    {
       _logger = logger;
       _state = state;
-      _view = viewFactory();
+      _viewFactory = viewFactory;
       _password = password;
       _interactionTimeout = interactionTimeout;
 
@@ -92,9 +94,33 @@ public sealed class Lock
       });
    }
    
-   public Task ExecuteAsync()
+   public async Task ExecuteAsync()
    {
-      return Task.CompletedTask;
+      while (true)
+      {
+         var view = _viewFactory();
+
+         Publish(view);
+
+         view.Clear();
+
+         var hint = _lockType switch
+         {
+            LockType.Password => "Password: ",
+            LockType.Pin => "Pin: ",
+            _ => ""
+         };
+
+         var token = await view.ReadPasswordAsync(hint);
+         if (token != _lockToken)
+            continue;
+
+         await _state.BackAsync();
+         break;
+      }
+      
+      // start watching again
+      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
    }
 
    public async Task Pin(
@@ -138,36 +164,6 @@ public sealed class Lock
          Timeout.InfiniteTimeSpan);
    }
 
-   public async Task Activate()
-   {
-      while (true)
-      {
-         _view.Clear();
-
-         var hint = _lockType switch
-         {
-            LockType.Password => "Password: ",
-            LockType.Pin => "Pin: ",
-            _ => ""
-         };
-
-         var token = await _view.ReadPasswordAsync(hint);
-         if (token != _lockToken)
-            continue;
-
-         await _state.BackAsync();
-         break;
-      }
-      
-      // start watching again
-      _idleTimer.Change(_interactionTimeout, Timeout.InfiniteTimeSpan);
-   }
-
-   public Task Deactivate()
-   {
-      return Task.CompletedTask;
-   }
-   
    public void Dispose()
    {
    }

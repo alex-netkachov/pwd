@@ -25,8 +25,6 @@ public sealed class View(
    private IDisposable? _interceptorSubscription;
    private IDisposable? _observersSubscription;
    private IConsole? _console;
-   private Point _consolePosition = new(0, 0);
-   private Point _offset = new(0, 0);
    private bool _disposed;
    private readonly List<Action<ConsoleKeyInfo>> _observers = [];
    private Action<ConsoleKeyInfo>? _interceptor;
@@ -60,7 +58,6 @@ public sealed class View(
          _lines[y] = line[..x] + text + line[x..]; 
          _position = _position with { X = x + text.Length };
 
-         // console
          _console?.Write(value);
       }
    }
@@ -82,13 +79,7 @@ public sealed class View(
          _lines.Insert(y + 1, line[x..]);
          _position = _position with { Y = _position.Y + 1, X = 0 };
 
-         if (_console is { } console)
-         {
-            var consolePosition = console.GetCursorPosition();
-            console.WriteLine(text);
-            if (consolePosition.Y == console.BufferHeight - 1)
-               _consolePosition = _consolePosition with { Y = consolePosition.Y - 1 };
-         }
+         _console?.WriteLine(text);
       }
    }
 
@@ -104,12 +95,29 @@ public sealed class View(
       {
          ObjectDisposedException.ThrowIf(_disposed, this);
 
+         if (_position.Equals(point))
+            return;
+
+         if (_position.Y != point.Y)
+         {
+            throw new NotSupportedException(
+               "Changing the cursor position vertically is not supported yet.");
+         }
+
+         var delta = point.X - _position.X;
+
          _position = point;
-         
+
          if (_console is { } console)
          {
-            console.SetCursorPosition(
-               GetConsolePosition());
+            if (point.X > console.BufferWidth)
+            {
+               throw new NotSupportedException(
+                  "Changing the cursor position in multiline input is not supported yet.");
+            }
+
+            var consolePosition = console.GetCursorPosition();
+            console.SetCursorPosition(consolePosition with { X = consolePosition.X + delta });
          }
       }
    }
@@ -119,6 +127,10 @@ public sealed class View(
       Answer @default = Answer.No,
       CancellationToken token = default)
    {
+      logger.LogDebug(
+         "ConfirmAsync: {question}",
+         question);
+
       CommandReader reader;
      
       lock (_lock)
@@ -168,6 +180,10 @@ public sealed class View(
       IHistory? history = null,
       CancellationToken token = default)
    {
+      logger.LogDebug(
+         "ReadAsync: {prompt}",
+         prompt);
+
       CommandReader reader;
       
       lock (_lock)
@@ -175,7 +191,10 @@ public sealed class View(
          ObjectDisposedException.ThrowIf(_disposed, this);
 
          if (_reader != null)
-            throw new InvalidOperationException("Another operation is in progress.");
+         {
+            throw new InvalidOperationException(
+               "Another operation is in progress.");
+         }
 
          reader =
             new CommandReader(
@@ -209,6 +228,10 @@ public sealed class View(
       string prompt = "",
       CancellationToken token = default)
    {
+      logger.LogDebug(
+         "ReadPasswordAsync: {prompt}",
+         prompt);
+
       PasswordReader reader;
 
       lock (_lock)
@@ -216,7 +239,10 @@ public sealed class View(
          ObjectDisposedException.ThrowIf(_disposed, this);
 
          if (_reader != null)
-            throw new InvalidOperationException("Another operation is in progress.");
+         {
+            throw new InvalidOperationException(
+               "Another operation is in progress.");
+         }
 
          reader = new PasswordReader(this);
 
@@ -328,21 +354,20 @@ public sealed class View(
          if (_clear)
             console.Clear();
          
-         _consolePosition = console.GetCursorPosition();
-         _offset = new(0, 0);
-
          for (var i = 0; i < _lines.Count - 1; i++)
          {
             var item = _lines[i];
             if (!string.IsNullOrEmpty(item))
                console.Write(item);
             console.WriteLine("");
-            if (_consolePosition.Y == console.BufferHeight - 1)
-               _consolePosition = _consolePosition with { Y = _consolePosition.Y - 1 };
          }
 
          if (!string.IsNullOrEmpty(_lines[^1]))
             console.Write(_lines[^1]);
+
+         var consolePosition = _console.GetCursorPosition();
+         _console.SetCursorPosition(
+            consolePosition with { X = _position.X });
 
          if (_observers.Count > 0)
          {
@@ -355,9 +380,6 @@ public sealed class View(
             _interceptorSubscription =
                console.Intercept(ProcessInterceptedKey);
          }
-
-         console.SetCursorPosition(
-            GetConsolePosition());
       }
    }
 
@@ -412,12 +434,5 @@ public sealed class View(
          foreach (var observer in _observers)
             observer.Invoke(key);
       }
-   }
-
-   private Point GetConsolePosition()
-   {
-      var (x, y) = (_position.X, _position.Y);
-      var (_, cy) = (_consolePosition.X, _consolePosition.Y);
-      return new(x, y + cy);
    }
 }

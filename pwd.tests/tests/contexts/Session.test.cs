@@ -78,7 +78,7 @@ public sealed class Session_Tests
 
       Assert.That(
          view.GetOutput(),
-         Is.EqualTo($"{text}\n{name}> "));
+         Is.EqualTo($"{text}\n"));
    }
    
    private static void CreateFoldersAndFiles(
