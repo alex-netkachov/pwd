@@ -22,11 +22,21 @@ public sealed class Reader_Tests
       string keys,
       string expected)
    {
-      using var console = new TestConsole([keys]);
+      using var console = new TestConsole();
+
       var reader = new CommandReader(console);
+
+      using var contentSubscription =
+         console.Subscribe(
+            (sender, content) =>
+            {
+               if (content[^1] == "> ")
+                  sender.SendKeys(keys);
+            });
+
       var input =
          await reader.ReadAsync(
-            "",
+            "> ",
             CancellationToken.None);
       Assert.That(input, Is.EqualTo(expected));
    }
@@ -60,7 +70,6 @@ public sealed class Reader_Tests
       string keys,
       string expected)
    {
-      var channel = Channel.CreateUnbounded<string>();
       var suggestions = new Mock<ISuggestions>();
       suggestions
          .Setup(m => m.Get(It.IsAny<string>(), It.IsAny<int>()))
@@ -71,16 +80,28 @@ public sealed class Reader_Tests
                .ToList();
          });
 
+      using var console = new TestConsole();
+      
+      using var contentSubscription =
+         console.Subscribe(
+            (sender, content) =>
+            {
+               if (content[^1] == "> ")
+                  sender.SendKeys(keys);
+            });
+
       var reader =
          new CommandReader(
-            new TestConsole([keys]),
+            console,
             suggestions.Object);
 
       var input =
-         reader.ReadAsync(
-            "",
+         await reader.ReadAsync(
+            "> ",
             CancellationToken.None);
 
-      Assert.That(input.Result, Is.EqualTo(expected));
+      Assert.That(
+         input,
+         Is.EqualTo(expected));
    }
 }

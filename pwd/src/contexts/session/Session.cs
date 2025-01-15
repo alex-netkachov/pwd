@@ -40,14 +40,13 @@ public sealed class Session
          string defaultCommand)
       : base(
          logger,
-         () => Task.FromResult(default(IView)),
          viewFactory,
          factories,
          defaultCommand)
    {
       _repository = repository;
    }
-
+   
    public override IReadOnlyList<string> Get(
       string input,
       int position)

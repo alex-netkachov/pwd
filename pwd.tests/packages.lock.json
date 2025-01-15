@@ -60,11 +60,6 @@
           "System.Diagnostics.EventLog": "6.0.0"
         }
       },
-      "coverlet.collector": {
-        "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "tW3lsNS+dAEII6YGUX/VMoJjBS1QvsxqJeqLaJXub08y1FSjasFPtQ4UBUsudE9PNrzLjooClMsPtY2cZLdXpQ=="
-      },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
         "resolved": "17.12.0",
@@ -358,6 +353,28 @@
         "resolved": "13.0.1",
         "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
       },
+      "Serilog": {
+        "type": "Transitive",
+        "resolved": "4.2.0",
+        "contentHash": "gmoWVOvKgbME8TYR+gwMf7osROiWAURterc6Rt2dQyX7wtjZYpqFiA/pY6ztjGQKKV62GGCyOcmtP1UKMHgSmA=="
+      },
+      "Serilog.Extensions.Logging": {
+        "type": "Transitive",
+        "resolved": "9.0.0",
+        "contentHash": "NwSSYqPJeKNzl5AuXVHpGbr6PkZJFlNa14CdIebVjK3k/76kYj/mz5kiTRNVSsSaxM8kAIa1kpy/qyT9E4npRQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "9.0.0",
+          "Serilog": "4.2.0"
+        }
+      },
+      "Serilog.Sinks.File": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "lxjg89Y8gJMmFxVkbZ+qDgjl+T4yC5F7WSLTvA+5q0R04tfKVLRL/EHpYoJ/MEQd2EeCKDuylBIVnAYMotmh2A==",
+        "dependencies": {
+          "Serilog": "4.0.0"
+        }
+      },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
         "resolved": "9.0.0",
@@ -416,6 +433,9 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Hosting": "[9.0.0, )",
+          "Serilog": "[4.2.0, )",
+          "Serilog.Extensions.Logging": "[9.0.0, )",
+          "Serilog.Sinks.File": "[6.0.0, )",
           "System.IO.Abstractions": "[21.1.7, )",
           "System.IO.Abstractions.TestingHelpers": "[21.1.7, )",
           "YamlDotNet": "[16.2.1, )",
@@ -424,17 +444,9 @@
         }
       },
       "pwd.console": {
-        "type": "Project"
-      },
-      "pwd.console.tests": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.NET.Test.Sdk": "[17.8.0, )",
-          "Moq": "[4.20.70, )",
-          "NUnit": "[4.1.0, )",
-          "NUnit3TestAdapter": "[4.5.0, )",
-          "coverlet.collector": "[6.0.0, )",
-          "pwd.console": "[1.0.0, )"
+          "Microsoft.Extensions.Logging.Abstractions": "[9.0.0, )"
         }
       },
       "pwd.core": {

@@ -114,6 +114,8 @@ public class State
          break;
       }
 
+      _ = context.ExecuteAsync();
+
       _logger.LogInformation("showing the context");
 
       _presenter.Show(context);

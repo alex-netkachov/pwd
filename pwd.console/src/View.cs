@@ -1,30 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using pwd.console.abstractions;
 using pwd.console.readers;
 
 namespace pwd.console;
 
-public sealed class View
+public sealed class View(
+      ILogger<View> logger,
+      string id)
    : IView,
      IDisposable
 {
-   private readonly object _lock = new { };
-
+   private readonly Lock _lock = new();
    private readonly CancellationTokenSource _cts = new();
-   private readonly List<List<string>> _lines = [[]];
    private bool _clear;
+   private readonly List<string> _lines = [""];
    private Point _position = new(0, 0);
    private IReader? _reader;
    private IDisposable? _interceptorSubscription;
    private IDisposable? _observersSubscription;
    private IConsole? _console;
+   private Point _consolePosition = new(0, 0);
+   private Point _offset = new(0, 0);
    private bool _disposed;
    private readonly List<Action<ConsoleKeyInfo>> _observers = [];
    private Action<ConsoleKeyInfo>? _interceptor;
+
+   public string Id => id;
 
    public int BufferWidth => -1;
 
@@ -37,13 +44,21 @@ public sealed class View
       {
          ObjectDisposedException.ThrowIf(_disposed, this);
 
+         if (value == null)
+            return;
+
          var text =
-            Convert.ToString(value)
-            ?? "";
+            Convert.ToString(
+               value,
+               CultureInfo.InvariantCulture);
 
-         _lines[^1].Add(text);
+         if (string.IsNullOrEmpty(text))
+            return;
 
-         _position = _position with { X = _position.X + text.Length };
+         var (x, y) = (_position.X, _position.Y);
+         var line = _lines[y];
+         _lines[y] = line[..x] + text + line[x..]; 
+         _position = _position with { X = x + text.Length };
 
          // console
          _console?.Write(value);
@@ -61,13 +76,19 @@ public sealed class View
             Convert.ToString(value)
             ?? "";
 
-         _lines[^1].Add(text);
-         _lines.Add([]);
-
+         var (x, y) = (_position.X, _position.Y);
+         var line = _lines[y];
+         _lines[y] = line[..x] + text;
+         _lines.Insert(y + 1, line[x..]);
          _position = _position with { Y = _position.Y + 1, X = 0 };
 
-         // console
-         _console?.WriteLine(text);
+         if (_console is { } console)
+         {
+            var consolePosition = console.GetCursorPosition();
+            console.WriteLine(text);
+            if (consolePosition.Y == console.BufferHeight - 1)
+               _consolePosition = _consolePosition with { Y = consolePosition.Y - 1 };
+         }
       }
    }
 
@@ -85,7 +106,11 @@ public sealed class View
 
          _position = point;
          
-         // TODO: console
+         if (_console is { } console)
+         {
+            console.SetCursorPosition(
+               GetConsolePosition());
+         }
       }
    }
 
@@ -102,7 +127,9 @@ public sealed class View
 
          if (_reader != null)
             throw new InvalidOperationException("Another operation is in progress.");
+
          reader = new CommandReader(this);
+
          _reader = reader;
       }
       
@@ -131,10 +158,7 @@ public sealed class View
       }
       finally
       {
-         lock (_lock)
-         {
-            _reader = null;
-         }
+         _reader = null;
       }
    }
 
@@ -177,10 +201,7 @@ public sealed class View
       }
       finally
       {
-         lock (_lock)
-         {
-            _reader = null;
-         }
+         _reader = null;
       }
    }
 
@@ -217,10 +238,7 @@ public sealed class View
       }
       finally
       {
-         lock (_lock)
-         {
-            _reader = null;
-         }
+         _reader = null;
       }
    }
 
@@ -228,8 +246,9 @@ public sealed class View
    {
       _clear = true;
       _lines.Clear();
-      _lines.Add([]);
-      
+      _lines.Add("");
+      _position = new(0, 0);
+
       _console?.Clear();
    }
 
@@ -242,8 +261,6 @@ public sealed class View
 
          _observers.Add(action);
          
-         // console
-
          if (_console is { } console
              && _observers.Count == 1)
          {
@@ -276,8 +293,6 @@ public sealed class View
 
          _interceptor = action;
          
-         // console
-
          if (_console is { } console)
          {
             _interceptorSubscription =
@@ -312,23 +327,22 @@ public sealed class View
 
          if (_clear)
             console.Clear();
+         
+         _consolePosition = console.GetCursorPosition();
+         _offset = new(0, 0);
 
-         for (var i = 0; i < _lines.Count - 2; i++)
+         for (var i = 0; i < _lines.Count - 1; i++)
          {
-            foreach (var item in _lines[i])
-            {
-               if (!string.IsNullOrEmpty(item))
-                  console.Write(_lines[i]);
-            }
-
-            console.WriteLine("");
-         }
-
-         foreach (var item in _lines[^1])
-         {
+            var item = _lines[i];
             if (!string.IsNullOrEmpty(item))
                console.Write(item);
+            console.WriteLine("");
+            if (_consolePosition.Y == console.BufferHeight - 1)
+               _consolePosition = _consolePosition with { Y = _consolePosition.Y - 1 };
          }
+
+         if (!string.IsNullOrEmpty(_lines[^1]))
+            console.Write(_lines[^1]);
 
          if (_observers.Count > 0)
          {
@@ -342,7 +356,8 @@ public sealed class View
                console.Intercept(ProcessInterceptedKey);
          }
 
-         console.SetCursorPosition(_position);
+         console.SetCursorPosition(
+            GetConsolePosition());
       }
    }
 
@@ -397,5 +412,12 @@ public sealed class View
          foreach (var observer in _observers)
             observer.Invoke(key);
       }
+   }
+
+   private Point GetConsolePosition()
+   {
+      var (x, y) = (_position.X, _position.Y);
+      var (_, cy) = (_consolePosition.X, _consolePosition.Y);
+      return new(x, y + cy);
    }
 }

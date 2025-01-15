@@ -15,7 +15,6 @@ public class Disposable(
       if (Interlocked.Increment(ref _disposed) > 1)
          return;
       disposeAction();
-      finaliseAction?.Invoke();
       GC.SuppressFinalize(this);
    }
 

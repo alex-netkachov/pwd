@@ -46,76 +46,56 @@ namespace pwd.contexts.repl;
 ///
 ///   The command can be stopped by pressing Ctrl+C.
 /// </remarks>
-public abstract class Repl
+public abstract class Repl(
+      ILogger<Repl> logger,
+      Func<IView> viewFactory,
+      IReadOnlyDictionary<string, ICommand> commands,
+      string defaultCommand)
    : Views,
      IContext,
      ISuggestions
 {
    private readonly object _lock = new { };
 
-   private readonly ILogger<Repl> _logger;
-   private readonly IReadOnlyDictionary<string, ICommand> _commands;
-   private readonly string _defaultCommand;
-
    private readonly CancellationTokenSource _cts = new();
    private bool _disposed;
 
-   protected Repl(
-      ILogger<Repl> logger,
-      Func<Task<IView?>> initialise,
-      Func<IView> viewFactory,
-      IReadOnlyDictionary<string, ICommand> commands,
-      string defaultCommand)
+   public virtual async Task ExecuteAsync()
    {
-      _logger = logger;
-      _commands = commands;
-      _defaultCommand = defaultCommand;
-
       var token = _cts.Token;
 
-      Task.Run(async () =>
+      while (!token.IsCancellationRequested)
       {
-         if (token.IsCancellationRequested)
-            return;
+         var view = viewFactory();
 
-         if (await initialise() is { } startView)
+         Publish(view);
+
+         string input;
+         try
          {
-            Publish(startView);
+            var prompt = Prompt();
+
+            logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
+
+            input = (await view.ReadAsync(new($"{prompt}> "), this, null, token)).Trim();
+
+            logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
+         }
+         catch (Exception e)
+         {
+            logger.LogError($"waiting for the user's input ended with the following exception: {e}");
+            continue;
          }
 
-         while (!token.IsCancellationRequested)
+         try
          {
-            var view = viewFactory();
-
-            Publish(view);
-
-            string input;
-            try
-            {
-               var prompt = Prompt();
-
-               _logger.LogInformation("ReplContext.Loop(): _view.ReadAsync(...)");
-
-               input = (await view.ReadAsync(new($"{prompt}> "), this, null, token)).Trim();
-
-               _logger.LogInformation($"ReplContext.Loop(): _view.ReadAsync(...) has been completed with '{input}'");
-            }
-            catch (Exception e)
-            {
-               _logger.LogError($"waiting for the user's input ended with the following exception: {e}");
-               continue;
-            }
-
-            try
-            {
-               await ProcessAsync(view, input, token);
-            }
-            catch (Exception e)
-            {
-               _logger.LogError($"Executing the command '{input}' ended with the following exception: {e}");
-            }
+            await ProcessAsync(view, input, token);
          }
-      }, token);
+         catch (Exception e)
+         {
+            logger.LogError($"Executing the command '{input}' ended with the following exception: {e}");
+         }
+      }
    }
 
    public async Task ProcessAsync(
@@ -123,7 +103,7 @@ public abstract class Repl
       string input,
       CancellationToken token = default)
    {
-      _logger.LogInformation($"{nameof(ProcessAsync)}: processing '{input}'");
+      logger.LogInformation($"{nameof(ProcessAsync)}: processing '{input}'");
 
       var parts = Shared.ParseCommand(input);
       if (string.IsNullOrEmpty(parts.Name))
@@ -131,21 +111,21 @@ public abstract class Repl
          parts =
             input == ".."
                ? new("..", "up", [])
-               : (input, defaultCommand: _defaultCommand, input == "" ? [] : input.Split(' '));
+               : (input, defaultCommand: defaultCommand, input == "" ? [] : input.Split(' '));
       }
 
       var command =
-         _commands
+         commands
             .FirstOrDefault(
                item => item.Key.Equals(parts.Name, StringComparison.OrdinalIgnoreCase))
             .Value;
       if (command == null)
       {
-         _logger.LogInformation($"no commands for input '{input}'");
+         logger.LogInformation($"no commands for input '{input}'");
          return;
       }
 
-      _logger.LogInformation($"executing command {command}");
+      logger.LogInformation($"executing command {command}");
       await command.ExecuteAsync(view, parts.Name, parts.Parameters, token);
    }
 
@@ -158,13 +138,15 @@ public abstract class Repl
       string input,
       int position)
    {
-      return _commands
+      return commands
          .SelectMany(item => item.Value.Suggestions(input))
          .ToList();
    }
 
    public void Dispose()
    {
+      logger.LogDebug("disposing");
+
       if (_disposed)
          return;
 

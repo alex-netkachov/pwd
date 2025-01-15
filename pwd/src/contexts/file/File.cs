@@ -33,6 +33,7 @@ public sealed class File
 {
    private readonly IRepository _repository;
    private readonly string _path;
+   private readonly Func<IView> _viewFactory;
 
    /// <summary>Encrypted file context.</summary>
    public File(
@@ -44,24 +45,25 @@ public sealed class File
          string defaultCommand)
       : base(
          logger,
-         async () =>
-         {
-            var view = viewFactory();
-            var print = new Print(repository, repository.GetFullPath(path));
-            await print.ExecuteAsync(viewFactory(), "", [], CancellationToken.None);
-            return view;
-         },
          viewFactory,
          factories,
          defaultCommand)
    {
       _repository = repository;
       _path = repository.GetFullPath(path);
+      _viewFactory = viewFactory;
+   }
 
+   public override async Task ExecuteAsync()
+   {
       _repository.SetWorkingFolder(_repository.GetFolder(_path));
-      
-      var view = viewFactory();
+
+      var view = _viewFactory();
+      var print = new Print(_repository, _path);
+      await print.ExecuteAsync(view, "", [], CancellationToken.None);
       Publish(view);
+
+      await base.ExecuteAsync();
    }
 
    protected override string Prompt()
@@ -103,8 +105,10 @@ public sealed class FileFactory(
          };
       Shared.CommandFactories(commands, state, @lock);
 
+      var logger = loggerFactory.CreateLogger<File>();
+
       return new File(
-         loggerFactory.CreateLogger<File>(),
+         logger,
          viewFactory,
          repository,
          path,

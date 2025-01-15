@@ -160,7 +160,7 @@ public static class Shared
    {
       var fs = GetMockFs().FileLayout1();
       var console = new Console();
-      var view = new View();
+      var view = new View(null!, "");
       view.Activate(console);
 
       var repository =

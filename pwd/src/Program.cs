@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -19,6 +20,7 @@ using pwd.core.abstractions;
 using pwd.library.interfaced;
 using pwd.ui;
 using pwd.ui.abstractions;
+using Serilog;
 using Console = pwd.console.Console;
 
 [assembly: InternalsVisibleTo("pwd.tests")]
@@ -33,8 +35,7 @@ public static class Program
    internal static IHost SetupHost(
          IFileSystem fs,
          IConsole console, 
-         IPresenter presenter,
-         Func<IView> viewFactory,
+         Func<IServiceProvider, IView> viewFactory,
          Action<ILoggingBuilder>? configureLogging = null)
    {
       var builder = Host.CreateDefaultBuilder();
@@ -47,13 +48,17 @@ public static class Program
                   ?? (loggingBuilder => loggingBuilder.ClearProviders()))
                .AddSingleton(fs)
                .AddSingleton(console)
-               .AddSingleton(presenter)
+               .AddSingleton<IPresenter>(
+                  provider =>
+                     new Presenter(
+                        provider.GetRequiredService<ILogger<Presenter>>(),
+                        console))
                .AddSingleton<IRunner, Runner>()
                .AddSingleton<Func<Action, ITimer>>(_ => action => new Timer(_ => action()))
                .AddSingleton<IClipboard, Clipboard>()
                .AddSingleton<IState, State>()
                .AddSingleton<IEnvironmentVariables, EnvironmentVariables>()
-               .AddSingleton<Func<IView>>(_ => viewFactory)
+               .AddSingleton<Func<IView>>(provider => () => viewFactory(provider))
                .AddSingleton<RepositoryFactory>(
                   provider =>
                      (path, password) =>
@@ -170,15 +175,42 @@ public static class Program
    public static async Task Main(
       string[] args)
    {
-      var console = new Console();
-      var presenter = new Presenter(console);
-      
-      var view = new View();
+      var logSuffix =
+         DateTime.Now.ToString(
+            "yyyyMMdd_hhmmss",
+            CultureInfo.InvariantCulture);
 
-      presenter.Show(view);
-      
+      Log.Logger =
+         new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .Enrich.FromLogContext()
+            .WriteTo.File(
+               $"pwd_{logSuffix}.log",
+               outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
+      var console = new Console();
+
       var fs = new FileSystem();
 
+      using var host =
+         SetupHost(
+            fs,
+            console,
+            provider =>
+               new View(
+                  provider.GetRequiredService<ILogger<View>>(),
+                  Guid.NewGuid().ToString("N")),
+            logging =>
+               logging
+                  .ClearProviders()
+                  .AddSerilog());
+
+      var presenter = host.Services.GetRequiredService<IPresenter>();
+      var viewFactory = host.Services.GetRequiredService<Func<IView>>();
+      var view = viewFactory();
+      presenter.Show(view);
+      
       var isGitRepository =
          fs.Directory.Exists(".git") ||
          fs.Directory.Exists("../.git") ||
@@ -196,16 +228,11 @@ public static class Program
          }
       }
 
-      using var host =
-         SetupHost(
-            fs,
-            console,
-            presenter,
-            () => new View());
-
       await Run(host, new(TimeSpan.FromMinutes(5)));
 
       view.Clear();
+
+      presenter.Show(view);
 
       if (isGitRepository && await view.ConfirmAsync("Update the repository?", Answer.Yes))
       {

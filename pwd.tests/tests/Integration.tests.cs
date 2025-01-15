@@ -28,7 +28,7 @@ public class Integration_Tests
 
       var fs = Shared.GetMockFs();
 
-      var view =
+      using var view =
          new TestView([
             "secret",
             "secret",
@@ -46,8 +46,7 @@ public class Integration_Tests
          Program.SetupHost(
             fs,
             Mock.Of<IConsole>(),
-            Mock.Of<IPresenter>(),
-            () => view,
+            _ => view,
             configureLogging: _ => { });
 
       logger.LogInformation("Before Program.Run(...)");
@@ -82,7 +81,7 @@ public class Integration_Tests
 
       var fs = Shared.GetMockFs();
 
-      var view =
+      using var view =
          new TestView([
             "secret",
             "secret",
@@ -93,8 +92,7 @@ public class Integration_Tests
          Program.SetupHost(
             fs,
             Mock.Of<IConsole>(),
-            Mock.Of<IPresenter>(),
-            () => view);
+            _ => view);
 
       logger.Info("Before Program.Run(...)");
       await Program.Run(host, DefaultSettings);
@@ -103,8 +101,10 @@ public class Integration_Tests
       var expected =
          string.Join("\n",
             "Password: ******",
+            "",
             "It looks that you are creating a new repository. Please confirm your password: ******",
-            "> .quit\n");
+            "> .quit",
+            "");
       var actual = view.GetOutput();
       Assert.That(actual, Is.EqualTo(expected));
    }
@@ -116,9 +116,8 @@ public class Integration_Tests
    {
       var fs = Shared.GetMockFs();
 
-      var view =
+      using var view =
          new TestView([
-            "secret",
             "secret",
             "file1",
             ".rm",
@@ -130,8 +129,7 @@ public class Integration_Tests
          Program.SetupHost(
             fs,
             Mock.Of<IConsole>(),
-            Mock.Of<IPresenter>(),
-            () => view);
+            _ => view);
 
       var repositoryFactory = host.Services.GetRequiredService<RepositoryFactory>();
       var repository = repositoryFactory("/container/test", "secret");
@@ -140,15 +138,16 @@ public class Integration_Tests
          "content1");
 
       await Program.Run(host, DefaultSettings);
-      var expected = string.Join("\n",
-         "Password: ******",
-         ".",
-         "> file1",
-         "content1",
-         "file1> .rm",
-         "Delete 'file1'? (y/N) y",
-         "'file1' has been deleted.",
-         "> .quit\n");
+      var expected =
+         string.Join("\n",
+            "Password: ******",
+            ".",
+            "> file1",
+            "content1",
+            "file1> .rm",
+            "Delete 'file1'? (y/N) y",
+            "'file1' has been deleted.",
+            "> .quit\n");
       var actual = view.GetOutput();
       Assert.That(actual, Is.EqualTo(expected));
    }
@@ -159,7 +158,7 @@ public class Integration_Tests
    {
       var fs = Shared.GetMockFs();
 
-      var view =
+      using var view =
          new TestView([
             "secret",
             "secret",
@@ -172,13 +171,21 @@ public class Integration_Tests
          Program.SetupHost(
             fs,
             Mock.Of<IConsole>(),
-            Mock.Of<IPresenter>(),
-            () => view);
+            _ => view);
 
       await Program.Run(host, DefaultSettings);
-      var expected = string.Join("\n",
-         "Password: ******",
-         "> .quit\n");
+      var expected =
+         string.Join("\n",
+            "Password: ******",
+            "",
+            "It looks that you are creating a new repository. Please confirm your password: ******",
+            "> .lock",
+            "",
+            "<CLEAR>",
+            "> secret",
+            "",
+            "> .quit",
+            "");
       var actual = view.GetOutput();
       Assert.That(actual, Is.EqualTo(expected));
    }

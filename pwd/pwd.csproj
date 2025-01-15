@@ -14,6 +14,9 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="System.IO.Abstractions" Version="21.1.7" />
     <PackageReference Include="System.IO.Abstractions.TestingHelpers" Version="21.1.7" />
     <PackageReference Include="YamlDotNet" Version="16.2.1" />
@@ -27,8 +30,5 @@
   <ItemGroup>
     <ProjectReference Include="..\pwd.console\pwd.console.csproj" />
     <ProjectReference Include="..\pwd.core\pwd.core.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="src\library\delegated\" />
   </ItemGroup>
 </Project>

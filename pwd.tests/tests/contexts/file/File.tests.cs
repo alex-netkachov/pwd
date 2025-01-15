@@ -14,7 +14,7 @@ public class File_Tests
    [Test]
    public async Task empty_input_prints_the_content_with_obscured_passwords()
    {
-      var firstView = new TestView([]);
+      using var firstView = new TestView();
 
       var repository = new Mock<IRepository>();
       repository
@@ -26,7 +26,7 @@ public class File_Tests
             view: firstView,
             repository: repository.Object);
 
-      var view = new TestView([]);
+      using var view = new TestView();
 
       await file.ProcessAsync(view, "");
 
@@ -47,10 +47,10 @@ public class File_Tests
    [Test]
    public async Task help_prints_the_content_of_the_help_file()
    {
-      var firstView = new TestView([]);
+      using var firstView = new TestView();
       var file = Shared.CreateFileContext(view: firstView, content: "password: secret");
 
-      var view = new TestView([]);
+      using var view = new TestView();
       await file.ProcessAsync(view, ".help");
       Assert.That(
          view

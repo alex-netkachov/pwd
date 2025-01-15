@@ -41,7 +41,7 @@ public sealed class Session_Tests
       string file)
    {
       const string text = "test";
-
+      
       var state =
          new State(
             Mock.Of<ILogger<State>>(),
@@ -51,7 +51,7 @@ public sealed class Session_Tests
       CreateFoldersAndFiles(fs);
       var repository = Shared.CreateRepository(fs);
 
-      var firstView = new TestView([]);
+      using var view = new TestView();
 
       var fileFactory =
          new FileFactory(
@@ -61,23 +61,24 @@ public sealed class Session_Tests
             Mock.Of<IClipboard>(),
             fs,
             state,
-            () => firstView);
+            () => view);
 
       var session =
          Shared.CreateSessionContext(
             Mock.Of<ILogger>(),
             repository,
             state: state,
-            view: firstView,
+            view: view,
             fileFactory: fileFactory);
 
       //logger.Info($"{nameof(Session_Tests)}.{nameof(open_file)}: processing input");
-      var view = new TestView([]);
       await session.ProcessAsync(view, $".open {file}");
+      
+      var name = fs.Path.GetFileName(file);
 
       Assert.That(
          view.GetOutput(),
-         Is.EqualTo(text + "\n"));
+         Is.EqualTo($"{text}\n{name}> "));
    }
    
    private static void CreateFoldersAndFiles(

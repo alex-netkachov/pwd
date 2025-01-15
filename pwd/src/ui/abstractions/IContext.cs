@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using pwd.console.abstractions;
 
 namespace pwd.ui.abstractions;
@@ -10,4 +11,7 @@ namespace pwd.ui.abstractions;
 /// </summary>
 public interface IContext
    : IObservable<IView>,
-     IDisposable;
+     IDisposable
+{
+   Task ExecuteAsync();
+}

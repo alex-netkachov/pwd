@@ -2,30 +2,62 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using pwd.console.abstractions;
 
 namespace pwd.console.mocks;
 
-public sealed class TestConsole(
-      IReadOnlyList<string>? values = null)
+public sealed class TestConsole
    : IConsole,
      IDisposable
 {
    private readonly Lock _lock = new();
    private readonly CancellationTokenSource _cts = new();
-   private readonly List<StringBuilder> _writes = [new()];
-
+   private readonly List<string> _content = [""];
    private bool _disposed;
-   private readonly List<Action<ConsoleKeyInfo>> _observers = [];
-   private Action<ConsoleKeyInfo>? _interceptor;
-   private int _valuesIndex = -1;
+   private readonly List<Action<TestConsole, IReadOnlyList<string>>> _contentObservers = [];
+   private readonly List<Action<ConsoleKeyInfo>> _consoleKeyObservers = [];
+   private Action<ConsoleKeyInfo>? _consoleKeyInterceptor;
 
    public int BufferWidth => -1;
 
    public int BufferHeight => -1;
+
+   public void SendKeys(
+      string text)
+   {
+      lock (_lock)
+      {
+         var keys = TestInputToKeyCodeInfos(text);
+
+         foreach (var key in keys)
+         {
+            foreach (var action in _consoleKeyObservers)
+               action(key);
+
+            _consoleKeyInterceptor?.Invoke(key);
+         }
+      }
+   }
+
+   public IDisposable Subscribe(
+      Action<TestConsole, IReadOnlyList<string>> action)
+   {
+      lock (_lock)
+      {
+         ObjectDisposedException.ThrowIf(_disposed, this);
+
+         _contentObservers.Add(action);
+      }
+
+      return new Disposable(() =>
+      {
+         lock (_lock)
+         {
+            _contentObservers.Remove(action);
+         }
+      });
+   }
 
    public IDisposable Observe(
       Action<ConsoleKeyInfo> action)
@@ -34,14 +66,14 @@ public sealed class TestConsole(
       {
          ObjectDisposedException.ThrowIf(_disposed, this);
 
-         _observers.Add(action);
+         _consoleKeyObservers.Add(action);
       }
 
       return new Disposable(() =>
       {
          lock (_lock)
          {
-            _observers.Remove(action);
+            _consoleKeyObservers.Remove(action);
          }
       });
    }
@@ -53,37 +85,17 @@ public sealed class TestConsole(
       {
          ObjectDisposedException.ThrowIf(_disposed, this);
 
-         if (_interceptor != null)
+         if (_consoleKeyInterceptor != null)
             throw new InvalidOperationException("Interceptor already set.");
 
-         _interceptor = action;
+         _consoleKeyInterceptor = action;
       }
       
-      var token = _cts.Token;
-
-      Task.Run(() =>
-      {
-         lock (_lock)
-         {
-            if ((values ?? []).ElementAtOrDefault(++_valuesIndex) is not { } input)
-               return;
-
-            var keys = TestInputToKeyCodeInfos(input);
-
-            foreach (var key in keys)
-            {
-               foreach (var item in _observers)
-                  item.Invoke(key);
-               _interceptor?.Invoke(key);
-            }
-         }
-      }, token);
-
       return new Disposable(() =>
       {
          lock (_lock)
          {
-            _interceptor = null;
+            _consoleKeyInterceptor = null;
          }
       });
    }
@@ -105,13 +117,18 @@ public sealed class TestConsole(
    public void Write(
       object? value = null)
    {
+      var text =
+         Convert.ToString(value)
+         ?? "";
+
+      if (string.IsNullOrEmpty(text))
+         return;
+
       lock (_lock)
       {
-         _writes
-            .Last()
-            .Append(
-               Convert.ToString(value)
-               ?? "");
+         _content[^1] += Convert.ToString(value) ?? "";
+
+         ContentChanged();
       }
    }
 
@@ -120,13 +137,10 @@ public sealed class TestConsole(
    {
       lock (_lock)
       {
-         _writes
-            .Last()
-            .Append(
-               Convert.ToString(value)
-               ?? "");
+         _content[^1] += Convert.ToString(value) ?? "";
+         _content.Add("");
 
-         _writes.Add(new());
+         ContentChanged();
       }
    }
 
@@ -144,8 +158,10 @@ public sealed class TestConsole(
    {
       lock (_lock)
       {
-         _writes.Clear();
-         _writes.Add(new());
+         _content.Clear();
+         _content.Add("");
+         
+         ContentChanged();
       }
    }
 
@@ -155,9 +171,14 @@ public sealed class TestConsole(
       {
          return string.Join(
             "\n",
-            _writes
-               .Select(item => item.ToString()));
+            _content);
       }
+   }
+   
+   private void ContentChanged()
+   {
+      foreach (var action in _contentObservers)
+         action(this, _content);
    }
 
    private static IReadOnlyList<ConsoleKeyInfo> TestInputToKeyCodeInfos(

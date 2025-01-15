@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.console.abstractions;
@@ -114,13 +115,30 @@ public sealed class Console
    public void Write(
       object? value)
    {
-      System.Console.Write(value);
+      if (value == null)
+         return;
+
+      var text =
+         Convert.ToString(
+            value,
+            CultureInfo.InvariantCulture);
+
+      if (string.IsNullOrEmpty(text))
+         return;
+      
+      System.Console.Write(text);
    }
 
    public void WriteLine(
       object? value)
    {
-      System.Console.WriteLine(value);
+      var text =
+         Convert.ToString(
+            value
+            ?? "",
+            CultureInfo.InvariantCulture);
+
+      System.Console.WriteLine(text);
    }
 
    public Point GetCursorPosition()
@@ -153,6 +171,7 @@ public static class ConsoleExtensions
       this IConsole console,
       string text)
    {
+      // TODO: if writing creates new line, move back to the previous line
       var position = console.GetCursorPosition();
       console.Write(text);
       console.SetCursorPosition(position);

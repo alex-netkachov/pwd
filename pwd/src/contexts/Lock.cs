@@ -91,6 +91,11 @@ public sealed class Lock
          }
       });
    }
+   
+   public Task ExecuteAsync()
+   {
+      return Task.CompletedTask;
+   }
 
    public async Task Pin(
       CancellationToken cancellationToken)

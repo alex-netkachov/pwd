@@ -31,7 +31,7 @@ public class Views
          });      
    }
    
-   public void Publish(
+   protected void Publish(
       IView view)
    {
       lock (_lock)

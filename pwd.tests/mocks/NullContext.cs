@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using pwd.console.abstractions;
 using pwd.ui.abstractions;
 
@@ -15,5 +16,10 @@ public sealed class NullContext
 
    public void Dispose()
    {
+   }
+
+   public Task ExecuteAsync()
+   {
+      throw new NotImplementedException();
    }
 }

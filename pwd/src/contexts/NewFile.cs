@@ -140,6 +140,11 @@ public sealed class NewFile
    public void Dispose()
    {
    }
+
+   public async Task ExecuteAsync()
+   {
+      await Activate();
+   }
 }
 
 public sealed class NewFileFactory(

@@ -1,9 +1,11 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
 using pwd.console.abstractions;
 
 namespace pwd.console;
 
 public class Presenter(
+      ILogger<Presenter> logger,
       IConsole console)
    : IPresenter,
      IObserver<IView>
@@ -16,6 +18,10 @@ public class Presenter(
    public void Show(
       IView view)
    {
+      logger.LogDebug(
+         "Show(IView {Id})",
+         view.Id);
+
       lock (_lock)
       {
          _subscription?.Dispose();
@@ -30,6 +36,9 @@ public class Presenter(
    public void Show(
       IObservable<IView> views)
    {
+      logger.LogDebug(
+         "Show(IObservable<IView>)");
+
       lock (_lock)
       {
          _subscription?.Dispose();
@@ -39,7 +48,7 @@ public class Presenter(
       }
    }
 
-   public void OnCompleted()
+   void IObserver<IView>.OnCompleted()
    {
       lock (_lock)
       {
@@ -47,14 +56,18 @@ public class Presenter(
       }
    }
 
-   public void OnError(
+   void IObserver<IView>.OnError(
       Exception error)
    {
    }
 
-   public void OnNext(
+   void IObserver<IView>.OnNext(
       IView value)
    {
+      logger.LogDebug(
+         "OnNext({Id})",
+         value.Id);
+
       lock (_lock)
       {
          _view?.Deactivate();
