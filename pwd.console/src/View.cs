@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using pwd.console.abstractions;
 using pwd.console.readers;
+using pwd.library;
 
 namespace pwd.console;
 
@@ -14,9 +15,10 @@ public sealed class View(
       ILogger<View> logger,
       string id)
    : IView,
+     IConsole,
      IDisposable
 {
-   private readonly Lock _lock = new();
+   private readonly object _lock = new();
    private readonly CancellationTokenSource _cts = new();
    private bool _clear;
    private readonly List<string> _lines = [""];
@@ -26,21 +28,22 @@ public sealed class View(
    private IDisposable? _observersSubscription;
    private IConsole? _console;
    private bool _disposed;
-   private readonly List<Action<ConsoleKeyInfo>> _observers = [];
-   private Action<ConsoleKeyInfo>? _interceptor;
+   private readonly List<IObserver<ConsoleKeyInfo>> _observers = [];
+   private IObserver<ConsoleKeyInfo>? _interceptor;
 
    public string Id => id;
 
-   public int BufferWidth => -1;
+   public int Width => -1;
 
-   public int BufferHeight => -1;
+   public int Height => -1;
 
    public void Write(
       object? value)
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (value == null)
             return;
@@ -67,10 +70,13 @@ public sealed class View(
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          var text =
-            Convert.ToString(value)
+            Convert.ToString(
+               value,
+               CultureInfo.InvariantCulture)
             ?? "";
 
          var (x, y) = (_position.X, _position.Y);
@@ -93,7 +99,8 @@ public sealed class View(
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (_position.Equals(point))
             return;
@@ -110,14 +117,16 @@ public sealed class View(
 
          if (_console is { } console)
          {
-            if (point.X > console.BufferWidth)
+            if (console.Width != -1
+                && point.X > console.Width)
             {
                throw new NotSupportedException(
                   "Changing the cursor position in multiline input is not supported yet.");
             }
 
             var consolePosition = console.GetCursorPosition();
-            console.SetCursorPosition(consolePosition with { X = consolePosition.X + delta });
+            console.SetCursorPosition(
+               consolePosition with { X = consolePosition.X + delta });
          }
       }
    }
@@ -135,7 +144,8 @@ public sealed class View(
      
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (_reader != null)
             throw new InvalidOperationException("Another operation is in progress.");
@@ -188,7 +198,8 @@ public sealed class View(
       
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (_reader != null)
          {
@@ -236,7 +247,8 @@ public sealed class View(
 
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (_reader != null)
          {
@@ -278,20 +290,23 @@ public sealed class View(
       _console?.Clear();
    }
 
-   public IDisposable Observe(
-      Action<ConsoleKeyInfo> action)
+   public IDisposable Subscribe(
+      IObserver<ConsoleKeyInfo> observer)
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
-         _observers.Add(action);
+         _observers.Add(observer);
          
          if (_console is { } console
              && _observers.Count == 1)
          {
             _observersSubscription =
-               console.Observe(ProcessObservedKey);
+               console.Subscribe(
+                  new Observer<ConsoleKeyInfo>(
+                     ProcessObservedKey));
          }
       }
 
@@ -299,7 +314,7 @@ public sealed class View(
       {
          lock (_lock)
          {
-            _observers.Remove(action);
+            _observers.Remove(observer);
 
             if (_observers.Count == 0)
                _observersSubscription?.Dispose();
@@ -308,21 +323,24 @@ public sealed class View(
    }
 
    public IDisposable Intercept(
-      Action<ConsoleKeyInfo> action)
+      IObserver<ConsoleKeyInfo> interceptor)
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (_interceptor != null)
             throw new InvalidOperationException("Interceptor already set.");
 
-         _interceptor = action;
+         _interceptor = interceptor;
          
          if (_console is { } console)
          {
             _interceptorSubscription =
-               console.Intercept(ProcessInterceptedKey);
+               console.Intercept(
+                  new Observer<ConsoleKeyInfo>(
+                     ProcessInterceptedKey));
          }
       }
 
@@ -341,7 +359,8 @@ public sealed class View(
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (_console is not null)
          {
@@ -353,6 +372,10 @@ public sealed class View(
 
          if (_clear)
             console.Clear();
+         
+         // ensure that the view's output stars at the beginning of a line
+         if (_console.GetCursorPosition().X > 0)
+            console.WriteLine("");
          
          for (var i = 0; i < _lines.Count - 1; i++)
          {
@@ -372,13 +395,17 @@ public sealed class View(
          if (_observers.Count > 0)
          {
             _observersSubscription =
-               console.Observe(ProcessObservedKey);
+               console.Subscribe(
+                  new Observer<ConsoleKeyInfo>(
+                     ProcessObservedKey));
          }
 
          if (_interceptor != null)
          {
             _interceptorSubscription =
-               console.Intercept(ProcessInterceptedKey);
+               console.Intercept(
+                  new Observer<ConsoleKeyInfo>(
+                     ProcessInterceptedKey));
          }
       }
    }
@@ -387,7 +414,8 @@ public sealed class View(
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          _interceptorSubscription?.Dispose();
          
@@ -419,7 +447,7 @@ public sealed class View(
          if (_disposed)
             return;
 
-         _interceptor?.Invoke(key);
+         _interceptor?.OnNext(key);
       }
    }
    
@@ -432,7 +460,7 @@ public sealed class View(
             return;
 
          foreach (var observer in _observers)
-            observer.Invoke(key);
+            observer.OnNext(key);
       }
    }
 }

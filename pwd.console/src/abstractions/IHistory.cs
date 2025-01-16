@@ -3,8 +3,9 @@
 namespace pwd.console.abstractions;
 
 public interface IHistory
-   : IReadOnlyList<string>
 {
    void Add(
       string value);
+
+   IReadOnlyList<string> List();
 }

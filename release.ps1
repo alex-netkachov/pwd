@@ -3,8 +3,8 @@
 #
 
 $version = Get-Date -Format "yyyy.M.d"
-$command = "dotnet publish .\\pwd\\pwd.csproj -p:Version=$($version).1 --configuration Release --self-contained"
+$command = "dotnet publish ./pwd.cli/pwd.cli.csproj -p:Version=$($version).1 --configuration Release --self-contained"
 
-Remove-Item -Path .\bin\Release -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path ./bin/Release -Recurse -Force -ErrorAction SilentlyContinue
 Invoke-Expression "${command} -r win-x64"
 Invoke-Expression "${command} -r linux-x64"

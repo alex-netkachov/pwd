@@ -186,7 +186,7 @@ public sealed class AesCipher
       await cryptoStream.FlushAsync(token);
 
       if (cryptoStream.HasFlushedFinalBlock == false)
-         await cryptoStream.FlushFinalBlockAsync(token);
+         cryptoStream.FlushFinalBlock();
    }
 
    public void Decrypt(

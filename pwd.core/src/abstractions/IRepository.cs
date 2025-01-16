@@ -9,13 +9,17 @@ public delegate IRepository RepositoryFactory(
 
 public interface IUpdate;
 
-public record ListOptions(
-   bool Recursively,
-   bool IncludeFolders,
-   bool IncludeDottedFilesAndFolders)
+public class ListOptions(
+   bool recursively,
+   bool includeFolders,
+   bool includeDottedFilesAndFolders)
 {
    public static readonly ListOptions Default =
       new(false, false, false);
+
+   public bool Recursively => recursively;
+   public bool IncludeFolders => includeFolders;
+   public bool IncludeDottedFilesAndFolders => includeDottedFilesAndFolders;
 }
 
 public interface IRepository

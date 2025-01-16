@@ -4,8 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using pwd.console.abstractions;
-using pwd.console.readers;
 using pwd.console.mocks;
+using pwd.console.readers;
+using pwd.library;
 
 namespace pwd.console.tests;
 
@@ -21,17 +22,19 @@ public sealed class Reader_Tests
       string keys,
       string expected)
    {
-      using var console = new TestConsole();
+      using var console = new VirtualConsole();
 
       var reader = new CommandReader(console);
 
       using var contentSubscription =
          console.Subscribe(
-            (sender, content) =>
-            {
-               if (content[^1] == "> ")
-                  sender.SendKeys(keys);
-            });
+            new Observer<VirtualConsoleContentUpdate>(
+               update =>
+               {
+                  if (update.Content[^1] == "> ")
+                     update.Console.SendKeys(
+                        ConsoleKeys.Parse(keys));
+               }));
 
       var input =
          await reader.ReadAsync(
@@ -45,7 +48,7 @@ public sealed class Reader_Tests
    {
       var reader =
          new CommandReader(
-            new TestConsole());
+            new VirtualConsole());
 
       var input =
          reader.ReadAsync(
@@ -79,15 +82,17 @@ public sealed class Reader_Tests
                .ToList();
          });
 
-      using var console = new TestConsole();
-      
+      using var console = new VirtualConsole();
+
       using var contentSubscription =
          console.Subscribe(
-            (sender, content) =>
-            {
-               if (content[^1] == "> ")
-                  sender.SendKeys(keys);
-            });
+            new Observer<VirtualConsoleContentUpdate>(
+               update =>
+               {
+                  if (update.Content[^1] == "> ")
+                     update.Console.SendKeys(
+                        ConsoleKeys.Parse(keys));
+               }));
 
       var reader =
          new CommandReader(

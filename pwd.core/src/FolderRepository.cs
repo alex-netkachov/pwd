@@ -363,10 +363,10 @@ public class FolderRepository
       if (items.Length == 0)
          return ".";
 
-      return Path.Join(
+      return string.Join(
+         Path.DirectorySeparatorChar,
          items
-            .Select(item => _encoder.Encode(_cipher.Encrypt(item)))
-            .ToArray());
+            .Select(item => _encoder.Encode(_cipher.Encrypt(item))));
    }
 
    private bool TryDecryptName(

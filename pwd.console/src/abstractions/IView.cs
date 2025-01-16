@@ -11,9 +11,14 @@ public enum Answer
 }
 
 public interface IView
-   : IConsole
 {
-   string Id { get; }
+   void Write(
+      object? value);
+
+   void WriteLine(
+      object? value);
+
+   void Clear();
 
    /// <summary>Requests a confirmation from the user, i.e. asks yes/no question.</summary>
    /// <remarks>Cancelling the request with the cancellation token raises TaskCanceledException.</remarks>

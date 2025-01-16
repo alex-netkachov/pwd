@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using pwd.console.mocks;
+using pwd.library;
 
 namespace pwd.console.tests;
 
@@ -11,14 +12,16 @@ public class View_Tests
    [Test]
    public async Task Read_makes_output_as_expected_when_with_console()
    {
-      using var console = new TestConsole();
+      using var console = new VirtualConsole();
       using var contentSubscription =
          console.Subscribe(
-            (sender, content) =>
-            { 
-               if (content[^1] == "test> ")
-                  sender.SendKeys("ok\n");
-            });
+            new Observer<VirtualConsoleContentUpdate>(
+               update =>
+               {
+                  if (update.Content[^1] == "test> ")
+                     update.Console.SendKeys(
+                        ConsoleKeys.Parse("ok\n"));
+               }));
 
       using var view = CreateView();
 
@@ -45,7 +48,7 @@ public class View_Tests
          view.GetCursorPosition().ToString(),
          Is.EqualTo(expectedPosition));
 
-      using var console = new TestConsole();
+      using var console = new VirtualConsole();
       view.Activate(console);
       Assert.That(
          console.GetScreen(),
@@ -67,7 +70,7 @@ public class View_Tests
          view.GetCursorPosition().ToString(),
          Is.EqualTo(expectedPosition));
 
-      using var console = new TestConsole();
+      using var console = new VirtualConsole();
       view.Activate(console);
       Assert.That(
          console.GetScreen(),
@@ -87,7 +90,7 @@ public class View_Tests
          view.GetCursorPosition().ToString(),
          Is.EqualTo("{X=1,Y=0}"));
 
-      using var console = new TestConsole();
+      using var console = new VirtualConsole();
       view.Activate(console);
       Assert.That(
          console.GetScreen(),

@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
 using pwd.console.abstractions;
+using pwd.library;
 
 namespace pwd.console;
 
@@ -17,9 +18,17 @@ public class Presenter(
    public void Show(
       IView view)
    {
-      logger.LogDebug(
-         "Show(IView {Id})",
-         view.Id);
+      if (view is View viewObj)
+      {
+         logger.LogDebug(
+            "Show(View {Id})",
+            viewObj.Id);
+      }
+      else
+      {
+         logger.LogDebug(
+            "Show(IView)");
+      }
 
       lock (_lock)
       {
@@ -49,9 +58,17 @@ public class Presenter(
                new Observer<IView>(
                   value =>
                   {
-                     logger.LogDebug(
-                        "OnNext(IView {Id})",
-                        value.Id);
+                     if (value is View viewObj)
+                     {
+                        logger.LogDebug(
+                           "OnNext(View {Id})",
+                           viewObj.Id);
+                     }
+                     else
+                     {
+                        logger.LogDebug(
+                           "OnNext(IView)");
+                     }
 
                      lock (_lock)
                      {

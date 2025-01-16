@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.console.abstractions;
+using pwd.library;
 
 namespace pwd.console;
 
@@ -12,11 +13,11 @@ public sealed class Console
    : IConsole,
      IDisposable
 {
-   private readonly Lock _lock = new();
+   private readonly object _lock = new();
 
    private bool _disposed;
-   private readonly List<Action<ConsoleKeyInfo>> _observers = [];
-   private Action<ConsoleKeyInfo>? _interceptor;
+   private readonly List<IObserver<ConsoleKeyInfo>> _observers = [];
+   private IObserver<ConsoleKeyInfo>? _interceptor;
    private readonly CancellationTokenSource _cts;
 
    public Console()
@@ -46,16 +47,16 @@ public sealed class Console
             lock (_lock)
             {
                foreach (var item in _observers)
-                  item.Invoke(key);
-               _interceptor?.Invoke(key);
+                  item.OnNext(key);
+               _interceptor?.OnNext(key);
             }
          }
       }, token);
    }
 
-   public int BufferWidth => System.Console.BufferWidth;
+   public int Width => System.Console.BufferWidth;
    
-   public int BufferHeight => System.Console.BufferHeight;
+   public int Height => System.Console.BufferHeight;
 
    public void Dispose()
    {
@@ -71,36 +72,38 @@ public sealed class Console
       _cts.Dispose();
    }
    
-   public IDisposable Observe(
-      Action<ConsoleKeyInfo> action)
+   public IDisposable Subscribe(
+      IObserver<ConsoleKeyInfo> observer)
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
-         _observers.Add(action);
+         _observers.Add(observer);
       }
 
       return new Disposable(() =>
       {
          lock (_lock)
          {
-            _observers.Remove(action);
+            _observers.Remove(observer);
          }
       });
    }
    
    public IDisposable Intercept(
-      Action<ConsoleKeyInfo> action)
+      IObserver<ConsoleKeyInfo> interceptor)
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
 
          if (_interceptor != null)
             throw new InvalidOperationException("Interceptor already set.");
 
-         _interceptor = action;
+         _interceptor = interceptor;
       }
 
       return new Disposable(() =>
@@ -134,16 +137,17 @@ public sealed class Console
    {
       var text =
          Convert.ToString(
-            value
-            ?? "",
-            CultureInfo.InvariantCulture);
+            value,
+            CultureInfo.InvariantCulture)
+         ?? "";
 
       System.Console.WriteLine(text);
    }
 
    public Point GetCursorPosition()
    {
-      var (left, top) = System.Console.GetCursorPosition();
+      var left = System.Console.CursorLeft;
+      var top = System.Console.CursorTop;
       return new(left, top);
    }
 
@@ -180,6 +184,7 @@ public static class ConsoleExtensions
       this IConsole console,
       int steps)
    {
+      var width = console.Width;
       var cursorPosition = console.GetCursorPosition();
       var (left, top) = (cursorPosition.X, cursorPosition.Y);
       for (var i = 0; i < steps; i++)
@@ -187,7 +192,7 @@ public static class ConsoleExtensions
          left--;
          if (left != -1)
             continue;
-         left = console.BufferWidth - 1;
+         left = width - 1;
          top--;
       }
 
@@ -198,7 +203,7 @@ public static class ConsoleExtensions
       this IConsole console,
       int steps)
    {
-      var width = console.BufferWidth;
+      var width = console.Width;
       var cursorPosition = console.GetCursorPosition();
       var (left, top) = (cursorPosition.X, cursorPosition.Y);
       for (var i = 0; i < steps; i++)
@@ -209,6 +214,7 @@ public static class ConsoleExtensions
          left = 0;
          top++;
       }
+
       console.SetCursorPosition(new(left, top));
    }
 }

@@ -1,18 +1,20 @@
 ﻿Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd", "pwd\pwd.csproj", "{81FC405C-A886-4BD3-A731-8EE9ADF66FE5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.cli", "pwd.cli\pwd.cli.csproj", "{81FC405C-A886-4BD3-A731-8EE9ADF66FE5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.tests", "pwd.tests\pwd.tests.csproj", "{93F2FF93-15AD-427C-A7BD-BA90101030BF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.cli.tests", "pwd.cli.tests\pwd.cli.tests.csproj", "{93F2FF93-15AD-427C-A7BD-BA90101030BF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.core", "pwd.core\pwd.core.csproj", "{6A387C7D-58C2-4260-9BED-B1A2AE34B448}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.core.tests", "pwd.core.tests\pwd.core.tests.csproj", "{3051E680-5EC0-47E2-9E67-E5FE6ED18586}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Files", "Files", "{E65295A1-8527-4C4E-A3DB-E9A06AC6B819}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "files", "files", "{E65295A1-8527-4C4E-A3DB-E9A06AC6B819}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 		test.ps1 = test.ps1
 		pwd.ps1 = pwd.ps1
 		release.ps1 = release.ps1
+		Library.targets = Library.targets
+		Library.Tests.targets = Library.Tests.targets
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.console", "pwd.console\pwd.console.csproj", "{8D1731CF-7214-43E7-B6E1-63375FF2E434}"
@@ -20,6 +22,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libraries", "libraries", "{64E95845-E469-4433-B466-1D1FD960122E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.console.tests", "pwd.console.tests\pwd.console.tests.csproj", "{64938099-77D0-4CB1-9A2C-C60EC410DF59}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pwd.library", "pwd.library\pwd.library.csproj", "{E1F81E70-9624-41BB-9262-9AD3546B1C8E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,11 +55,16 @@ Global
 		{64938099-77D0-4CB1-9A2C-C60EC410DF59}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{64938099-77D0-4CB1-9A2C-C60EC410DF59}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{64938099-77D0-4CB1-9A2C-C60EC410DF59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1F81E70-9624-41BB-9262-9AD3546B1C8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1F81E70-9624-41BB-9262-9AD3546B1C8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1F81E70-9624-41BB-9262-9AD3546B1C8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1F81E70-9624-41BB-9262-9AD3546B1C8E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8D1731CF-7214-43E7-B6E1-63375FF2E434} = {64E95845-E469-4433-B466-1D1FD960122E}
 		{6A387C7D-58C2-4260-9BED-B1A2AE34B448} = {64E95845-E469-4433-B466-1D1FD960122E}
 		{3051E680-5EC0-47E2-9E67-E5FE6ED18586} = {64E95845-E469-4433-B466-1D1FD960122E}
 		{64938099-77D0-4CB1-9A2C-C60EC410DF59} = {64E95845-E469-4433-B466-1D1FD960122E}
+		{E1F81E70-9624-41BB-9262-9AD3546B1C8E} = {64E95845-E469-4433-B466-1D1FD960122E}
 	EndGlobalSection
 EndGlobal

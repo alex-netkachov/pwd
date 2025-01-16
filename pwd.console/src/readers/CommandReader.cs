@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using pwd.console.abstractions;
+using pwd.library;
 
 namespace pwd.console.readers;
 
@@ -58,7 +59,8 @@ public sealed class CommandReader(
    {
       lock (_lock)
       {
-         ObjectDisposedException.ThrowIf(_disposed, this);
+         if (_disposed)
+            throw new ObjectDisposedException(GetType().Name);
          
          var promptTcs =
             new TaskCompletionSource<string>();
@@ -83,16 +85,17 @@ public sealed class CommandReader(
 
          _interceptor =
             console.Intercept(
-               key =>
-               {
-                  lock (_lock)
+               new Observer<ConsoleKeyInfo>(
+                  key =>
                   {
-                     if (_disposed)
-                        return;
+                     lock (_lock)
+                     {
+                        if (_disposed)
+                           return;
 
-                     ProcessKey(key);
-                  }
-               });
+                        ProcessKey(key);
+                     }
+                  }));
          
          console.Write(prompt);
 
