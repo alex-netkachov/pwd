@@ -53,7 +53,7 @@ public interface IConsole
    ///    Changes position of the cursor.
    /// </summary>
    void SetCursorPosition(
-      Point point);
+      Point position);
 
    /// <summary>
    ///    Clears the console.

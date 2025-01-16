@@ -16,7 +16,9 @@ public sealed class VirtualConsoleContentUpdate(
    public IReadOnlyList<string> Content => content;
 }
 
-public sealed class VirtualConsole
+public sealed class VirtualConsole(
+      int width = -1,
+      int height = -1)
    : IConsole,
      IObservable<VirtualConsoleContentUpdate>,
      IDisposable
@@ -30,9 +32,9 @@ public sealed class VirtualConsole
    private bool _disposed;
    private Point _cursorPosition;
 
-   public int Width => -1;
+   public int Width => width;
 
-   public int Height => -1;
+   public int Height => height;
 
    public void SendKeys(
       IReadOnlyCollection<ConsoleKeyInfo> keys)
@@ -197,9 +199,9 @@ public sealed class VirtualConsole
    }
 
    public void SetCursorPosition(
-      Point point)
+      Point position)
    {
-      _cursorPosition = point;
+      _cursorPosition = position;
    }
 
    public void Clear()

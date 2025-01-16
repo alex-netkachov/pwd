@@ -95,38 +95,36 @@ public sealed class View(
    }
 
    public void SetCursorPosition(
-      Point point)
+      Point position)
    {
       lock (_lock)
       {
          if (_disposed)
             throw new ObjectDisposedException(GetType().Name);
 
-         if (_position.Equals(point))
+         if (_position.Equals(position))
             return;
 
-         if (_position.Y != point.Y)
-         {
-            throw new NotSupportedException(
-               "Changing the cursor position vertically is not supported yet.");
-         }
+         var previousPosition = _position;
 
-         var delta = point.X - _position.X;
-
-         _position = point;
-
+         _position = position;
+         
          if (_console is { } console)
          {
-            if (console.Width != -1
-                && point.X > console.Width)
-            {
-               throw new NotSupportedException(
-                  "Changing the cursor position in multiline input is not supported yet.");
-            }
+            var currentCursorPosition = console.GetCursorPosition();
 
-            var consolePosition = console.GetCursorPosition();
-            console.SetCursorPosition(
-               consolePosition with { X = consolePosition.X + delta });
+            var consoleSize = new Size(console.Width, console.Height);
+
+            var newCursorPosition =
+               GetNewConsolePosition(
+                  consoleSize,
+                  currentCursorPosition,
+                  previousPosition,
+                  position,
+                  _lines);
+            
+            if (newCursorPosition is {} cursorPosition)
+               console.SetCursorPosition(cursorPosition);
          }
       }
    }
@@ -376,7 +374,7 @@ public sealed class View(
          // ensure that the view's output stars at the beginning of a line
          if (_console.GetCursorPosition().X > 0)
             console.WriteLine("");
-         
+
          for (var i = 0; i < _lines.Count - 1; i++)
          {
             var item = _lines[i];
@@ -388,9 +386,16 @@ public sealed class View(
          if (!string.IsNullOrEmpty(_lines[^1]))
             console.Write(_lines[^1]);
 
-         var consolePosition = _console.GetCursorPosition();
-         _console.SetCursorPosition(
-            consolePosition with { X = _position.X });
+         var consolePosition =
+            GetNewConsolePosition(
+               new(console.Width, console.Height),
+               console.GetCursorPosition(),
+               new(_lines[^1].Length, _lines.Count - 1),
+               _position,
+               _lines);
+
+         if (consolePosition is { } position)
+            _console.SetCursorPosition(position);
 
          if (_observers.Count > 0)
          {
@@ -462,5 +467,53 @@ public sealed class View(
          foreach (var observer in _observers)
             observer.OnNext(key);
       }
+   }
+
+   private static Point? GetNewConsolePosition(
+      Size size,
+      Point consolePosition,
+      Point dataPosition,
+      Point newDataPosition,
+      IReadOnlyList<string> data)
+   {
+      var currentDataPosition = dataPosition;
+      var currentConsolePosition = consolePosition;
+
+      while (!currentDataPosition.Equals(newDataPosition))
+      {
+         if (newDataPosition.Y > currentDataPosition.Y
+             || newDataPosition.X > currentDataPosition.X)
+         {
+            if (currentConsolePosition.X < size.Width
+                && currentDataPosition.X < data[currentDataPosition.Y].Length)
+            {
+               currentConsolePosition =
+                  currentConsolePosition with { X = currentConsolePosition.X + 1 };
+               currentDataPosition =
+                  currentDataPosition with { X = currentDataPosition.X + 1 };
+               continue;
+            }
+
+            throw new NotSupportedException("Cannot move cursor to the new position.");
+         }
+
+         if (newDataPosition.Y < currentDataPosition.Y
+             || newDataPosition.X < currentDataPosition.X)
+         {
+            if (currentConsolePosition.X > 0
+                && currentDataPosition.X > 0)
+            {
+               currentConsolePosition =
+                  currentConsolePosition with { X = currentConsolePosition.X - 1 };
+               currentDataPosition =
+                  currentDataPosition with { X = currentDataPosition.X - 1 };
+               continue;
+            }
+
+            throw new NotSupportedException("Cannot move cursor to the new position.");
+         }
+      }
+
+      return currentConsolePosition;
    }
 }

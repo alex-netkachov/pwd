@@ -96,6 +96,32 @@ public class View_Tests
          console.GetScreen(),
          Is.EqualTo("az"));
    }
+
+   [TestCase(-1, -1, "a", 0, 0, "{X=0,Y=0}")]
+   [TestCase(-1, -1, "abc", 0, 0, "{X=0,Y=0}")]
+   [TestCase(-1, -1, "abc", 1, 0, "{X=1,Y=0}")]
+   [TestCase(-1, -1, "abc", 2, 0, "{X=2,Y=0}")]
+   [TestCase(-1, -1, "abc", 3, 0, "{X=3,Y=0}")]
+   public void Reposition_works_as_expected(
+      int width,
+      int height,
+      string content,
+      int pointX,
+      int pointY,
+      string expectedPosition)
+   {
+      var console = new VirtualConsole(width, height);
+      var view = CreateView();
+      view.Write(content);
+      view.Activate(console);
+
+      var point = new Point(pointX, pointY);
+      view.SetCursorPosition(point);
+
+      Assert.That(
+         console.GetCursorPosition().ToString(),
+         Is.EqualTo(expectedPosition));
+   }
    
    private static View CreateView()
    {

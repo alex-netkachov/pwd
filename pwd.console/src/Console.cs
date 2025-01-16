@@ -152,11 +152,11 @@ public sealed class Console
    }
 
    public void SetCursorPosition(
-      Point point)
+      Point position)
    {
       System.Console.SetCursorPosition(
-         point.X,
-         point.Y);
+         position.X,
+         position.Y);
    }
 
    public void Clear()
