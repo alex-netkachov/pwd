@@ -28,10 +28,10 @@ public sealed class Reader_Tests
 
       using var contentSubscription =
          console.Subscribe(
-            new Observer<VirtualConsoleContentUpdate>(
+            new Observer<VirtualConsoleContentUpdated>(
                update =>
                {
-                  if (update.Content[^1] == "> ")
+                  if (update.Console.GetCurrentLine() == "> ")
                      update.Console.SendKeys(
                         ConsoleKeys.Parse(keys));
                }));
@@ -86,10 +86,10 @@ public sealed class Reader_Tests
 
       using var contentSubscription =
          console.Subscribe(
-            new Observer<VirtualConsoleContentUpdate>(
+            new Observer<VirtualConsoleContentUpdated>(
                update =>
                {
-                  if (update.Content[^1] == "> ")
+                  if (update.Console.GetCurrentLine() == "> ")
                      update.Console.SendKeys(
                         ConsoleKeys.Parse(keys));
                }));

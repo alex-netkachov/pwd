@@ -4,16 +4,31 @@ namespace pwd.console.tests;
 
 public class VirtualConsole_Tests
 {
-   [TestCase("a", "{X=1,Y=0}")]
-   [TestCase("1234", "{X=4,Y=0}")]
-   public void Writing_moves_position(
+   [TestCase(-1, -1, "", "{X=0,Y=0}")]
+   [TestCase(-1, -1, "a", "{X=1,Y=0}")]
+   [TestCase(-1, -1, "1234", "{X=4,Y=0}")]
+   [TestCase(-1, -1, "a\nb", "{X=1,Y=1}")]
+   [TestCase(2, 2, "a", "{X=1,Y=0}")]
+   [TestCase(2, 2, "ab", "{X=1,Y=0}")]
+   [TestCase(2, 2, "abc", "{X=1,Y=1}")]
+   [TestCase(2, 2, "test", "{X=1,Y=1}")]
+   public void Writes_text_as_expected(
+      int width,
+      int height,
       string text,
       string expectedPosition)
    {
-      var console = new VirtualConsole();
+      var console =
+         new VirtualConsole(
+            width,
+            height);
+
       console.Write(text);
+
+      var position = console.GetCursorPosition();
+
       Assert.That(
-         console.GetCursorPosition().ToString(),
+         position.ToString(),
          Is.EqualTo(expectedPosition));
    }
    

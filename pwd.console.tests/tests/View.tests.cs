@@ -12,13 +12,13 @@ public class View_Tests
    [Test]
    public async Task Read_makes_output_as_expected_when_with_console()
    {
-      using var console = new VirtualConsole();
+      using var console = new VirtualConsole(100, 100);
       using var contentSubscription =
          console.Subscribe(
-            new Observer<VirtualConsoleContentUpdate>(
+            new Observer<VirtualConsoleContentUpdated>(
                update =>
                {
-                  if (update.Content[^1] == "test> ")
+                  if (update.Console.GetCurrentLine() == "test> ")
                      update.Console.SendKeys(
                         ConsoleKeys.Parse("ok\n"));
                }));
@@ -29,8 +29,8 @@ public class View_Tests
       await view.ReadAsync("test> ");
 
       Assert.That(
-         console.GetScreen(),
-         Is.EqualTo("test> ok\n"));
+         console.GetText(),
+         Is.EqualTo("test> ok"));
    }
 
    [TestCase("a", "a", "{X=1,Y=0}")]
@@ -51,12 +51,12 @@ public class View_Tests
       using var console = new VirtualConsole();
       view.Activate(console);
       Assert.That(
-         console.GetScreen(),
+         console.GetText(),
          Is.EqualTo(expectedContent));
    }
    
-   [TestCase("a", "a\n", "{X=0,Y=1}")]
-   [TestCase("ab", "ab\n", "{X=0,Y=1}")]
+   [TestCase("a", "a", "{X=0,Y=1}")]
+   [TestCase("ab", "ab", "{X=0,Y=1}")]
    public void WriteLine_updates_content_as_expected(
       string value,
       string expectedContent,
@@ -73,7 +73,7 @@ public class View_Tests
       using var console = new VirtualConsole();
       view.Activate(console);
       Assert.That(
-         console.GetScreen(),
+         console.GetText(),
          Is.EqualTo(expectedContent));
    }
    
@@ -93,7 +93,7 @@ public class View_Tests
       using var console = new VirtualConsole();
       view.Activate(console);
       Assert.That(
-         console.GetScreen(),
+         console.GetText(),
          Is.EqualTo("az"));
    }
 
