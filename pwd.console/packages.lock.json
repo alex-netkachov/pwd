@@ -56,7 +56,6 @@
       "pwd.library": {
         "type": "Project"
       }
-    },
-    ".NETStandard,Version=v2.1/win-x64": {}
+    }
   }
 }

@@ -8,10 +8,14 @@ using pwd.core.abstractions;
 
 namespace pwd.cli.contexts.file.commands;
 
+public interface ICheck
+   : ICommand;
+
 public sealed class Check(
       IRepository repository,
       string path)
-   : CommandBase
+   : CommandBase,
+     ICheck
 {
    public override async Task ExecuteAsync(
       IView view,

@@ -1,7 +1,6 @@
 {
   "version": 1,
   "dependencies": {
-    ".NETStandard,Version=v2.1": {},
-    ".NETStandard,Version=v2.1/win-x64": {}
+    ".NETStandard,Version=v2.1": {}
   }
 }

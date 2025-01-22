@@ -167,7 +167,7 @@ public sealed class VirtualConsole(
          _cursorPositionLineEndFlag = false;
 
          if (Height > 0
-             && x == Height - 1)
+             && y == Height - 1)
          {
             for (var i = 1; i < Height; i++)
                _buffer[i - 1] = _buffer[i];

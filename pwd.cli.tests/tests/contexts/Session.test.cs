@@ -5,6 +5,7 @@ using Moq;
 using pwd.cli;
 using pwd.console.abstractions;
 using pwd.cli.contexts.file;
+using pwd.cli.contexts.file.commands;
 using pwd.core.abstractions;
 using pwd.cli.library.interfaced;
 using pwd.cli.ui;
@@ -58,10 +59,11 @@ public sealed class Session_Tests
             Mock.Of<ILoggerFactory>(),
             Mock.Of<IEnvironmentVariables>(),
             Mock.Of<IRunner>(),
-            Mock.Of<IClipboard>(),
             fs,
             state,
-            () => view);
+            () => view,
+            (_, _) => null!,
+            (_, _) => null!);
 
       var session =
          Shared.CreateSessionContext(

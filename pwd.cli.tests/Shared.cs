@@ -53,7 +53,10 @@ public static class Shared
                .AddSingleton<Func<IView>>(_ => () => view ?? Mock.Of<IView>())
                .AddSingleton(view ?? Mock.Of<IView>())
                .AddSingleton(@lock ?? Mock.Of<ILock>())
-               .AddSingleton<IFileFactory, FileFactory>());
+               .AddSingleton<IFileFactory, FileFactory>()
+               .AddSingleton<INewFileFactory, NewFileFactory>()
+               .AddSingleton<CheckFactory>(_ => (_, _) => null!)
+               .AddSingleton<CopyFieldFactory>(_ => (_, _) => null!));
 
       using var host = builder.Build();
 

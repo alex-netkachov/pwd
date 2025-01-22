@@ -76,10 +76,11 @@ public sealed class FileFactory(
       ILoggerFactory loggerFactory,
       IEnvironmentVariables environmentVariables,
       IRunner runner,
-      IClipboard clipboard,
       IFileSystem fs,
       IState state,
-      Func<IView> viewFactory)
+      Func<IView> viewFactory,
+      CheckFactory checkFactory,
+      CopyFieldFactory copyFieldFactory)
    : IFileFactory
 {
    public IFile Create(
@@ -87,11 +88,11 @@ public sealed class FileFactory(
       ILock @lock,
       string path)
    {
-      var copyField = new CopyField(clipboard, repository, path);
+      var copyField = copyFieldFactory(repository, path);
       var commands =
          new Dictionary<string, ICommand>
          {
-            { "check", new Check(repository, path) },
+            { "check", checkFactory(repository, path) },
             { "ccp", copyField },
             { "ccu", copyField },
             { "cc", copyField },

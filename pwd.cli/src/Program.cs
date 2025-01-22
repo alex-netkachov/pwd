@@ -79,7 +79,8 @@ public static class Program
                .AddSingleton<ISessionFactory, SessionFactory>()
                .AddSingleton<IFileFactory, FileFactory>()
                .AddSingleton<INewFileFactory, NewFileFactory>()
-               .AddSingleton<ILockFactory, LockFactory>();
+               .AddSingleton<ILockFactory, LockFactory>()
+               .AddFileContextServices();
          });
 
       var host = builder.Build();

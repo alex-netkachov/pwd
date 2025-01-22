@@ -11,11 +11,15 @@ using YamlDotNet.RepresentationModel;
 
 namespace pwd.cli.contexts.file.commands;
 
+public interface ICopyField
+   : ICommand;
+
 public sealed class CopyField(
       IClipboard clipboard,
       IRepository repository,
       string path)
-   : CommandBase
+   : CommandBase,
+     ICopyField
 {
    private readonly string _content = "";
 

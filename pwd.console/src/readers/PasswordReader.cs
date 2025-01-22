@@ -129,16 +129,23 @@ public sealed class PasswordReader(
       if (position == 0)
          return;
 
-      input.RemoveAt(position - 1);
+      position--;
 
-      var tail =
-         position < input.Count
-            ? new string(input.ToArray())[position..]
-            : "";
+      input.RemoveAt(position);
 
-      MoveLeft(1, ref position);
+      console.MoveLeft(1);
 
-      console.WriteAndMoveBack($"{tail} ");
+      if (position == input.Count)
+      {
+         console.WriteAndMoveBack(" ");
+         return;
+      }
+
+      var tail = new char[input.Count - position + 1];
+      tail[^1] = ' ';
+      input.CopyTo(position, tail, 0, input.Count - position);
+
+      console.WriteAndMoveBack(new string(tail));
    }
 
    private void DeleteFromStartToCursor(
@@ -150,15 +157,21 @@ public sealed class PasswordReader(
 
       var length = input.Count;
       input.RemoveRange(0, position);
+      position = 0;
 
-      var tail =
-         position < input.Count
-            ? new string(input.ToArray())[position..]
-            : "";
+      console.MoveLeft(length - input.Count);
 
-      MoveLeft(position, ref position);
+      if (position == input.Count)
+      {
+         console.WriteAndMoveBack(new string(' ', length));
+         return;
+      }
+      
+      var tail = new char[length];
+      Array.Fill(tail, ' ');
+      Array.Fill(tail, '*', 0, input.Count);
 
-      console.WriteAndMoveBack(tail + new string(' ', length - tail.Length));
+      console.WriteAndMoveBack(new string(tail));
    }
 
    private void CharacterKey(
@@ -169,39 +182,17 @@ public sealed class PasswordReader(
       if (char.IsControl(@char))
          return;
 
-      var tail =
-         position < input.Count
-            ? new string(input.ToArray())[position..]
-            : "";
-
       input.Insert(position, @char);
 
-      console.WriteAndMoveBack('*' + tail);
-      MoveRight(1, input.Count, ref position);
-   }
+      position++;
+      
+      console.Write('*');
 
-   private void MoveRight(
-      int steps,
-      int limit,
-      ref int position)
-   {
-      if (position >= limit)
-         return;
-
-      console.MoveRight(steps);
-
-      position += steps;
-   }
-   
-   private void MoveLeft(
-      int steps,
-      ref int position)
-   {
-      if (position == 0)
-         return;
-
-      console.MoveLeft(steps);
-
-      position -= steps;
+      if (input.Count != position)
+      {
+         var tail = new char[input.Count - position];
+         input.CopyTo(position, tail, 0, tail.Length);
+         console.WriteAndMoveBack(new string(tail));
+      }
    }
 }

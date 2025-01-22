@@ -209,16 +209,23 @@ public sealed class CommandReader(
       if (position == 0)
          return;
 
-      input.RemoveAt(position - 1);
+      position--;
 
-      var tail =
-         position < input.Count
-            ? new string(input.ToArray())[position..]
-            : "";
+      input.RemoveAt(position);
 
-      MoveLeft(1, ref position);
+      console.MoveLeft(1);
 
-      console.WriteAndMoveBack($"{tail} ");
+      if (position == input.Count)
+      {
+         console.WriteAndMoveBack(" ");
+         return;
+      }
+
+      var tail = new char[input.Count - position + 1];
+      tail[^1] = ' ';
+      input.CopyTo(position, tail, 0, input.Count - position);
+
+      console.WriteAndMoveBack(new string(tail));
    }
 
    private void DeleteFromStartToCursor(
@@ -230,15 +237,21 @@ public sealed class CommandReader(
 
       var length = input.Count;
       input.RemoveRange(0, position);
+      position = 0;
 
-      var tail =
-         position < input.Count
-            ? new string(input.ToArray())[position..]
-            : "";
+      console.MoveLeft(length - input.Count);
 
-      MoveLeft(position, ref position);
+      if (position == input.Count)
+      {
+         console.WriteAndMoveBack(new string(' ', length));
+         return;
+      }
+      
+      var tail = new char[length];
+      Array.Fill(tail, ' ');
+      input.CopyTo(tail);
 
-      console.WriteAndMoveBack(tail + new string(' ', length - tail.Length));
+      console.WriteAndMoveBack(new string(tail));
    }
 
    private void CharacterKey(
@@ -249,15 +262,18 @@ public sealed class CommandReader(
       if (char.IsControl(@char))
          return;
 
-      var tail =
-         position < input.Count
-            ? new string(input.ToArray())[position..]
-            : "";
-
       input.Insert(position, @char);
 
-      console.WriteAndMoveBack(@char + tail);
-      MoveRight(1, input.Count, ref position);
+      position++;
+      
+      console.Write(@char);
+
+      if (input.Count != position)
+      {
+         var tail = new char[input.Count - position];
+         input.CopyTo(position, tail, 0, tail.Length);
+         console.WriteAndMoveBack(new string(tail));
+      }
    }
 
    private void MoveRight(
